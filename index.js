@@ -1,0 +1,25 @@
+// ─────────────────────────────────────────────
+//  index.js — Inicialização do JARVIS
+// ─────────────────────────────────────────────
+
+const express = require("express");
+const { handleWebhook } = require("./handlers/webhook");
+const { iniciarCronJobs } = require("./cron/jobs");
+const { inicializarPlanilhaTarefas } = require("./services/sheets");
+const { inicializarCategorias } = require("./services/categorias");
+const { formatarData, formatarHora } = require("./utils/date");
+
+const app = express();
+app.use(express.json({ limit: "50mb" }));
+
+app.post("/webhook", handleWebhook);
+app.get("/", (req, res) => res.json({ status: "JARVIS online 🤖", hora: formatarHora(), data: formatarData() }));
+
+const PORT = process.env.PORT || 3000;
+app.listen(PORT, async () => {
+  console.log(`JARVIS na porta ${PORT}`);
+  await inicializarPlanilhaTarefas();
+  await inicializarCategorias();
+  iniciarCronJobs();
+  console.log("✅ JARVIS pronto!");
+});
