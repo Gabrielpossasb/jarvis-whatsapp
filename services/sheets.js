@@ -142,7 +142,7 @@ async function buscarTarefasDoDia(dataStr) {
   return tarefas.filter(t => {
     if (t.status === "Concluída") return false;
     if (t.data === "backlog") return false;
-    if (t.recorrente !== "Não") return recorreBateDia(t.recorrente, diaHoje);
+    if (t.recorrente && t.recorrente !== "Não") return recorreBateDia(t.recorrente, diaHoje);
     return t.data === dataStr;
   });
 }
