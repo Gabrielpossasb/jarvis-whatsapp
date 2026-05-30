@@ -140,10 +140,11 @@ async function buscarTarefasDoDia(dataStr) {
   const diaHoje = DIAS_SEMANA[agora().getDay()];
 
   return tarefas.filter(t => {
+    console.log("TAREFA:", JSON.stringify(t));
     if (t.status === "Concluída") return false;
     if (t.data === "backlog") return false;
     if (t.recorrente && t.recorrente !== "Não") return recorreBateDia(t.recorrente, diaHoje);
-    return t.data === dataStr;
+    return t.data.replace(/\.$/, "") === dataStr;
   });
 }
 

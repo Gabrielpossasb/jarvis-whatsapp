@@ -25,7 +25,9 @@ Data: ${dataHoje} (${diaAtual}). Hora: ${horaAgora}. Fuso: GMT-4. Mês: ${mesAtu
 
 Interpretação de datas (use o dia da semana como referência):
 - "amanhã" → +1 dia | "depois de amanhã" → +2 dias
-- "próxima segunda/terça/..." → calcula dias até o próximo dia mencionado
+- "terça", "na terça", "terça feira" → próxima ocorrência mais próxima desse dia
+- "próxima terça", "terça que vem" → a ocorrência DEPOIS da mais próxima (semana seguinte)
+- Exemplo: hoje é ${diaAtual} ${dataHoje}. "na terça" = próxima terça. "próxima terça" = a terça da semana seguinte.
 - "semana que vem" → segunda da próxima semana
 - "fim de semana" → próximo sábado
 - Sem data → "backlog"
