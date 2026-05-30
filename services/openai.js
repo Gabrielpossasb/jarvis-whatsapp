@@ -19,6 +19,7 @@ async function extrairDados(texto) {
     const seguinte = proximoDiaSemana(dia, true);
     return `  "${dia}"/"na ${dia}" → ${proxima} | "próxima ${dia}"/"${dia} que vem" → ${seguinte}`;
   }).join("\n");
+  console.log("TABELA DATAS:\n" + tabelaDatas);
   const horaAgora = formatarHora();
   const diaAtual = DIAS_SEMANA[agora().getDay()];
   const mesAtual = MESES_CURTOS[agora().getMonth()];
