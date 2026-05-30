@@ -30,4 +30,16 @@ function amanha() {
   return formatarData(d);
 }
 
-module.exports = { agora, formatarData, formatarHora, amanha };
+function proximoDiaSemana(diaNome, pular = false) {
+  const DIAS = ["domingo","segunda","terça","quarta","quinta","sexta","sábado"];
+  const diaAlvo = DIAS.indexOf(diaNome.toLowerCase());
+  if (diaAlvo === -1) return null;
+  const d = agora();
+  let diff = diaAlvo - d.getDay();
+  if (diff <= 0) diff += 7;
+  if (pular) diff += 7;
+  d.setDate(d.getDate() + diff);
+  return formatarData(d);
+}
+
+module.exports = { agora, formatarData, formatarHora, amanha, proximoDiaSemana };

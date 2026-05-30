@@ -7,12 +7,18 @@ const axios = require("axios");
 const FormData = require("form-data");
 const { CONFIG, MESES_CURTOS, DIAS_SEMANA } = require("../config");
 const { getListaCategorias } = require("./categorias");
-const { formatarData, formatarHora, agora } = require("../utils/date");
+const { formatarData, formatarHora, agora, amanha, proximoDiaSemana } = require("../utils/date");
 
 const openai = new OpenAI({ apiKey: CONFIG.OPENAI_API_KEY });
 
 async function extrairDados(texto) {
   const dataHoje = formatarData();
+  const DIAS_NOMES = ["domingo","segunda","terça","quarta","quinta","sexta","sábado"];
+  const tabelaDatas = DIAS_NOMES.map(dia => {
+    const proxima  = proximoDiaSemana(dia, false);
+    const seguinte = proximoDiaSemana(dia, true);
+    return `  "${dia}"/"na ${dia}" → ${proxima} | "próxima ${dia}"/"${dia} que vem" → ${seguinte}`;
+  }).join("\n");
   const horaAgora = formatarHora();
   const diaAtual = DIAS_SEMANA[agora().getDay()];
   const mesAtual = MESES_CURTOS[agora().getMonth()];
@@ -23,13 +29,12 @@ async function extrairDados(texto) {
 
 Data: ${dataHoje} (${diaAtual}). Hora: ${horaAgora}. Fuso: GMT-4. Mês: ${mesAtual}/${anoAtual}.
 
-Interpretação de datas (use o dia da semana como referência):
-- "amanhã" → +1 dia | "depois de amanhã" → +2 dias
-- "terça", "na terça", "terça feira" → próxima ocorrência mais próxima desse dia
-- "próxima terça", "terça que vem" → a ocorrência DEPOIS da mais próxima (semana seguinte)
-- Exemplo: hoje é ${diaAtual} ${dataHoje}. "na terça" = próxima terça. "próxima terça" = a terça da semana seguinte.
-- "semana que vem" → segunda da próxima semana
-- "fim de semana" → próximo sábado
+Datas pré-calculadas a partir de hoje (${dataHoje}, ${diaAtual}):
+${tabelaDatas}
+- "amanhã" → ${amanha()}
+- "depois de amanhã" → use +2 dias a partir de ${dataHoje}
+- "semana que vem" → segunda-feira ${proximoDiaSemana("segunda", true)}
+- "fim de semana" → ${proximoDiaSemana("sábado", false)}
 - Sem data → "backlog"
 - Sempre formato DD/mmm (ex: 02/jun)
 
