@@ -3,7 +3,8 @@
 // ─────────────────────────────────────────────
 
 const { CONFIG } = require("../config");
-const { pendingReviews } = require("../state");
+const { pendingReviews, pendingTaskAdd } = require("../state");
+const { encontrarSimilar } = require("../utils/similarity");
 const { enviarMensagem, baixarMidia } = require("../services/evolution");
 const { extrairDados, revisarCategorias, transcreverAudio, analisarImagem, analisarPDF } = require("../services/openai");
 const { getCategorias, getListaCategorias, adicionarCategoria, getEmoji } = require("../services/categorias");
@@ -54,7 +55,7 @@ async function respostaTarefa(dados, dataRegistro) {
     `✅ *Tarefa adicionada!*`, ``,
     `${emoji} *${dados.descricao}*`,
     `🏷️ Categoria: ${dados.categoria}`,
-    isBacklog ? `📂 Backlog (sem data)` : `📅 Data: ${dataRegistro}`,
+    isBacklog ? `📂 Sem data definida` : `📅 Data: ${dataRegistro}`,
     ehRecorrente ? `🔁 Recorrente: toda ${dados.recorrente}` : ``,
     temHora && ehRecorrente ? `🔔 Lembrete às: ${dados.hora}` : ``,
     temHora && !ehRecorrente ? `⏰ Horário: ${dados.hora}` : ``,
@@ -71,12 +72,26 @@ async function respostaConsulta(dados) {
   const categoria = dados.categoria_filtro || "todas";
   const tarefas = await buscarTarefasPorPeriodo(periodo, categoria);
 
-  const filtroLabel = categoria !== "todas" ? ` (${categoria})` : "";
   let titulo;
-  if (periodo === "hoje") titulo = `📋 *Tarefas de hoje (${formatarData()})${filtroLabel}:*`;
-  else if (periodo === "amanhã" || periodo === "amanha") titulo = `📋 *Tarefas de amanhã (${amanha()})${filtroLabel}:*`;
-  else if (periodo === "backlog") titulo = `📋 *Backlog${filtroLabel}:*`;
-  else titulo = `📋 *Tarefas de ${periodo}${filtroLabel}:*`;
+  const temCategoria = categoria !== "todas";
+
+  if (periodo === "hoje") {
+    titulo = temCategoria
+      ? `${await getEmoji(categoria)} *Tarefas de ${categoria} — hoje (${formatarData()}):*`
+      : `📋 *Tarefas de hoje (${formatarData()}):*`;
+  } else if (periodo === "amanhã" || periodo === "amanha") {
+    titulo = temCategoria
+      ? `${await getEmoji(categoria)} *Tarefas de ${categoria} — amanhã (${amanha()}):*`
+      : `📋 *Tarefas de amanhã (${amanha()}):*`;
+  } else if (periodo === "backlog") {
+    titulo = temCategoria
+      ? `${await getEmoji(categoria)} *Tarefas de ${categoria}:*`
+      : `📋 *Suas tarefas pendentes:*`;
+  } else {
+    titulo = temCategoria
+      ? `${await getEmoji(categoria)} *Tarefas de ${categoria} — ${periodo}:*`
+      : `📋 *Tarefas de ${periodo}:*`;
+  }
 
   if (tarefas.length === 0) return `${titulo}\n\nNenhuma tarefa encontrada! ✨`;
 
@@ -154,6 +169,28 @@ async function handleWebhook(req, res) {
 
     if (!textoParaAnalisar) return;
 
+    // ── Verifica se há tarefa pendente de confirmação ─────────────
+    if (pendingTaskAdd.has(remoteJid)) {
+      const texto = textoParaAnalisar.toLowerCase().trim();
+      const { dados: dadosPendentes, dataRegistro: dataPendente } = pendingTaskAdd.get(remoteJid);
+
+      const confirmou = ["sim", "s", "pode", "adicionar", "confirmar", "yes"].some(p => texto.includes(p));
+      const cancelou  = ["não", "nao", "n", "cancelar", "cancel", "no"].some(p => texto.includes(p));
+
+      if (confirmou) {
+        pendingTaskAdd.delete(remoteJid);
+        await adicionarTarefa(dadosPendentes.descricao, dataPendente, dadosPendentes.hora || "", dadosPendentes.recorrente || "Não", dadosPendentes.categoria || "Outros", dadosPendentes.dias_lembrete || "", dadosPendentes.hora_lembrete || "");
+        await enviarMensagem(remoteJid, await respostaTarefa(dadosPendentes, dataPendente));
+        return;
+      } else if (cancelou) {
+        pendingTaskAdd.delete(remoteJid);
+        await enviarMensagem(remoteJid, `❌ Cancelado! Tarefa não adicionada.`);
+        return;
+      }
+      // Se não for sim/não, continua processando normalmente (pode ser outra mensagem)
+      pendingTaskAdd.delete(remoteJid);
+    }
+
     const dados = await extrairDados(textoParaAnalisar);
     const dataRegistro = dados.data || formatarData();
 
@@ -164,6 +201,28 @@ async function handleWebhook(req, res) {
 
     // ── TAREFA ─────────────────────────────────────────────────────
     } else if (dados.classificacao === "tarefa") {
+      // Verifica duplicatas antes de adicionar
+      const todasParaVerificar = await buscarTodasTarefas();
+      const similar = encontrarSimilar(dados.descricao, todasParaVerificar);
+
+      if (similar) {
+        // Salva tarefa pendente e pede confirmação
+        pendingTaskAdd.set(remoteJid, { dados, dataRegistro });
+        const eSimilar = await getEmoji(similar.categoria);
+        const infoData = similar.data === "backlog" ? "sem data" : similar.data;
+        await enviarMensagem(remoteJid, [
+          `⚠️ *Tarefa parecida já existe!*`,
+          ``,
+          `${eSimilar} *${similar.descricao}*`,
+          `📅 ${infoData} | 🏷️ ${similar.categoria} | 📌 ${similar.status}`,
+          ``,
+          `Quer adicionar mesmo assim?`,
+          `✅ _"sim"_ para confirmar`,
+          `❌ _"não"_ para cancelar`,
+        ].join("\n"));
+        return;
+      }
+
       await adicionarTarefa(dados.descricao, dataRegistro, dados.hora || "", dados.recorrente || "Não", dados.categoria || "Outros", dados.dias_lembrete || "", dados.hora_lembrete || "");
       await enviarMensagem(remoteJid, await respostaTarefa(dados, dataRegistro));
 
@@ -304,7 +363,7 @@ async function handleWebhook(req, res) {
 
       const e = await getEmoji(t.categoria);
       const mudancas = [];
-      if (alteracoes.data) mudancas.push(`📅 Data: ${alteracoes.data}`);
+      if (alteracoes.data) mudancas.push(`📅 Data: ${alteracoes.data === 'backlog' ? 'sem data definida' : alteracoes.data}`);
       if (alteracoes.hora) mudancas.push(`⏰ Hora: ${alteracoes.hora}`);
       if (alteracoes.dias_lembrete) mudancas.push(`📆 Dias lembrete: ${alteracoes.dias_lembrete}`);
       if (alteracoes.hora_lembrete) mudancas.push(`🔔 Hora lembrete: ${alteracoes.hora_lembrete}`);
