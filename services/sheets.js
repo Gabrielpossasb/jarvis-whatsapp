@@ -120,6 +120,7 @@ async function adicionarTarefa(descricao, data, hora, recorrente, categoria, dia
   const rows = res.data.values || [];
   const proximaLinha = Math.max(2, rows.length + 1);
 
+  invalidarCacheTarefas();
   await sheets.spreadsheets.values.update({
     spreadsheetId: CONFIG.SPREADSHEET_TAREFAS_ID,
     range: `Tarefas!A${proximaLinha}:K${proximaLinha}`,
@@ -134,15 +135,26 @@ async function adicionarTarefa(descricao, data, hora, recorrente, categoria, dia
   });
 }
 
+let _tarefasCache = null;
+let _tarefasCacheTime = 0;
+const TAREFAS_CACHE_TTL = 30 * 1000; // 30 segundos
+
 async function buscarTodasTarefas() {
+  const agora = Date.now();
+  if (_tarefasCache && agora - _tarefasCacheTime < TAREFAS_CACHE_TTL) return _tarefasCache;
   const sheets = await getSheetsClient();
   const res = await sheets.spreadsheets.values.get({
     spreadsheetId: CONFIG.SPREADSHEET_TAREFAS_ID,
     range: "Tarefas!A:K",
   });
   const rows = res.data.values || [];
-  if (rows.length <= 1) return [];
-  return rows.slice(1).map((row, i) => rowToTarefa(row, i));
+  _tarefasCache = rows.length <= 1 ? [] : rows.slice(1).map((row, i) => rowToTarefa(row, i));
+  _tarefasCacheTime = agora;
+  return _tarefasCache;
+}
+
+function invalidarCacheTarefas() {
+  _tarefasCache = null;
 }
 
 function recorreBateDia(recorrente, diaHoje) {
@@ -244,6 +256,7 @@ async function buscarTarefasEsquecidas() {
 // Conclui tarefa permanentemente (tarefas normais)
 async function concluirTarefa(linha) {
   const sheets = await getSheetsClient();
+  invalidarCacheTarefas();
   await sheets.spreadsheets.values.update({
     spreadsheetId: CONFIG.SPREADSHEET_TAREFAS_ID,
     range: `Tarefas!E${linha}`,
@@ -255,6 +268,7 @@ async function concluirTarefa(linha) {
 // Conclui tarefa recorrente apenas para hoje — amanhã ela volta
 async function concluirTarefaDoDia(linha) {
   const sheets = await getSheetsClient();
+  invalidarCacheTarefas();
   await sheets.spreadsheets.values.update({
     spreadsheetId: CONFIG.SPREADSHEET_TAREFAS_ID,
     range: `Tarefas!K${linha}`,
@@ -265,6 +279,7 @@ async function concluirTarefaDoDia(linha) {
 
 async function excluirTarefa(linha) {
   const sheets = await getSheetsClient();
+  invalidarCacheTarefas();
   await sheets.spreadsheets.values.clear({
     spreadsheetId: CONFIG.SPREADSHEET_TAREFAS_ID,
     range: `Tarefas!A${linha}:K${linha}`,
@@ -273,6 +288,7 @@ async function excluirTarefa(linha) {
 
 async function alterarCategoriaTarefa(linha, novaCategoria) {
   const sheets = await getSheetsClient();
+  invalidarCacheTarefas();
   await sheets.spreadsheets.values.update({
     spreadsheetId: CONFIG.SPREADSHEET_TAREFAS_ID,
     range: `Tarefas!G${linha}`,
@@ -285,6 +301,7 @@ async function alterarTarefa(linha, campos) {
   const sheets = await getSheetsClient();
   const COL_MAP = { data: "B", hora: "C", diasLembrete: "I", horaLembrete: "J" };
 
+  invalidarCacheTarefas();
   for (const [campo, valor] of Object.entries(campos)) {
     const col = COL_MAP[campo];
     if (!col) continue;
@@ -299,6 +316,7 @@ async function alterarTarefa(linha, campos) {
 
 async function marcarLembreteEnviado(linha, valor) {
   const sheets = await getSheetsClient();
+  invalidarCacheTarefas();
   await sheets.spreadsheets.values.update({
     spreadsheetId: CONFIG.SPREADSHEET_TAREFAS_ID,
     range: `Tarefas!F${linha}`,
