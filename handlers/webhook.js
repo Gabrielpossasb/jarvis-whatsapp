@@ -11,7 +11,8 @@ const { getCategorias, getListaCategorias, adicionarCategoria, getEmoji } = requ
 const {
   adicionarGasto, adicionarTarefa,
   buscarTarefasPorPeriodo, buscarTodasTarefas,
-  concluirTarefa, excluirTarefa,
+  buscarTarefasConcluidasHoje,
+  concluirTarefa, concluirTarefaDoDia, excluirTarefa,
   alterarCategoriaTarefa, alterarTarefa,
 } = require("../services/sheets");
 const { formatarData, formatarHora, agora, amanha } = require("../utils/date");
@@ -72,6 +73,15 @@ async function respostaConsulta(dados) {
   const categoria = dados.categoria_filtro || "todas";
   const tarefas = await buscarTarefasPorPeriodo(periodo, categoria);
 
+  // Busca concluídas hoje apenas quando o período for "hoje"
+  let tarefasConcluidas = [];
+  if (periodo === "hoje") {
+    const todas = await buscarTarefasConcluidasHoje();
+    tarefasConcluidas = categoria === "todas"
+      ? todas
+      : todas.filter(t => t.categoria.toLowerCase() === categoria.toLowerCase());
+  }
+
   let titulo;
   const temCategoria = categoria !== "todas";
 
@@ -93,17 +103,22 @@ async function respostaConsulta(dados) {
       : `📋 *Tarefas de ${periodo}:*`;
   }
 
-  if (tarefas.length === 0) return `${titulo}\n\nNenhuma tarefa encontrada! ✨`;
+  if (tarefas.length === 0 && tarefasConcluidas.length === 0) {
+    return `${titulo}\n\nNenhuma tarefa encontrada! ✨`;
+  }
 
-  // Agrupa por categoria se não filtrou por uma
-  if (categoria === "todas") {
+  let msg = "";
+
+  if (tarefas.length === 0) {
+    msg = `${titulo}\n\n✅ Todas concluídas por hoje!`;
+  } else if (categoria === "todas") {
     const porCategoria = {};
     for (const t of tarefas) {
       const cat = t.categoria || "Outros";
       if (!porCategoria[cat]) porCategoria[cat] = [];
       porCategoria[cat].push(t);
     }
-    let msg = `${titulo}\n`;
+    msg = `${titulo}\n`;
     for (const [cat, itens] of Object.entries(porCategoria)) {
       const e = await getEmoji(cat);
       msg += `\n${e} *${cat}*\n`;
@@ -112,14 +127,23 @@ async function respostaConsulta(dados) {
       for (const t of semH) msg += `📌 ${t.descricao}\n`;
       for (const t of comH) msg += `⏰ ${t.hora} — ${t.descricao}\n`;
     }
-    return msg;
+  } else {
+    msg = `${titulo}\n\n`;
+    const semH = tarefas.filter(t => !t.hora);
+    const comH = tarefas.filter(t => t.hora).sort((a,b) => a.hora.localeCompare(b.hora));
+    for (const t of semH) msg += `📌 ${t.descricao}\n`;
+    for (const t of comH) msg += `⏰ ${t.hora} — ${t.descricao}\n`;
   }
 
-  let msg = `${titulo}\n\n`;
-  const semH = tarefas.filter(t => !t.hora);
-  const comH = tarefas.filter(t => t.hora).sort((a,b) => a.hora.localeCompare(b.hora));
-  for (const t of semH) msg += `📌 ${t.descricao}\n`;
-  for (const t of comH) msg += `⏰ ${t.hora} — ${t.descricao}\n`;
+  // Seção de concluídas hoje no final
+  if (tarefasConcluidas.length > 0) {
+    msg += `\n✅ *Concluídas hoje:*\n`;
+    for (const t of tarefasConcluidas) {
+      const e = await getEmoji(t.categoria);
+      msg += `${e} ~~${t.descricao}~~\n`;
+    }
+  }
+
   return msg;
 }
 
@@ -187,7 +211,6 @@ async function handleWebhook(req, res) {
         await enviarMensagem(remoteJid, `❌ Cancelado! Tarefa não adicionada.`);
         return;
       }
-      // Se não for sim/não, continua processando normalmente (pode ser outra mensagem)
       pendingTaskAdd.delete(remoteJid);
     }
 
@@ -201,12 +224,10 @@ async function handleWebhook(req, res) {
 
     // ── TAREFA ─────────────────────────────────────────────────────
     } else if (dados.classificacao === "tarefa") {
-      // Verifica duplicatas antes de adicionar
       const todasParaVerificar = await buscarTodasTarefas();
       const similar = encontrarSimilar(dados.descricao, todasParaVerificar);
 
       if (similar) {
-        // Salva tarefa pendente e pede confirmação
         pendingTaskAdd.set(remoteJid, { dados, dataRegistro });
         const eSimilar = await getEmoji(similar.categoria);
         const infoData = similar.data === "backlog" ? "sem data" : similar.data;
@@ -234,7 +255,14 @@ async function handleWebhook(req, res) {
     } else if (dados.classificacao === "concluir") {
       const t = await encontrarTarefa(dados.descricao);
       if (t) {
-        await concluirTarefa(t.linha);
+        const ehRecorrente = t.recorrente && t.recorrente !== "Não";
+        if (ehRecorrente) {
+          // Tarefa recorrente: marca concluída só hoje, amanhã volta
+          await concluirTarefaDoDia(t.linha);
+        } else {
+          // Tarefa normal: conclui permanentemente
+          await concluirTarefa(t.linha);
+        }
         const e = await getEmoji(t.categoria);
         await enviarMensagem(remoteJid, `✅ *Concluída!*\n\n${e} ~~${t.descricao}~~\n\n💪 _Boa, Gabriel!_`);
       } else {
@@ -293,13 +321,11 @@ async function handleWebhook(req, res) {
         return;
       }
 
-      // Mapeia sugestões usando índice real da tarefa
       const sugestoesComLinha = sugestoes.map(s => {
         const tarefa = pendentes[s.numero - 1];
         return { ...s, linha: tarefa?.linha };
       });
 
-      // Salva no estado para aprovação posterior
       pendingReviews.set(remoteJid, sugestoesComLinha);
 
       let msg = `🔍 *Sugestões de categoria (${sugestoes.length}):*\n\n`;
@@ -342,7 +368,6 @@ async function handleWebhook(req, res) {
       }
 
       pendingReviews.delete(remoteJid);
-      const emoji = await getEmoji(paraAplicar[0]?.categoriaSugerida);
       await enviarMensagem(remoteJid, `✅ *${paraAplicar.length} categoria(s) atualizada(s)!*\n\n${paraAplicar.map(s => `📋 ${s.descricao} → ${s.categoriaSugerida}`).join("\n")}`);
 
     // ── ALTERAR TAREFA ─────────────────────────────────────────────

@@ -3,7 +3,7 @@
 // Colunas Tarefas:
 //   A=Descrição B=Data C=Hora D=Recorrente E=Status
 //   F=LembreteEnviado G=Categoria H=DataCriação
-//   I=DiasLembrete J=HoraLembrete
+//   I=DiasLembrete J=HoraLembrete K=DataConclusão
 // ─────────────────────────────────────────────
 
 const { google } = require("googleapis");
@@ -63,18 +63,30 @@ async function inicializarPlanilhaTarefas() {
 
     const res = await sheets.spreadsheets.values.get({
       spreadsheetId: CONFIG.SPREADSHEET_TAREFAS_ID,
-      range: "Tarefas!A1:J1",
+      range: "Tarefas!A1:K1",
     });
 
     if (!res.data.values || res.data.values.length === 0) {
       await sheets.spreadsheets.values.update({
         spreadsheetId: CONFIG.SPREADSHEET_TAREFAS_ID,
-        range: "Tarefas!A1:J1",
-        valueInputOption: "USER_ENTERED",
+        range: "Tarefas!A1:K1",
+        valueInputOption: "RAW",
         requestBody: {
-          values: [["Descrição","Data","Hora","Recorrente","Status","Lembrete Enviado","Categoria","Data Criação","Dias Lembrete","Hora Lembrete"]],
+          values: [["Descrição","Data","Hora","Recorrente","Status","Lembrete Enviado","Categoria","Data Criação","Dias Lembrete","Hora Lembrete","Data Conclusão"]],
         },
       });
+    } else {
+      // Adiciona cabeçalho K se ainda não existir (migração)
+      const row = res.data.values[0];
+      if (!row[10]) {
+        await sheets.spreadsheets.values.update({
+          spreadsheetId: CONFIG.SPREADSHEET_TAREFAS_ID,
+          range: "Tarefas!K1",
+          valueInputOption: "RAW",
+          requestBody: { values: [["Data Conclusão"]] },
+        });
+        console.log("✅ Coluna K (Data Conclusão) adicionada!");
+      }
     }
     console.log("Planilha Tarefas OK!");
   } catch (e) {
@@ -84,17 +96,18 @@ async function inicializarPlanilhaTarefas() {
 
 function rowToTarefa(row, index) {
   return {
-    linha: index + 2,
-    descricao:        row[0] || "",
-    data:             row[1] || "",
-    hora:             row[2] || "",
-    recorrente:       row[3] || "Não",
-    status:           row[4] || "Pendente",
-    lembreteEnviado:  row[5] || "Não",
-    categoria:        row[6] || "Outros",
-    dataCriacao:      row[7] || "",
-    diasLembrete:     row[8] || "",   // ex: "segunda,quinta"
-    horaLembrete:     row[9] || "",   // ex: "09:00"
+    linha:           index + 2,
+    descricao:       row[0] || "",
+    data:            row[1] || "",
+    hora:            row[2] || "",
+    recorrente:      row[3] || "Não",
+    status:          row[4] || "Pendente",
+    lembreteEnviado: row[5] || "Não",
+    categoria:       row[6] || "Outros",
+    dataCriacao:     row[7] || "",
+    diasLembrete:    row[8] || "",
+    horaLembrete:    row[9] || "",
+    dataConclusao:   row[10] || "",  // K — conclusão do dia (tarefas recorrentes)
   };
 }
 
@@ -102,30 +115,30 @@ async function adicionarTarefa(descricao, data, hora, recorrente, categoria, dia
   const sheets = await getSheetsClient();
   const res = await sheets.spreadsheets.values.get({
     spreadsheetId: CONFIG.SPREADSHEET_TAREFAS_ID,
-    range: "Tarefas!A:J",
+    range: "Tarefas!A:K",
   });
   const rows = res.data.values || [];
   const proximaLinha = Math.max(2, rows.length + 1);
 
   await sheets.spreadsheets.values.update({
     spreadsheetId: CONFIG.SPREADSHEET_TAREFAS_ID,
-    range: `Tarefas!A${proximaLinha}:J${proximaLinha}`,
+    range: `Tarefas!A${proximaLinha}:K${proximaLinha}`,
     valueInputOption: "RAW",
     requestBody: {
       values: [[
         descricao, data, hora || "", recorrente || "Não",
         "Pendente", "Não", categoria || "Outros", formatarData(),
-        diasLembrete || "", horaLembrete || ""
+        diasLembrete || "", horaLembrete || "", ""
       ]],
     },
-  }); 
+  });
 }
 
 async function buscarTodasTarefas() {
   const sheets = await getSheetsClient();
   const res = await sheets.spreadsheets.values.get({
     spreadsheetId: CONFIG.SPREADSHEET_TAREFAS_ID,
-    range: "Tarefas!A:J",
+    range: "Tarefas!A:K",
   });
   const rows = res.data.values || [];
   if (rows.length <= 1) return [];
@@ -141,14 +154,24 @@ function recorreBateDia(recorrente, diaHoje) {
 async function buscarTarefasDoDia(dataStr) {
   const tarefas = await buscarTodasTarefas();
   const diaHoje = DIAS_SEMANA[agora().getDay()];
+  const hoje = formatarData();
 
   return tarefas.filter(t => {
-    console.log("TAREFA:", JSON.stringify(t));
     if (t.status === "Concluída") return false;
     if (t.data === "backlog") return false;
-    if (t.recorrente && t.recorrente !== "Não") return recorreBateDia(t.recorrente, diaHoje);
+    if (t.recorrente && t.recorrente !== "Não") {
+      if (t.dataConclusao === hoje) return false; // já concluída hoje
+      return recorreBateDia(t.recorrente, diaHoje);
+    }
     return t.data.replace(/\.$/, "") === dataStr;
   });
+}
+
+// Retorna tarefas concluídas hoje (recorrentes marcadas com dataConclusao = hoje)
+async function buscarTarefasConcluidasHoje() {
+  const tarefas = await buscarTodasTarefas();
+  const hoje = formatarData();
+  return tarefas.filter(t => t.dataConclusao === hoje);
 }
 
 // Busca tarefas que têm diasLembrete definido e batem com hoje
@@ -218,13 +241,25 @@ async function buscarTarefasEsquecidas() {
   });
 }
 
+// Conclui tarefa permanentemente (tarefas normais)
 async function concluirTarefa(linha) {
   const sheets = await getSheetsClient();
   await sheets.spreadsheets.values.update({
     spreadsheetId: CONFIG.SPREADSHEET_TAREFAS_ID,
     range: `Tarefas!E${linha}`,
-    valueInputOption: "USER_ENTERED",
+    valueInputOption: "RAW",
     requestBody: { values: [["Concluída"]] },
+  });
+}
+
+// Conclui tarefa recorrente apenas para hoje — amanhã ela volta
+async function concluirTarefaDoDia(linha) {
+  const sheets = await getSheetsClient();
+  await sheets.spreadsheets.values.update({
+    spreadsheetId: CONFIG.SPREADSHEET_TAREFAS_ID,
+    range: `Tarefas!K${linha}`,
+    valueInputOption: "RAW",
+    requestBody: { values: [[formatarData()]] },
   });
 }
 
@@ -232,7 +267,7 @@ async function excluirTarefa(linha) {
   const sheets = await getSheetsClient();
   await sheets.spreadsheets.values.clear({
     spreadsheetId: CONFIG.SPREADSHEET_TAREFAS_ID,
-    range: `Tarefas!A${linha}:J${linha}`,
+    range: `Tarefas!A${linha}:K${linha}`,
   });
 }
 
@@ -241,13 +276,11 @@ async function alterarCategoriaTarefa(linha, novaCategoria) {
   await sheets.spreadsheets.values.update({
     spreadsheetId: CONFIG.SPREADSHEET_TAREFAS_ID,
     range: `Tarefas!G${linha}`,
-    valueInputOption: "USER_ENTERED",
+    valueInputOption: "RAW",
     requestBody: { values: [[novaCategoria]] },
   });
 }
 
-// Altera campos específicos de uma tarefa
-// campos: { data, hora, diasLembrete, horaLembrete }
 async function alterarTarefa(linha, campos) {
   const sheets = await getSheetsClient();
   const COL_MAP = { data: "B", hora: "C", diasLembrete: "I", horaLembrete: "J" };
@@ -258,7 +291,7 @@ async function alterarTarefa(linha, campos) {
     await sheets.spreadsheets.values.update({
       spreadsheetId: CONFIG.SPREADSHEET_TAREFAS_ID,
       range: `Tarefas!${col}${linha}`,
-      valueInputOption: "USER_ENTERED",
+      valueInputOption: "RAW",
       requestBody: { values: [[valor]] },
     });
   }
@@ -269,7 +302,7 @@ async function marcarLembreteEnviado(linha, valor) {
   await sheets.spreadsheets.values.update({
     spreadsheetId: CONFIG.SPREADSHEET_TAREFAS_ID,
     range: `Tarefas!F${linha}`,
-    valueInputOption: "USER_ENTERED",
+    valueInputOption: "RAW",
     requestBody: { values: [[valor || "Sim"]] },
   });
 }
@@ -280,12 +313,14 @@ module.exports = {
   adicionarTarefa,
   buscarTodasTarefas,
   buscarTarefasDoDia,
+  buscarTarefasConcluidasHoje,
   buscarTarefasComLembreteHoje,
   buscarBacklog,
   buscarTarefasPorPeriodo,
   buscarTarefasVencidas,
   buscarTarefasEsquecidas,
   concluirTarefa,
+  concluirTarefaDoDia,
   excluirTarefa,
   alterarCategoriaTarefa,
   alterarTarefa,
