@@ -25,10 +25,6 @@ async function getSheetsClient() {
   return _sheetsClient;
 }
 
-let _tarefasCache = null;
-let _tarefasCacheTime = 0;
-const TAREFAS_CACHE_TTL = 30 * 1000; // 30 segundos
-
 // ════════════════════════════════════════════
 //  GASTOS
 // ════════════════════════════════════════════
@@ -142,8 +138,6 @@ async function adicionarTarefa(descricao, data, hora, recorrente, categoria, dia
     },
   });
 }
-
-
 
 async function buscarTodasTarefas() {
   const now = Date.now();
