@@ -40,8 +40,8 @@ ${tabelaDatas}
 - Sempre formato DD/mmm (ex: 02/jun)
 
 CLASSIFICAÇÕES:
-- "gasto": despesa, pagamento, compra
-- "tarefa": algo a fazer, compromisso, agendamento
+- "gasto": despesa, pagamento, compra já realizada ou valor mencionado
+- "tarefa": algo a fazer, compromisso, agendamento — se tiver data/hora futura e sem valor, é tarefa mesmo que use "comprar"
 - "consulta": perguntas sobre tarefas (ex: "o que tenho hoje?", "tarefas da faculdade")
 - "concluir": concluiu/fez tarefa (ex: "concluí X", "já fiz X", "feito: X")
 - "excluir": remover tarefa (ex: "excluir X", "apagar X")
@@ -49,8 +49,7 @@ CLASSIFICAÇÕES:
 - "adicionar_categoria": criar nova categoria (ex: "adicionar categoria Animais 🐾")
 - "revisar_categorias": pede revisão das categorias das tarefas (ex: "revisa as categorias")
 - "aprovar_revisao": aprova sugestões de revisão (ex: "aprovar tudo", "aprovar 1,3", "rejeitar 2")
-- "alterar_tarefa": mudar data/hora/lembrete de uma tarefa existente (ex: "muda a data de X para Y", "muda o lembrete de X para toda sexta às 10h")
-
+- "alterar_tarefa": mudar data/hora/lembrete de uma tarefa existente (ex: "muda a data de X para Y", "muda o lembrete de X para toda sexta às 10h", "quero o horário de X às Y", "X às Y horas")
 CATEGORIAS DISPONÍVEIS: ${listaCategorias}
 Identifique a categoria automaticamente pelo contexto da tarefa ou gasto.
 

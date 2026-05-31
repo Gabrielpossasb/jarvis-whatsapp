@@ -20,8 +20,17 @@ const { formatarData, formatarHora, agora, amanha } = require("../utils/date");
 // ── Busca tarefa por nome ─────────────────────────────────────────
 async function encontrarTarefa(descBusca) {
   const todas = await buscarTodasTarefas();
-  const busca = descBusca.toLowerCase();
-  return todas.find(t => t.status !== "Concluída" && t.descricao.toLowerCase().includes(busca));
+  const normalizar = s => s.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+  const busca = normalizar(descBusca);
+
+  // Primeiro tenta match direto (normalizado, sem acentos)
+  const exato = todas.find(t =>
+    t.status !== "Concluída" && normalizar(t.descricao).includes(busca)
+  );
+  if (exato) return exato;
+
+  // Fallback: similaridade (cobre erros de digitação e variações)
+  return encontrarSimilar(descBusca, todas, 0.4);
 }
 
 // ── Resposta de gasto ─────────────────────────────────────────────
