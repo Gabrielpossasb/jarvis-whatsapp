@@ -23,12 +23,15 @@ const CATEGORIAS_PADRAO = [
   { nome: "Outros",     emoji: "📌" },
 ];
 
+let _sheetsClient = null;
 async function getSheetsClient() {
+  if (_sheetsClient) return _sheetsClient;
   const auth = new google.auth.GoogleAuth({
     credentials: CONFIG.GOOGLE_CREDENTIALS,
     scopes: ["https://www.googleapis.com/auth/spreadsheets"],
   });
-  return google.sheets({ version: "v4", auth });
+  _sheetsClient = google.sheets({ version: "v4", auth });
+  return _sheetsClient;
 }
 
 // Inicializa aba Categorias com padrões se não existir

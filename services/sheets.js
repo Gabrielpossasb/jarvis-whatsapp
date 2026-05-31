@@ -10,12 +10,15 @@ const { google } = require("googleapis");
 const { CONFIG, MESES, DIAS_SEMANA } = require("../config");
 const { agora, formatarData } = require("../utils/date");
 
+let _sheetsClient = null;
 async function getSheetsClient() {
+  if (_sheetsClient) return _sheetsClient;
   const auth = new google.auth.GoogleAuth({
     credentials: CONFIG.GOOGLE_CREDENTIALS,
     scopes: ["https://www.googleapis.com/auth/spreadsheets"],
   });
-  return google.sheets({ version: "v4", auth });
+  _sheetsClient = google.sheets({ version: "v4", auth });
+  return _sheetsClient;
 }
 
 // ════════════════════════════════════════════
