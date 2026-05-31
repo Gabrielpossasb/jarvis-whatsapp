@@ -11,6 +11,10 @@ const { CONFIG, MESES, DIAS_SEMANA } = require("../config");
 const { agora, formatarData } = require("../utils/date");
 
 let _sheetsClient = null;
+let _tarefasCache = null;
+let _tarefasCacheTime = 0;
+const TAREFAS_CACHE_TTL = 30 * 1000; // 30 segundos
+
 async function getSheetsClient() {
   if (_sheetsClient) return _sheetsClient;
   const auth = new google.auth.GoogleAuth({
@@ -20,6 +24,10 @@ async function getSheetsClient() {
   _sheetsClient = google.sheets({ version: "v4", auth });
   return _sheetsClient;
 }
+
+let _tarefasCache = null;
+let _tarefasCacheTime = 0;
+const TAREFAS_CACHE_TTL = 30 * 1000; // 30 segundos
 
 // ════════════════════════════════════════════
 //  GASTOS
@@ -135,13 +143,11 @@ async function adicionarTarefa(descricao, data, hora, recorrente, categoria, dia
   });
 }
 
-let _tarefasCache = null;
-let _tarefasCacheTime = 0;
-const TAREFAS_CACHE_TTL = 30 * 1000; // 30 segundos
+
 
 async function buscarTodasTarefas() {
-  const agora = Date.now();
-  if (_tarefasCache && agora - _tarefasCacheTime < TAREFAS_CACHE_TTL) return _tarefasCache;
+  const now = Date.now();
+  if (_tarefasCache && (now - _tarefasCacheTime) < TAREFAS_CACHE_TTL) return _tarefasCache;
   const sheets = await getSheetsClient();
   const res = await sheets.spreadsheets.values.get({
     spreadsheetId: CONFIG.SPREADSHEET_TAREFAS_ID,
@@ -149,7 +155,7 @@ async function buscarTodasTarefas() {
   });
   const rows = res.data.values || [];
   _tarefasCache = rows.length <= 1 ? [] : rows.slice(1).map((row, i) => rowToTarefa(row, i));
-  _tarefasCacheTime = agora;
+  _tarefasCacheTime = now;
   return _tarefasCache;
 }
 
@@ -327,6 +333,7 @@ async function marcarLembreteEnviado(linha, valor) {
 
 module.exports = {
   adicionarGasto,
+  invalidarCacheTarefas,
   inicializarPlanilhaTarefas,
   adicionarTarefa,
   buscarTodasTarefas,
