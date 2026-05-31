@@ -19,6 +19,7 @@ async function extrairDados(texto) {
     const seguinte = proximoDiaSemana(dia, true);
     return `  "${dia}"/"na ${dia}" → ${proxima} | "próxima ${dia}"/"${dia} que vem" → ${seguinte}`;
   }).join("\n");
+  console.log("TABELA DATAS:\n" + tabelaDatas);
   const horaAgora = formatarHora();
   const diaAtual = DIAS_SEMANA[agora().getDay()];
   const mesAtual = MESES_CURTOS[agora().getMonth()];
@@ -29,7 +30,7 @@ async function extrairDados(texto) {
 
 Data: ${dataHoje} (${diaAtual}). Hora: ${horaAgora}. Fuso: GMT-4. Mês: ${mesAtual}/${anoAtual}.
 
-Datas pré-calculadas a partir de hoje (${dataHoje}, ${diaAtual}):
+REGRA ABSOLUTA DE DATAS — USE APENAS ESSES VALORES, NUNCA CALCULE:
 ${tabelaDatas}
 - "amanhã" → ${amanha()}
 - "depois de amanhã" → use +2 dias a partir de ${dataHoje}

@@ -144,10 +144,10 @@ async function verificarTarefasEsquecidas() {
 
 // ── Inicializa cron jobs ──────────────────────────────────────────
 function iniciarCronJobs() {
-  cron.schedule("0 11 * * *",   enviarResumoDiario,       { timezone: "America/Campo_Grande" }); // 7h
-  cron.schedule("*/15 * * * *", verificarLembretes,       { timezone: "America/Campo_Grande" }); // 15min
-  cron.schedule("0 0 * * *",    verificarTarefasVencidas, { timezone: "America/Campo_Grande" }); // 20h
-  cron.schedule("0 13 * * 1",   verificarTarefasEsquecidas, { timezone: "America/Campo_Grande" }); // seg 9h
+  cron.schedule("0 7  * * *",   enviarResumoDiario,         { timezone: "America/Campo_Grande" }); // 7h
+  cron.schedule("*/15 * * * *", verificarLembretes,         { timezone: "America/Campo_Grande" }); // 15min
+  cron.schedule("0 20 * * *",   verificarTarefasVencidas,   { timezone: "America/Campo_Grande" }); // 20h
+  cron.schedule("0 9  * * 1",   verificarTarefasEsquecidas, { timezone: "America/Campo_Grande" }); // seg 9h
   console.log("✅ Cron jobs: resumo 7h | lembretes 15min | vencidas 20h | esquecidas seg 9h");
 }
 

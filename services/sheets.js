@@ -107,7 +107,7 @@ async function adicionarTarefa(descricao, data, hora, recorrente, categoria, dia
   await sheets.spreadsheets.values.update({
     spreadsheetId: CONFIG.SPREADSHEET_TAREFAS_ID,
     range: `Tarefas!A${proximaLinha}:J${proximaLinha}`,
-    valueInputOption: "USER_ENTERED",
+    valueInputOption: "RAW",
     requestBody: {
       values: [[
         descricao, data, hora || "", recorrente || "Não",
@@ -115,7 +115,7 @@ async function adicionarTarefa(descricao, data, hora, recorrente, categoria, dia
         diasLembrete || "", horaLembrete || ""
       ]],
     },
-  });
+  }); 
 }
 
 async function buscarTodasTarefas() {
