@@ -193,4 +193,76 @@ async function analisarPDF(base64) {
   return response.choices[0].message.content;
 }
 
-module.exports = { extrairDados, revisarCategorias, transcreverAudio, analisarImagem, analisarPDF };
+async function extrairExtrato(base64, mimetype) {
+  const { MESES_CURTOS } = require("../config");
+  const dataAtual = new Date().toLocaleDateString("pt-BR");
+
+  const prompt = `Você é um assistente financeiro. Analise esse extrato bancário (Nubank ou Mercado Pago) e extraia TODAS as transações de saída (gastos, pagamentos, compras).
+
+Data atual: ${dataAtual}
+
+REGRAS:
+- Extraia APENAS transações de SAÍDA (débitos, pagamentos, compras). Ignore entradas/créditos/estornos/reembolsos.
+- Para cada transação extraia: data, descrição, valor, meio_pagamento
+- Data no formato DD/mmm (ex: 15/mai, 03/jun)
+- Valor como número positivo (ex: 45.90)
+- meio_pagamento: "Nubank" ou "Mercado Pago" conforme o extrato
+- Identifique a categoria automaticamente:
+  Assinaturas: Spotify, Netflix, Amazon Prime, Disney, HBO, Apple, iFood Club, Hostgator, cursos
+  Cartão/Fatura: parcelas, fatura, Mercado Livre, Shopee, Amazon compras, Gazin, lojas
+  Dívidas/Empréstimo: empréstimo, parcela de empréstimo
+  Transporte: Uber, 99, combustível, gasolina, estacionamento
+  Alimentação: iFood, restaurante, mercado, supermercado, padaria, café, lanche
+  Relacionamento: presentes para pessoas, encontros, programas
+  Presentes: presentes, flores, floricultora
+  Cuidados Pessoais: barbearia, salão, farmácia (higiene)
+  Saúde: farmácia (remédio), médico, plano de saúde
+  Outros: qualquer outro gasto
+
+- tipo: "fixa" para assinaturas, parcelas, empréstimos, faturas recorrentes. "variavel" para o resto.
+
+Responda APENAS com JSON válido, sem markdown:
+{
+  "banco": "Nubank" ou "Mercado Pago",
+  "transacoes": [
+    {
+      "data": "DD/mmm",
+      "descricao": "NOME EM CAIXA ALTA",
+      "valor": 00.00,
+      "meio_pagamento": "Nubank" ou "Mercado Pago",
+      "categoria": "categoria",
+      "tipo": "fixa" ou "variavel"
+    }
+  ]
+}`;
+
+  const isImage = mimetype && (mimetype.includes("image") || mimetype.includes("jpeg") || mimetype.includes("png") || mimetype.includes("webp"));
+  const isPDF = mimetype && mimetype.includes("pdf");
+
+  let content;
+  if (isImage) {
+    content = [
+      { type: "image_url", image_url: { url: `data:${mimetype};base64,${base64}` } },
+      { type: "text", text: prompt }
+    ];
+  } else {
+    // PDF — usa gpt-4o com document
+    content = [
+      { type: "text", text: prompt },
+      { type: "document", source: { type: "base64", media_type: "application/pdf", data: base64 } }
+    ];
+  }
+
+  const openai = new OpenAI({ apiKey: CONFIG.OPENAI_API_KEY });
+  const response = await openai.chat.completions.create({
+    model: "gpt-4o",
+    messages: [{ role: "user", content }],
+    max_tokens: 4000,
+  });
+
+  const text = response.choices[0].message.content.trim();
+  const parsed = JSON.parse(text.replace(/```json|```/g, "").trim());
+  return parsed.transacoes || [];
+}
+
+module.exports = { extrairDados, revisarCategorias, transcreverAudio, analisarImagem, analisarPDF, extrairExtrato };
