@@ -22,14 +22,8 @@ async function encontrarTarefa(descBusca) {
   const todas = await buscarTodasTarefas();
   const normalizar = s => s.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
   const busca = normalizar(descBusca);
-
-  // Primeiro tenta match direto (normalizado, sem acentos)
-  const exato = todas.find(t =>
-    t.status !== "Concluída" && normalizar(t.descricao).includes(busca)
-  );
+  const exato = todas.find(t => t.status !== "Concluída" && normalizar(t.descricao).includes(busca));
   if (exato) return exato;
-
-  // Fallback: similaridade (cobre erros de digitação e variações)
   return encontrarSimilar(descBusca, todas, 0.4);
 }
 
@@ -82,7 +76,6 @@ async function respostaConsulta(dados) {
   const categoria = dados.categoria_filtro || "todas";
   const tarefas = await buscarTarefasPorPeriodo(periodo, categoria);
 
-  // Busca concluídas hoje apenas quando o período for "hoje"
   let tarefasConcluidas = [];
   if (periodo === "hoje") {
     const todas = await buscarTarefasConcluidasHoje();
@@ -144,7 +137,6 @@ async function respostaConsulta(dados) {
     for (const t of comH) msg += `⏰ ${t.hora} — ${t.descricao}\n`;
   }
 
-  // Seção de concluídas hoje no final
   if (tarefasConcluidas.length > 0) {
     msg += `\n✅ *Concluídas hoje:*\n`;
     for (const t of tarefasConcluidas) {
@@ -156,7 +148,233 @@ async function respostaConsulta(dados) {
   return msg;
 }
 
-// ── Handler principal ─────────────────────────────────────────────
+// ════════════════════════════════════════════
+//  PROCESSAMENTO CENTRAL — usado pelo WhatsApp e pelo site
+// ════════════════════════════════════════════
+async function processarMensagem(texto, remoteJid, canal = "whatsapp") {
+  // Função de envio — no WhatsApp manda pelo Evolution, no site retorna texto
+  const respostas = [];
+  const responder = async (msg) => {
+    if (canal === "web") {
+      respostas.push(msg);
+    } else {
+      await enviarMensagem(remoteJid, msg);
+    }
+  };
+
+  // ── Verifica se há tarefa pendente de confirmação ─────────────
+  if (pendingTaskAdd.has(remoteJid)) {
+    const textoBusca = texto.toLowerCase().trim();
+    const { dados: dadosPendentes, dataRegistro: dataPendente } = pendingTaskAdd.get(remoteJid);
+
+    const confirmou = ["sim", "s", "pode", "adicionar", "confirmar", "yes"].some(p => textoBusca.includes(p));
+    const cancelou  = ["não", "nao", "n", "cancelar", "cancel", "no"].some(p => textoBusca.includes(p));
+
+    if (confirmou) {
+      pendingTaskAdd.delete(remoteJid);
+      await adicionarTarefa(dadosPendentes.descricao, dataPendente, dadosPendentes.hora || "", dadosPendentes.recorrente || "Não", dadosPendentes.categoria || "Outros", dadosPendentes.dias_lembrete || "", dadosPendentes.hora_lembrete || "");
+      await responder(await respostaTarefa(dadosPendentes, dataPendente));
+      return respostas.join("\n\n");
+    } else if (cancelou) {
+      pendingTaskAdd.delete(remoteJid);
+      await responder(`❌ Cancelado! Tarefa não adicionada.`);
+      return respostas.join("\n\n");
+    }
+    pendingTaskAdd.delete(remoteJid);
+  }
+
+  const dados = await extrairDados(texto);
+  const dataRegistro = dados.data || formatarData();
+
+  // ── GASTO ──────────────────────────────────────────────────────
+  if (dados.classificacao === "gasto") {
+    await adicionarGasto(dataRegistro, dados.descricao, dados.valor, dados.meio_pagamento, dados.categoria, dados.tipo_despesa);
+    await responder(respostaGasto(dados, dataRegistro));
+
+  // ── TAREFA ─────────────────────────────────────────────────────
+  } else if (dados.classificacao === "tarefa") {
+    const todasParaVerificar = await buscarTodasTarefas();
+    const similar = encontrarSimilar(dados.descricao, todasParaVerificar);
+
+    if (similar) {
+      pendingTaskAdd.set(remoteJid, { dados, dataRegistro });
+      const eSimilar = await getEmoji(similar.categoria);
+      const infoData = similar.data === "backlog" ? "sem data" : similar.data;
+      await responder([
+        `⚠️ *Tarefa parecida já existe!*`, ``,
+        `${eSimilar} *${similar.descricao}*`,
+        `📅 ${infoData} | 🏷️ ${similar.categoria} | 📌 ${similar.status}`,
+        ``, `Quer adicionar mesmo assim?`,
+        `✅ _"sim"_ para confirmar`,
+        `❌ _"não"_ para cancelar`,
+      ].join("\n"));
+      return respostas.join("\n\n");
+    }
+
+    await adicionarTarefa(dados.descricao, dataRegistro, dados.hora || "", dados.recorrente || "Não", dados.categoria || "Outros", dados.dias_lembrete || "", dados.hora_lembrete || "");
+    await responder(await respostaTarefa(dados, dataRegistro));
+
+  // ── CONSULTA ───────────────────────────────────────────────────
+  } else if (dados.classificacao === "consulta") {
+    await responder(await respostaConsulta(dados));
+
+  // ── CONCLUIR ───────────────────────────────────────────────────
+  } else if (dados.classificacao === "concluir") {
+    const t = await encontrarTarefa(dados.descricao);
+    if (t) {
+      const ehRecorrente = t.recorrente && t.recorrente !== "Não";
+      if (ehRecorrente) {
+        await concluirTarefaDoDia(t.linha);
+      } else {
+        await concluirTarefa(t.linha);
+      }
+      const e = await getEmoji(t.categoria);
+      await responder(`✅ *Concluída!*\n\n${e} ~~${t.descricao}~~\n\n💪 _Boa, Gabriel!_`);
+    } else {
+      await responder(`⚠️ Não encontrei _"${dados.descricao}"_ em aberto.`);
+    }
+
+  // ── EXCLUIR ────────────────────────────────────────────────────
+  } else if (dados.classificacao === "excluir") {
+    const t = await encontrarTarefa(dados.descricao);
+    if (t) {
+      await excluirTarefa(t.linha);
+      await responder(`🗑️ *${t.descricao}* excluída!`);
+    } else {
+      await responder(`⚠️ Não encontrei _"${dados.descricao}"_.`);
+    }
+
+  // ── MUDAR CATEGORIA ────────────────────────────────────────────
+  } else if (dados.classificacao === "mudar_categoria") {
+    const t = await encontrarTarefa(dados.descricao);
+    if (t) {
+      const anterior = t.categoria;
+      await alterarCategoriaTarefa(t.linha, dados.nova_categoria);
+      const eNovo = await getEmoji(dados.nova_categoria);
+      await responder(`✅ *Categoria alterada!*\n\n📋 *${t.descricao}*\n🔄 ${anterior} → ${eNovo} ${dados.nova_categoria}`);
+    } else {
+      await responder(`⚠️ Não encontrei _"${dados.descricao}"_.`);
+    }
+
+  // ── ADICIONAR CATEGORIA ────────────────────────────────────────
+  } else if (dados.classificacao === "adicionar_categoria") {
+    const nome = dados.nova_categoria_nome;
+    const emoji = dados.nova_categoria_emoji || "📌";
+    const adicionou = await adicionarCategoria(nome, emoji);
+    if (adicionou) {
+      await responder(`✅ *Categoria criada!*\n\n${emoji} *${nome}*\n\nJá pode usá-la nas suas tarefas!`);
+    } else {
+      await responder(`⚠️ A categoria *${nome}* já existe!`);
+    }
+
+  // ── REVISAR CATEGORIAS ─────────────────────────────────────────
+  } else if (dados.classificacao === "revisar_categorias") {
+    await responder("🔍 Analisando categorias das suas tarefas...");
+    const tarefas = await buscarTodasTarefas();
+    const pendentes = tarefas.filter(t => t.status !== "Concluída");
+
+    if (pendentes.length === 0) {
+      await responder("Nenhuma tarefa pendente para revisar! ✨");
+      return respostas.join("\n\n");
+    }
+
+    const listaCats = await getListaCategorias();
+    const sugestoes = await revisarCategorias(pendentes, listaCats);
+
+    if (sugestoes.length === 0) {
+      await responder("✅ Todas as categorias estão corretas! Nenhuma sugestão.");
+      return respostas.join("\n\n");
+    }
+
+    const sugestoesComLinha = sugestoes.map(s => {
+      const tarefa = pendentes[s.numero - 1];
+      return { ...s, linha: tarefa?.linha };
+    });
+
+    pendingReviews.set(remoteJid, sugestoesComLinha);
+
+    let msg = `🔍 *Sugestões de categoria (${sugestoes.length}):*\n\n`;
+    for (const s of sugestoes) {
+      const eAtual = await getEmoji(s.categoriaAtual);
+      const eSugerida = await getEmoji(s.categoriaSugerida);
+      msg += `*${s.numero}.* ${s.descricao}\n`;
+      msg += `   ${eAtual} ${s.categoriaAtual} → ${eSugerida} ${s.categoriaSugerida}\n`;
+      msg += `   _${s.motivo}_\n\n`;
+    }
+    msg += `Responda:\n✅ _"aprovar tudo"_ para aplicar todas\n✅ _"aprovar 1,3"_ para escolher\n❌ _"rejeitar tudo"_ para cancelar`;
+    await responder(msg);
+
+  // ── APROVAR REVISÃO ────────────────────────────────────────────
+  } else if (dados.classificacao === "aprovar_revisao") {
+    const sugestoes = pendingReviews.get(remoteJid);
+    if (!sugestoes || sugestoes.length === 0) {
+      await responder("⚠️ Nenhuma revisão pendente. Peça _\"revisa as categorias\"_ primeiro!");
+      return respostas.join("\n\n");
+    }
+
+    const aprovados = dados.aprovados || "nenhum";
+    let paraAplicar = [];
+
+    if (aprovados === "tudo") {
+      paraAplicar = sugestoes;
+    } else if (aprovados !== "nenhum") {
+      const nums = aprovados.split(",").map(n => parseInt(n.trim()));
+      paraAplicar = sugestoes.filter(s => nums.includes(s.numero));
+    }
+
+    if (paraAplicar.length === 0) {
+      pendingReviews.delete(remoteJid);
+      await responder("❌ Revisão cancelada. Nenhuma alteração feita.");
+      return respostas.join("\n\n");
+    }
+
+    for (const s of paraAplicar) {
+      if (s.linha) await alterarCategoriaTarefa(s.linha, s.categoriaSugerida);
+    }
+
+    pendingReviews.delete(remoteJid);
+    await responder(`✅ *${paraAplicar.length} categoria(s) atualizada(s)!*\n\n${paraAplicar.map(s => `📋 ${s.descricao} → ${s.categoriaSugerida}`).join("\n")}`);
+
+  // ── ALTERAR TAREFA ─────────────────────────────────────────────
+  } else if (dados.classificacao === "alterar_tarefa") {
+    const t = await encontrarTarefa(dados.descricao);
+    if (!t) {
+      await responder(`⚠️ Não encontrei _"${dados.descricao}"_.`);
+      return respostas.join("\n\n");
+    }
+
+    const alteracoes = dados.alteracoes || {};
+    if (Object.keys(alteracoes).length === 0) {
+      await responder(`⚠️ Não entendi o que alterar. Tente: _"muda a data de X para Y"_`);
+      return respostas.join("\n\n");
+    }
+
+    await alterarTarefa(t.linha, alteracoes);
+
+    const e = await getEmoji(t.categoria);
+    const mudancas = [];
+    if (alteracoes.data) mudancas.push(`📅 Data: ${alteracoes.data === 'backlog' ? 'sem data definida' : alteracoes.data}`);
+    if (alteracoes.hora) mudancas.push(`⏰ Hora: ${alteracoes.hora}`);
+    if (alteracoes.dias_lembrete) mudancas.push(`📆 Dias lembrete: ${alteracoes.dias_lembrete}`);
+    if (alteracoes.hora_lembrete) mudancas.push(`🔔 Hora lembrete: ${alteracoes.hora_lembrete}`);
+
+    await responder([
+      `✅ *Tarefa atualizada!*`, ``,
+      `${e} *${t.descricao}*`,
+      ...mudancas,
+      ``, `🤖 _${dados.entendimento}_`,
+    ].join("\n"));
+
+  } else {
+    await responder(`🤖 *JARVIS:* ${dados.entendimento}`);
+  }
+
+  return respostas.join("\n\n");
+}
+
+// ════════════════════════════════════════════
+//  WEBHOOK — WhatsApp via Evolution API
+// ════════════════════════════════════════════
 async function handleWebhook(req, res) {
   res.sendStatus(200);
 
@@ -202,216 +420,7 @@ async function handleWebhook(req, res) {
 
     if (!textoParaAnalisar) return;
 
-    // ── Verifica se há tarefa pendente de confirmação ─────────────
-    if (pendingTaskAdd.has(remoteJid)) {
-      const texto = textoParaAnalisar.toLowerCase().trim();
-      const { dados: dadosPendentes, dataRegistro: dataPendente } = pendingTaskAdd.get(remoteJid);
-
-      const confirmou = ["sim", "s", "pode", "adicionar", "confirmar", "yes"].some(p => texto.includes(p));
-      const cancelou  = ["não", "nao", "n", "cancelar", "cancel", "no"].some(p => texto.includes(p));
-
-      if (confirmou) {
-        pendingTaskAdd.delete(remoteJid);
-        await adicionarTarefa(dadosPendentes.descricao, dataPendente, dadosPendentes.hora || "", dadosPendentes.recorrente || "Não", dadosPendentes.categoria || "Outros", dadosPendentes.dias_lembrete || "", dadosPendentes.hora_lembrete || "");
-        await enviarMensagem(remoteJid, await respostaTarefa(dadosPendentes, dataPendente));
-        return;
-      } else if (cancelou) {
-        pendingTaskAdd.delete(remoteJid);
-        await enviarMensagem(remoteJid, `❌ Cancelado! Tarefa não adicionada.`);
-        return;
-      }
-      pendingTaskAdd.delete(remoteJid);
-    }
-
-    const dados = await extrairDados(textoParaAnalisar);
-    const dataRegistro = dados.data || formatarData();
-
-    // ── GASTO ──────────────────────────────────────────────────────
-    if (dados.classificacao === "gasto") {
-      await adicionarGasto(dataRegistro, dados.descricao, dados.valor, dados.meio_pagamento, dados.categoria, dados.tipo_despesa);
-      await enviarMensagem(remoteJid, respostaGasto(dados, dataRegistro));
-
-    // ── TAREFA ─────────────────────────────────────────────────────
-    } else if (dados.classificacao === "tarefa") {
-      const todasParaVerificar = await buscarTodasTarefas();
-      const similar = encontrarSimilar(dados.descricao, todasParaVerificar);
-
-      if (similar) {
-        pendingTaskAdd.set(remoteJid, { dados, dataRegistro });
-        const eSimilar = await getEmoji(similar.categoria);
-        const infoData = similar.data === "backlog" ? "sem data" : similar.data;
-        await enviarMensagem(remoteJid, [
-          `⚠️ *Tarefa parecida já existe!*`,
-          ``,
-          `${eSimilar} *${similar.descricao}*`,
-          `📅 ${infoData} | 🏷️ ${similar.categoria} | 📌 ${similar.status}`,
-          ``,
-          `Quer adicionar mesmo assim?`,
-          `✅ _"sim"_ para confirmar`,
-          `❌ _"não"_ para cancelar`,
-        ].join("\n"));
-        return;
-      }
-
-      await adicionarTarefa(dados.descricao, dataRegistro, dados.hora || "", dados.recorrente || "Não", dados.categoria || "Outros", dados.dias_lembrete || "", dados.hora_lembrete || "");
-      await enviarMensagem(remoteJid, await respostaTarefa(dados, dataRegistro));
-
-    // ── CONSULTA ───────────────────────────────────────────────────
-    } else if (dados.classificacao === "consulta") {
-      await enviarMensagem(remoteJid, await respostaConsulta(dados));
-
-    // ── CONCLUIR ───────────────────────────────────────────────────
-    } else if (dados.classificacao === "concluir") {
-      const t = await encontrarTarefa(dados.descricao);
-      if (t) {
-        const ehRecorrente = t.recorrente && t.recorrente !== "Não";
-        if (ehRecorrente) {
-          // Tarefa recorrente: marca concluída só hoje, amanhã volta
-          await concluirTarefaDoDia(t.linha);
-        } else {
-          // Tarefa normal: conclui permanentemente
-          await concluirTarefa(t.linha);
-        }
-        const e = await getEmoji(t.categoria);
-        await enviarMensagem(remoteJid, `✅ *Concluída!*\n\n${e} ~~${t.descricao}~~\n\n💪 _Boa, Gabriel!_`);
-      } else {
-        await enviarMensagem(remoteJid, `⚠️ Não encontrei _"${dados.descricao}"_ em aberto.`);
-      }
-
-    // ── EXCLUIR ────────────────────────────────────────────────────
-    } else if (dados.classificacao === "excluir") {
-      const t = await encontrarTarefa(dados.descricao);
-      if (t) {
-        await excluirTarefa(t.linha);
-        await enviarMensagem(remoteJid, `🗑️ *${t.descricao}* excluída!`);
-      } else {
-        await enviarMensagem(remoteJid, `⚠️ Não encontrei _"${dados.descricao}"_.`);
-      }
-
-    // ── MUDAR CATEGORIA ────────────────────────────────────────────
-    } else if (dados.classificacao === "mudar_categoria") {
-      const t = await encontrarTarefa(dados.descricao);
-      if (t) {
-        const anterior = t.categoria;
-        await alterarCategoriaTarefa(t.linha, dados.nova_categoria);
-        const eNovo = await getEmoji(dados.nova_categoria);
-        await enviarMensagem(remoteJid, `✅ *Categoria alterada!*\n\n📋 *${t.descricao}*\n🔄 ${anterior} → ${eNovo} ${dados.nova_categoria}`);
-      } else {
-        await enviarMensagem(remoteJid, `⚠️ Não encontrei _"${dados.descricao}"_.`);
-      }
-
-    // ── ADICIONAR CATEGORIA ────────────────────────────────────────
-    } else if (dados.classificacao === "adicionar_categoria") {
-      const nome = dados.nova_categoria_nome;
-      const emoji = dados.nova_categoria_emoji || "📌";
-      const adicionou = await adicionarCategoria(nome, emoji);
-      if (adicionou) {
-        await enviarMensagem(remoteJid, `✅ *Categoria criada!*\n\n${emoji} *${nome}*\n\nJá pode usá-la nas suas tarefas!`);
-      } else {
-        await enviarMensagem(remoteJid, `⚠️ A categoria *${nome}* já existe!`);
-      }
-
-    // ── REVISAR CATEGORIAS ─────────────────────────────────────────
-    } else if (dados.classificacao === "revisar_categorias") {
-      await enviarMensagem(remoteJid, "🔍 Analisando categorias das suas tarefas...");
-      const tarefas = await buscarTodasTarefas();
-      const pendentes = tarefas.filter(t => t.status !== "Concluída");
-
-      if (pendentes.length === 0) {
-        await enviarMensagem(remoteJid, "Nenhuma tarefa pendente para revisar! ✨");
-        return;
-      }
-
-      const listaCats = await getListaCategorias();
-      const sugestoes = await revisarCategorias(pendentes, listaCats);
-
-      if (sugestoes.length === 0) {
-        await enviarMensagem(remoteJid, "✅ Todas as categorias estão corretas! Nenhuma sugestão.");
-        return;
-      }
-
-      const sugestoesComLinha = sugestoes.map(s => {
-        const tarefa = pendentes[s.numero - 1];
-        return { ...s, linha: tarefa?.linha };
-      });
-
-      pendingReviews.set(remoteJid, sugestoesComLinha);
-
-      let msg = `🔍 *Sugestões de categoria (${sugestoes.length}):*\n\n`;
-      for (const s of sugestoes) {
-        const eAtual = await getEmoji(s.categoriaAtual);
-        const eSugerida = await getEmoji(s.categoriaSugerida);
-        msg += `*${s.numero}.* ${s.descricao}\n`;
-        msg += `   ${eAtual} ${s.categoriaAtual} → ${eSugerida} ${s.categoriaSugerida}\n`;
-        msg += `   _${s.motivo}_\n\n`;
-      }
-      msg += `Responda:\n✅ _"aprovar tudo"_ para aplicar todas\n✅ _"aprovar 1,3"_ para escolher\n❌ _"rejeitar tudo"_ para cancelar`;
-      await enviarMensagem(remoteJid, msg);
-
-    // ── APROVAR REVISÃO ────────────────────────────────────────────
-    } else if (dados.classificacao === "aprovar_revisao") {
-      const sugestoes = pendingReviews.get(remoteJid);
-      if (!sugestoes || sugestoes.length === 0) {
-        await enviarMensagem(remoteJid, "⚠️ Nenhuma revisão pendente. Peça _\"revisa as categorias\"_ primeiro!");
-        return;
-      }
-
-      const aprovados = dados.aprovados || "nenhum";
-      let paraAplicar = [];
-
-      if (aprovados === "tudo") {
-        paraAplicar = sugestoes;
-      } else if (aprovados !== "nenhum") {
-        const nums = aprovados.split(",").map(n => parseInt(n.trim()));
-        paraAplicar = sugestoes.filter(s => nums.includes(s.numero));
-      }
-
-      if (paraAplicar.length === 0) {
-        pendingReviews.delete(remoteJid);
-        await enviarMensagem(remoteJid, "❌ Revisão cancelada. Nenhuma alteração feita.");
-        return;
-      }
-
-      for (const s of paraAplicar) {
-        if (s.linha) await alterarCategoriaTarefa(s.linha, s.categoriaSugerida);
-      }
-
-      pendingReviews.delete(remoteJid);
-      await enviarMensagem(remoteJid, `✅ *${paraAplicar.length} categoria(s) atualizada(s)!*\n\n${paraAplicar.map(s => `📋 ${s.descricao} → ${s.categoriaSugerida}`).join("\n")}`);
-
-    // ── ALTERAR TAREFA ─────────────────────────────────────────────
-    } else if (dados.classificacao === "alterar_tarefa") {
-      const t = await encontrarTarefa(dados.descricao);
-      if (!t) {
-        await enviarMensagem(remoteJid, `⚠️ Não encontrei _"${dados.descricao}"_.`);
-        return;
-      }
-
-      const alteracoes = dados.alteracoes || {};
-      if (Object.keys(alteracoes).length === 0) {
-        await enviarMensagem(remoteJid, `⚠️ Não entendi o que alterar. Tente: _"muda a data de X para Y"_`);
-        return;
-      }
-
-      await alterarTarefa(t.linha, alteracoes);
-
-      const e = await getEmoji(t.categoria);
-      const mudancas = [];
-      if (alteracoes.data) mudancas.push(`📅 Data: ${alteracoes.data === 'backlog' ? 'sem data definida' : alteracoes.data}`);
-      if (alteracoes.hora) mudancas.push(`⏰ Hora: ${alteracoes.hora}`);
-      if (alteracoes.dias_lembrete) mudancas.push(`📆 Dias lembrete: ${alteracoes.dias_lembrete}`);
-      if (alteracoes.hora_lembrete) mudancas.push(`🔔 Hora lembrete: ${alteracoes.hora_lembrete}`);
-
-      await enviarMensagem(remoteJid, [
-        `✅ *Tarefa atualizada!*`, ``,
-        `${e} *${t.descricao}*`,
-        ...mudancas,
-        ``, `🤖 _${dados.entendimento}_`,
-      ].join("\n"));
-
-    } else {
-      await enviarMensagem(remoteJid, `🤖 *JARVIS:* ${dados.entendimento}`);
-    }
+    await processarMensagem(textoParaAnalisar, remoteJid, "whatsapp");
 
   } catch (err) {
     console.error("Erro webhook:", err);
@@ -422,4 +431,23 @@ async function handleWebhook(req, res) {
   }
 }
 
-module.exports = { handleWebhook };
+// ════════════════════════════════════════════
+//  API WEB — Site/App
+// ════════════════════════════════════════════
+async function handleWebChat(req, res) {
+  try {
+    const { texto } = req.body;
+    if (!texto) return res.status(400).json({ erro: "texto obrigatório" });
+
+    // Usa o número autorizado como ID de sessão para manter estado (pendingTaskAdd etc.)
+    const sessionId = CONFIG.NUMERO_AUTORIZADO;
+    const resposta = await processarMensagem(texto, sessionId, "web");
+
+    res.json({ texto: resposta });
+  } catch (err) {
+    console.error("Erro web chat:", err);
+    res.status(500).json({ erro: err.message });
+  }
+}
+
+module.exports = { handleWebhook, handleWebChat };
