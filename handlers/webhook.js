@@ -450,4 +450,4 @@ async function handleWebChat(req, res) {
   }
 }
 
-module.exports = { handleWebhook, handleWebChat };
+module.exports = { handleWebhook, handleWebChat, handleExtratoUpload, handleExtratoConfirmar };
