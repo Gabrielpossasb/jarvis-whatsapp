@@ -9,7 +9,9 @@ const { inicializarPlanilhaTarefas } = require("./services/sheets");
 const { inicializarCategorias } = require("./services/categorias");
 const { formatarData, formatarHora } = require("./utils/date");
 
+const cors = require("cors");
 const app = express();
+app.use(cors());
 app.use(express.json({ limit: "50mb" }));
 
 app.post("/webhook", handleWebhook);
