@@ -1,16 +1,14 @@
 // ─────────────────────────────────────────────
-//  services/categorias.js — Categorias dinâmicas
+//  services/categorias.js — Categorias via Supabase
 // ─────────────────────────────────────────────
 
-const { google } = require("googleapis");
-const { CONFIG } = require("../config");
+const { supabase } = require("./supabase");
 
 // Cache local com TTL de 5 minutos
 let cache = null;
 let cacheTimestamp = 0;
 const CACHE_TTL = 5 * 60 * 1000;
 
-// Categorias padrão (usadas na inicialização)
 const CATEGORIAS_PADRAO = [
   { nome: "Casa",       emoji: "🏠" },
   { nome: "Elétrica",   emoji: "⚡" },
@@ -23,43 +21,20 @@ const CATEGORIAS_PADRAO = [
   { nome: "Outros",     emoji: "📌" },
 ];
 
-let _sheetsClient = null;
-async function getSheetsClient() {
-  if (_sheetsClient) return _sheetsClient;
-  const auth = new google.auth.GoogleAuth({
-    credentials: CONFIG.GOOGLE_CREDENTIALS,
-    scopes: ["https://www.googleapis.com/auth/spreadsheets"],
-  });
-  _sheetsClient = google.sheets({ version: "v4", auth });
-  return _sheetsClient;
-}
-
-// Inicializa aba Categorias com padrões se não existir
+// Inicializa categorias padrão se tabela estiver vazia
 async function inicializarCategorias() {
-  const sheets = await getSheetsClient();
   try {
-    const meta = await sheets.spreadsheets.get({ spreadsheetId: CONFIG.SPREADSHEET_TAREFAS_ID });
-    const abas = meta.data.sheets.map(s => s.properties.title);
+    const { data, error } = await supabase.from("categorias").select("id").limit(1);
+    if (error) throw error;
 
-    if (!abas.includes("Categorias")) {
-      await sheets.spreadsheets.batchUpdate({
-        spreadsheetId: CONFIG.SPREADSHEET_TAREFAS_ID,
-        requestBody: { requests: [{ addSheet: { properties: { title: "Categorias" } } }] },
-      });
-
-      // Popula com categorias padrão
-      const valores = [
-        ["Nome", "Emoji"],
-        ...CATEGORIAS_PADRAO.map(c => [c.nome, c.emoji])
-      ];
-      await sheets.spreadsheets.values.update({
-        spreadsheetId: CONFIG.SPREADSHEET_TAREFAS_ID,
-        range: `Categorias!A1:B${valores.length}`,
-        valueInputOption: "USER_ENTERED",
-        requestBody: { values: valores },
-      });
-      console.log("Aba Categorias criada com padrões!");
+    if (!data || data.length === 0) {
+      const { error: insertError } = await supabase
+        .from("categorias")
+        .insert(CATEGORIAS_PADRAO);
+      if (insertError) throw insertError;
+      console.log("✅ Categorias padrão inseridas!");
     }
+    console.log("Categorias OK!");
   } catch (e) {
     console.error("Erro ao inicializar categorias:", e.message);
   }
@@ -70,16 +45,16 @@ async function getCategorias() {
   const agora = Date.now();
   if (cache && agora - cacheTimestamp < CACHE_TTL) return cache;
 
-  const sheets = await getSheetsClient();
-  const res = await sheets.spreadsheets.values.get({
-    spreadsheetId: CONFIG.SPREADSHEET_TAREFAS_ID,
-    range: "Categorias!A:B",
-  });
+  const { data, error } = await supabase
+    .from("categorias")
+    .select("nome, emoji")
+    .order("nome");
 
-  const rows = res.data.values || [];
+  if (error) throw error;
+
   const categorias = {};
-  for (const row of rows.slice(1)) {
-    if (row[0]) categorias[row[0]] = row[1] || "📌";
+  for (const row of data) {
+    categorias[row.nome] = row.emoji || "📌";
   }
 
   cache = categorias;
@@ -95,26 +70,16 @@ async function getListaCategorias() {
 
 // Adiciona nova categoria
 async function adicionarCategoria(nome, emoji) {
-  const sheets = await getSheetsClient();
   const categorias = await getCategorias();
-
   if (categorias[nome]) return false; // já existe
 
-  const res = await sheets.spreadsheets.values.get({
-    spreadsheetId: CONFIG.SPREADSHEET_TAREFAS_ID,
-    range: "Categorias!A:B",
-  });
-  const proximaLinha = (res.data.values || []).length + 1;
+  const { error } = await supabase
+    .from("categorias")
+    .insert([{ nome, emoji: emoji || "📌" }]);
 
-  await sheets.spreadsheets.values.update({
-    spreadsheetId: CONFIG.SPREADSHEET_TAREFAS_ID,
-    range: `Categorias!A${proximaLinha}:B${proximaLinha}`,
-    valueInputOption: "USER_ENTERED",
-    requestBody: { values: [[nome, emoji || "📌"]] },
-  });
+  if (error) throw error;
 
-  // Invalida cache
-  cache = null;
+  cache = null; // invalida cache
   return true;
 }
 
