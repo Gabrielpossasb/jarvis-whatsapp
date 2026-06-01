@@ -450,4 +450,34 @@ async function handleWebChat(req, res) {
   }
 }
 
+async function handleExtratoUpload(req, res) {
+  try {
+    const { base64, mimetype } = req.body;
+    if (!base64 || !mimetype) return res.status(400).json({ erro: "base64 e mimetype obrigatórios" });
+    const transacoes = await extrairExtrato(base64, mimetype);
+    if (!transacoes || transacoes.length === 0) {
+      return res.status(422).json({ erro: "Nenhuma transação encontrada no extrato" });
+    }
+    const { novas, duplicatas } = await verificarDuplicatasExtrato(transacoes);
+    res.json({ transacoes, novas, duplicatas });
+  } catch (err) {
+    console.error("Erro extrato upload:", err);
+    res.status(500).json({ erro: err.message });
+  }
+}
+
+async function handleExtratoConfirmar(req, res) {
+  try {
+    const { transacoes } = req.body;
+    if (!transacoes || transacoes.length === 0) {
+      return res.status(400).json({ erro: "Nenhuma transação para adicionar" });
+    }
+    const qtd = await adicionarLoteGastos(transacoes);
+    res.json({ adicionados: qtd });
+  } catch (err) {
+    console.error("Erro confirmar extrato:", err);
+    res.status(500).json({ erro: err.message });
+  }
+}
+
 module.exports = { handleWebhook, handleWebChat, handleExtratoUpload, handleExtratoConfirmar };
