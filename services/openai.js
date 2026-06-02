@@ -194,10 +194,55 @@ async function analisarPDF(base64) {
   return response.choices[0].message.content;
 }
 
+// Busca histórico do Supabase e monta dicionário de aprendizado
+// Retorna string formatada para injetar no prompt
+async function buscarHistoricoCategorizacao() {
+  try {
+    const { supabase } = require("../services/supabase");
+    const { data } = await supabase
+      .from("gastos")
+      .select("descricao, categoria, tipo")
+      .order("id", { ascending: false })
+      .limit(200);
+
+    if (!data || data.length === 0) return "";
+
+    // Monta mapa: descricao_normalizada → { categoria, tipo, contagem }
+    const mapa = {};
+    for (const g of data) {
+      if (!g.descricao || !g.categoria) continue;
+      // Normaliza: remove parcela (ex: MERCADO LIVRE-2/6 → MERCADO LIVRE)
+      const chave = g.descricao
+        .replace(/-\d+\/\d+$/, "")  // remove -X/Y
+        .replace(/\s+\d+\/\d+$/, "") // remove X/Y com espaço
+        .trim()
+        .toUpperCase();
+
+      if (!mapa[chave]) {
+        mapa[chave] = { categoria: g.categoria, tipo: g.tipo, contagem: 0 };
+      }
+      mapa[chave].contagem++;
+    }
+
+    // Monta string compacta para o prompt — só os mais frequentes
+    const linhas = Object.entries(mapa)
+      .sort((a, b) => b[1].contagem - a[1].contagem)
+      .slice(0, 50) // máximo 50 entradas para não poluir o prompt
+      .map(([desc, { categoria, tipo }]) => `  "${desc}" → ${categoria} (${tipo})`);
+
+    if (linhas.length === 0) return "";
+
+    return `\nHISTÓRICO DO USUÁRIO — use como referência prioritária:\n${linhas.join("\n")}\n`;
+  } catch (err) {
+    console.error("Erro ao buscar histórico:", err.message);
+    return "";
+  }
+}
+
 async function extrairExtrato(base64, mimetype) {
   const { MESES_CURTOS } = require("../config");
   const dataAtual = new Date().toLocaleDateString("pt-BR");
-
+  const historico = await buscarHistoricoCategorizacao();
   const prompt = `Você é um assistente financeiro. Analise esse extrato bancário (Nubank ou Mercado Pago) e extraia TODAS as transações de saída (gastos, pagamentos, compras).
 
 Data atual: ${dataAtual}
@@ -219,6 +264,7 @@ REGRAS:
   Cuidados Pessoais: barbearia, salão, farmácia (higiene)
   Saúde: farmácia (remédio), médico, plano de saúde
   Outros: qualquer outro gasto
+  ${historico}
 - mes: sempre use o mês mais recente do extrato (ex: se a maioria das transações é de mai, use "Maio" para todas, independente da data original da parcela)
 - descricao: nome em CAIXA ALTA. Se tiver parcela, adicione no formato NOME-X/Y (ex: "MERCADO LIVRE-2/6")
 - tipo: use ESTAS regras exatas:
@@ -273,7 +319,7 @@ Responda APENAS com JSON válido, sem markdown:
 async function extrairExtratoTexto(texto) {
   const { MESES_CURTOS } = require("../config");
   const dataAtual = new Date().toLocaleDateString("pt-BR");
-
+  const historico = await buscarHistoricoCategorizacao();
   const prompt = `Você é um assistente financeiro. Analise esse texto de extrato bancário e extraia TODAS as transações de saída (gastos, pagamentos, compras). Ignore entradas, créditos, estornos e reembolsos.
 
 Data atual: ${dataAtual}
@@ -293,6 +339,7 @@ Para cada transação extraia:
   Cuidados Pessoais: barbearia, salão, farmácia (higiene)
   Saúde: farmácia (remédio), médico, plano de saúde
   Outros: qualquer outro gasto
+  ${historico}
 - descricao: nome em CAIXA ALTA. Se tiver parcela, adicione no formato NOME-X/Y (ex: "MERCADO LIVRE-2/6")
 - tipo: use ESTAS regras exatas:
   * "fixa": parcelas que NÃO são a última (ex: 2/6, 3/9, 1/7) + assinaturas recorrentes (Spotify, Netflix, HBO, Amazon Prime, Disney, Apple, Google One, etc.) + empréstimos
