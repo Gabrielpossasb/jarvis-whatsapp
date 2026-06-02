@@ -50,6 +50,7 @@ CLASSIFICAÇÕES:
 - "revisar_categorias": pede revisão das categorias das tarefas (ex: "revisa as categorias")
 - "aprovar_revisao": aprova sugestões de revisão (ex: "aprovar tudo", "aprovar 1,3", "rejeitar 2")
 - "alterar_tarefa": mudar data/hora/lembrete de uma tarefa existente (ex: "muda a data de X para Y", "muda o lembrete de X para toda sexta às 10h", "quero o horário de X às Y", "X às Y horas")
+- "extrato_texto": quando o usuário cola um texto de extrato bancário com múltiplas transações (ex: lista de gastos, histórico de pagamentos)
 CATEGORIAS DISPONÍVEIS: ${listaCategorias}
 Identifique a categoria automaticamente pelo contexto da tarefa ou gasto.
 
@@ -218,8 +219,11 @@ REGRAS:
   Cuidados Pessoais: barbearia, salão, farmácia (higiene)
   Saúde: farmácia (remédio), médico, plano de saúde
   Outros: qualquer outro gasto
-
-- tipo: "fixa" para assinaturas, parcelas, empréstimos, faturas recorrentes. "variavel" para o resto.
+- mes: sempre use o mês mais recente do extrato (ex: se a maioria das transações é de mai, use "Maio" para todas, independente da data original da parcela)
+- descricao: nome em CAIXA ALTA. Se tiver parcela, adicione no formato NOME-X/Y (ex: "MERCADO LIVRE-2/6")
+- tipo: use ESTAS regras exatas:
+  * "fixa": parcelas que NÃO são a última (ex: 2/6, 3/9, 1/7) + assinaturas recorrentes (Spotify, Netflix, HBO, Amazon Prime, Disney, Apple, Google One, etc.) + empréstimos
+  * "variavel": compras à vista + última parcela (quando X=Y, ex: 2/2, 3/3, 5/5) + qualquer gasto que não se repete no próximo mês
 
 Responda APENAS com JSON válido, sem markdown:
 {
@@ -231,7 +235,8 @@ Responda APENAS com JSON válido, sem markdown:
       "valor": 00.00,
       "meio_pagamento": "Nubank" ou "Mercado Pago",
       "categoria": "categoria",
-      "tipo": "fixa" ou "variavel"
+      "tipo": "fixa" ou "variavel",
+      "mes": "NomeMesExtenso"
     }
   ]
 }`;
@@ -265,4 +270,51 @@ Responda APENAS com JSON válido, sem markdown:
   return parsed.transacoes || [];
 }
 
-module.exports = { extrairDados, revisarCategorias, transcreverAudio, analisarImagem, analisarPDF, extrairExtrato };
+async function extrairExtratoTexto(texto) {
+  const { MESES_CURTOS } = require("../config");
+  const dataAtual = new Date().toLocaleDateString("pt-BR");
+
+  const prompt = `Você é um assistente financeiro. Analise esse texto de extrato bancário e extraia TODAS as transações de saída (gastos, pagamentos, compras). Ignore entradas, créditos, estornos e reembolsos.
+
+Data atual: ${dataAtual}
+
+Para cada transação extraia:
+- data: formato DD/mmm (ex: 15/mai)
+- valor: número positivo
+- meio_pagamento: "Nubank" ou "Mercado Pago" conforme o extrato
+- Identifique a categoria automaticamente:
+  Assinaturas: Spotify, Netflix, Amazon Prime, Disney, HBO, Apple, iFood Club, Hostgator, cursos
+  Cartão/Fatura: parcelas, fatura, Mercado Livre, Shopee, Amazon compras, Gazin, lojas
+  Dívidas/Empréstimo: empréstimo, parcela de empréstimo
+  Transporte: Uber, 99, combustível, gasolina, estacionamento
+  Alimentação: iFood, restaurante, mercado, supermercado, padaria, café, lanche
+  Relacionamento: presentes para pessoas, encontros, programas
+  Presentes: presentes, flores, floricultora
+  Cuidados Pessoais: barbearia, salão, farmácia (higiene)
+  Saúde: farmácia (remédio), médico, plano de saúde
+  Outros: qualquer outro gasto
+- descricao: nome em CAIXA ALTA. Se tiver parcela, adicione no formato NOME-X/Y (ex: "MERCADO LIVRE-2/6")
+- tipo: use ESTAS regras exatas:
+  * "fixa": parcelas que NÃO são a última (ex: 2/6, 3/9, 1/7) + assinaturas recorrentes (Spotify, Netflix, HBO, Amazon Prime, Disney, Apple, Google One, etc.) + empréstimos
+  * "variavel": compras à vista + última parcela (quando X=Y, ex: 2/2, 3/3, 5/5) + qualquer gasto que não se repete no próximo mês
+- mes: sempre use o mês mais recente do extrato (ex: se a maioria das transações é de mai, use "Maio" para todas, independente da data original da parcela)
+
+Responda APENAS com JSON válido, sem markdown:
+{ "transacoes": [ { "data": "DD/mmm", "descricao": "NOME", "valor": 0.00, "meio_pagamento": "...", "categoria": "...", "tipo": "...", "mes": "NomeMes" } ] }
+Texto do extrato:
+${texto}`;
+
+  const openai = new OpenAI({ apiKey: CONFIG.OPENAI_API_KEY });
+  const response = await openai.chat.completions.create({
+    model: "gpt-4o-mini",
+    messages: [{ role: "user", content: prompt }],
+    max_tokens: 4000,
+    temperature: 0.1,
+  });
+
+  const content = response.choices[0].message.content.trim();
+  const parsed = JSON.parse(content.replace(/```json|```/g, "").trim());
+  return parsed.transacoes || [];
+}
+
+module.exports = { extrairDados, revisarCategorias, transcreverAudio, analisarImagem, analisarPDF, extrairExtrato, extrairExtratoTexto };

@@ -6,7 +6,7 @@ const { CONFIG } = require("../config");
 const { pendingReviews, pendingTaskAdd } = require("../state");
 const { encontrarSimilar } = require("../utils/similarity");
 const { enviarMensagem, baixarMidia } = require("../services/evolution");
-const { extrairDados, revisarCategorias, transcreverAudio, analisarImagem, analisarPDF } = require("../services/openai");
+const { extrairDados, revisarCategorias, transcreverAudio, analisarImagem, analisarPDF, extrairExtratoTexto, extrairExtrato } = require("../services/openai");
 const { getCategorias, getListaCategorias, adicionarCategoria, getEmoji } = require("../services/categorias");
 const {
   adicionarGasto, adicionarTarefa,
@@ -364,6 +364,32 @@ async function processarMensagem(texto, remoteJid, canal = "whatsapp") {
       ...mudancas,
       ``, `🤖 _${dados.entendimento}_`,
     ].join("\n"));
+
+    } else if (dados.classificacao === "extrato_texto") {
+    await responder("📊 Analisando extrato...");
+    try {
+      const transacoes = await extrairExtratoTexto(texto);
+      if (!transacoes || transacoes.length === 0) {
+        await responder("⚠️ Não encontrei transações no texto enviado.");
+        return respostas.join("\n\n");
+      }
+      const { novas, duplicatas } = await verificarDuplicatasExtrato(transacoes);
+      if (novas.length === 0) {
+        await responder(`⚠️ Todas as ${transacoes.length} transações já existem nos seus gastos!`);
+        return respostas.join("\n\n");
+      }
+      pendingExtrato.set(remoteJid, { novas, duplicatas });
+      let msg = `📊 *Extrato analisado!*\nEncontrei *${transacoes.length} transações*.\n\n`;
+      msg += formatarMsgExtrato(novas, `✅ *${novas.length} novas transações:*`);
+      if (duplicatas.length > 0) {
+        msg += `\n\n⚠️ *${duplicatas.length} possíveis duplicatas:*\n`;
+        duplicatas.forEach(t => { msg += `• ${t.descricao} — R$ ${t.valor.toFixed(2)} · ${t.data}\n`; });
+      }
+      msg += `\n\nO que deseja?\n✅ _"sim"_ para adicionar todas\n✅ _"1,3,5"_ para escolher\n❌ _"não"_ para cancelar`;
+      await responder(msg);
+    } catch (err) {
+      await responder(`❌ Erro ao analisar extrato: ${err.message}`);
+    }
 
   } else {
     await responder(`🤖 *JARVIS:* ${dados.entendimento}`);
