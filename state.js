@@ -10,4 +10,6 @@ const pendingReviews = new Map();
 // { remoteJid: { dados, dataRegistro, tarefaSimilar } }
 const pendingTaskAdd = new Map();
 
-module.exports = { pendingReviews, pendingTaskAdd };
+const pendingExtrato = new Map();
+
+module.exports = { pendingReviews, pendingTaskAdd, pendingExtrato };
