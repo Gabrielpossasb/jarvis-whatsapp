@@ -3,7 +3,7 @@
 // ─────────────────────────────────────────────
 
 const { CONFIG } = require("../config");
-const { pendingReviews, pendingTaskAdd } = require("../state");
+const { pendingReviews, pendingTaskAdd, pendingExtrato } = require("../state");
 const { encontrarSimilar } = require("../utils/similarity");
 const { enviarMensagem, baixarMidia } = require("../services/evolution");
 const { extrairDados, revisarCategorias, transcreverAudio, analisarImagem, analisarPDF, extrairExtratoTexto, extrairExtrato } = require("../services/openai");
@@ -25,6 +25,52 @@ async function encontrarTarefa(descBusca) {
   const exato = todas.find(t => t.status !== "Concluída" && normalizar(t.descricao).includes(busca));
   if (exato) return exato;
   return encontrarSimilar(descBusca, todas, 0.4);
+}
+// ── Verifica duplicatas no extrato ────────────────────────────────
+async function verificarDuplicatasExtrato(transacoes) {
+  const { supabase } = require("../services/supabase");
+  const { data: gastosExistentes } = await supabase.from("gastos").select("descricao, valor, data, mes");
+  const novas = [];
+  const duplicatas = [];
+  for (const t of transacoes) {
+    const isDuplicata = (gastosExistentes || []).some(g => {
+      const mesmoValor = Math.abs(Number(g.valor) - Number(t.valor)) < 0.01;
+      const mesmaDesc = g.descricao?.toLowerCase().includes(t.descricao?.toLowerCase().slice(0, 6)) ||
+                        t.descricao?.toLowerCase().includes(g.descricao?.toLowerCase().slice(0, 6));
+      const mesmaData = g.data === t.data;
+      return mesmoValor && (mesmaDesc || mesmaData);
+    });
+    if (isDuplicata) duplicatas.push(t);
+    else novas.push(t);
+  }
+  return { novas, duplicatas };
+}
+
+// ── Adiciona lote de gastos ───────────────────────────────────────
+async function adicionarLoteGastos(transacoes) {
+  const { supabase } = require("../services/supabase");
+  const { MESES } = require("../config");
+  const mes = MESES[agora().getMonth()];
+  const registros = transacoes.map(t => ({
+    data: t.data, descricao: t.descricao, valor: t.valor,
+    meio_pagamento: t.meio_pagamento, categoria: t.categoria,
+    tipo: t.tipo, mes: t.mes || mes,
+  }));
+  const { error } = await supabase.from("gastos").insert(registros);
+  if (error) throw error;
+  return registros.length;
+}
+
+// ── Formata mensagem do extrato ───────────────────────────────────
+function formatarMsgExtrato(transacoes, titulo) {
+  const total = transacoes.reduce((s, t) => s + Number(t.valor || 0), 0);
+  let msg = `${titulo}\n\n`;
+  transacoes.forEach((t, i) => {
+    msg += `*${i + 1}.* ${t.descricao}\n`;
+    msg += `   💰 R$ ${t.valor.toFixed(2)} · 📅 ${t.data} · 🏷️ ${t.categoria}\n\n`;
+  });
+  msg += `💸 Total: R$ ${total.toFixed(2)}`;
+  return msg;
 }
 
 // ── Resposta de gasto ─────────────────────────────────────────────
