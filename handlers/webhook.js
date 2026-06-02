@@ -207,7 +207,40 @@ async function processarMensagem(texto, remoteJid, canal = "whatsapp") {
       await enviarMensagem(remoteJid, msg);
     }
   };
+  // ── Verifica extrato pendente ─────────────────────────────────
+  if (pendingExtrato.has(remoteJid)) {
+    const texto_lower = texto.toLowerCase().trim();
+    const { novas, duplicatas } = pendingExtrato.get(remoteJid);
 
+    if (["sim", "s", "tudo", "adicionar tudo", "pode", "confirmar"].some(p => texto_lower === p || texto_lower.includes(p))) {
+      pendingExtrato.delete(remoteJid);
+      const qtd = await adicionarLoteGastos(novas);
+      await responder(`✅ *${qtd} gastos adicionados!*\n💸 Total: R$ ${novas.reduce((s,t) => s + t.valor, 0).toFixed(2)}`);
+      return respostas.join("\n\n");
+    }
+
+    const matchNumeros = texto_lower.match(/(?:adicionar\s+)?([\d,\s]+)/);
+    if (matchNumeros) {
+      const nums = matchNumeros[1].split(",").map(n => parseInt(n.trim())).filter(n => !isNaN(n));
+      const selecionadas = nums.map(n => novas[n - 1]).filter(Boolean);
+      if (selecionadas.length > 0) {
+        pendingExtrato.delete(remoteJid);
+        const qtd = await adicionarLoteGastos(selecionadas);
+        await responder(`✅ *${qtd} gastos adicionados!*\n💸 Total: R$ ${selecionadas.reduce((s,t) => s + t.valor, 0).toFixed(2)}`);
+        return respostas.join("\n\n");
+      }
+    }
+
+    if (["não", "nao", "n", "cancelar", "cancel"].some(p => texto_lower === p || texto_lower.includes(p))) {
+      pendingExtrato.delete(remoteJid);
+      await responder("❌ Importação cancelada.");
+      return respostas.join("\n\n");
+    }
+
+    await responder(`Não entendi. Responda:\n✅ _"sim"_ para adicionar todas as ${novas.length} transações\n✅ _"1,3,5"_ para escolher\n❌ _"não"_ para cancelar`);
+    return respostas.join("\n\n");
+  }
+  
   // ── Verifica se há tarefa pendente de confirmação ─────────────
   if (pendingTaskAdd.has(remoteJid)) {
     const textoBusca = texto.toLowerCase().trim();
