@@ -2,3 +2,10 @@ node_modules/
 package-lock.json
 .env
 .env.local
+
+# Frontend (jarvis-web)
+jarvis-web/node_modules/
+jarvis-web/dist/
+jarvis-web/.env
+jarvis-web/.env.local
+jarvis-web/package-lock.json
