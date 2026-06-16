@@ -113,6 +113,7 @@ export default function Gastos() {
   const [extratoLoading, setExtratoLoading] = useState(false);
   const [extratoResultado, setExtratoResultado] = useState(null);
   const [selecionadas, setSelecionadas] = useState({});
+  const [selecionadasDup, setSelecionadasDup] = useState({});
   const [confirmando, setConfirmando] = useState(false);
   const [extratoTexto, setExtratoTexto] = useState("");
   const [extratoArquivo, setExtratoArquivo] = useState(null);
@@ -181,12 +182,17 @@ export default function Gastos() {
     setExtratoResultado(null);
     setExtratoTexto("");
     setExtratoArquivo(null);
+    setSelecionadasDup({});
   }
 
   async function confirmarExtrato() {
     if (!extratoResultado) return;
     setConfirmando(true);
-    const paraAdicionar = extratoResultado.novas.filter((_, i) => selecionadas[i]);
+    const dupsSelecionadas = extratoResultado.duplicatas.filter((_, i) => selecionadasDup[i]);
+    const paraAdicionar = [
+      ...extratoResultado.novas.filter((_, i) => selecionadas[i]),
+      ...dupsSelecionadas,
+    ];
     if (paraAdicionar.length === 0) { alert("Selecione pelo menos uma transação."); setConfirmando(false); return; }
     try {
       const response = await fetch(`${JARVIS_URL}/api/extrato/confirmar`, {
@@ -471,14 +477,22 @@ export default function Gastos() {
                   )}
                   {extratoResultado.duplicatas.length > 0 && (
                     <div>
-                      <div className="text-xs text-[#4a4a6a] tracking-wider mb-3">⚠️ {extratoResultado.duplicatas.length} POSSÍVEIS DUPLICATAS</div>
+                      <div className="flex items-center justify-between mb-3">
+                        <div className="text-xs text-[#4a4a6a] tracking-wider">⚠️ {extratoResultado.duplicatas.length} POSSÍVEIS DUPLICATAS</div>
+                        <span className="text-[10px] text-[#4a4a6a]">clique para incluir mesmo assim</span>
+                      </div>
                       <div className="flex flex-col gap-2">
                         {extratoResultado.duplicatas.map((t, i) => (
-                          <div key={i} className="flex items-center gap-3 p-3 rounded-xl border border-[#1e1e2e] opacity-50">
-                            <div className="w-4 h-4 rounded border-2 border-red-400 shrink-0" />
+                          <div key={i} onClick={() => setSelecionadasDup(s => ({ ...s, [i]: !s[i] }))}
+                            className={`flex items-center gap-3 p-3 rounded-xl border cursor-pointer transition-all
+                              ${selecionadasDup[i] ? "border-amber-500 bg-amber-500/10 opacity-100" : "border-[#1e1e2e] opacity-50 hover:opacity-75"}`}>
+                            <div className={`w-4 h-4 rounded border-2 flex items-center justify-center shrink-0
+                              ${selecionadasDup[i] ? "border-amber-500 bg-amber-500" : "border-red-400"}`}>
+                              {selecionadasDup[i] && <span className="text-[10px] text-white font-bold">✓</span>}
+                            </div>
                             <div className="flex-1 min-w-0">
                               <div className="text-sm text-[#d8d8f0] truncate">{t.descricao}</div>
-                              <div className="text-xs text-[#6a6a8a] mt-0.5">{t.data}</div>
+                              <div className="text-xs text-[#6a6a8a] mt-0.5">{t.data} · {t.meio_pagamento === "Nubank" ? "💜" : "🟡"} {t.meio_pagamento}</div>
                             </div>
                             <span className="font-mono text-sm text-red-400">{fmt(t.valor)}</span>
                           </div>
@@ -493,11 +507,14 @@ export default function Gastos() {
             {extratoResultado && (
               <div className="px-6 py-4 border-t border-[#1e1e2e] flex items-center justify-between">
                 <div className="text-xs text-[#6a6a8a]">
-                  {Object.values(selecionadas).filter(v => v).length} selecionadas ·{" "}
-                  {fmt(extratoResultado.novas.filter((_, i) => selecionadas[i]).reduce((s, t) => s + t.valor, 0))}
+                  {Object.values(selecionadas).filter(v => v).length + Object.values(selecionadasDup).filter(v => v).length} selecionadas ·{" "}
+                  {fmt([
+                    ...extratoResultado.novas.filter((_, i) => selecionadas[i]),
+                    ...extratoResultado.duplicatas.filter((_, i) => selecionadasDup[i]),
+                  ].reduce((s, t) => s + t.valor, 0))}
                 </div>
                 <div className="flex gap-3">
-                  <button onClick={() => { setExtratoResultado(null); setSelecionadas({}); setExtratoArquivo(null); setExtratoTexto(""); if (fileRef.current) fileRef.current.value = ""; }}
+                  <button onClick={() => { setExtratoResultado(null); setSelecionadas({}); setSelecionadasDup({}); setExtratoArquivo(null); setExtratoTexto(""); if (fileRef.current) fileRef.current.value = ""; }}
                     className="px-4 py-2 text-xs text-[#6a6a8a] hover:text-[#e8e8f0] transition-colors">Voltar</button>
                   <button onClick={confirmarExtrato} disabled={confirmando}
                     className="px-5 py-2 bg-[#6c5fff] hover:bg-[#7c6fff] disabled:opacity-50 rounded-lg text-xs font-semibold text-white transition-colors">

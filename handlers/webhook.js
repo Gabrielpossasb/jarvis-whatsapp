@@ -34,11 +34,13 @@ async function verificarDuplicatasExtrato(transacoes) {
   const duplicatas = [];
   for (const t of transacoes) {
     const isDuplicata = (gastosExistentes || []).some(g => {
+      if (g.mes !== t.mes) return false;
       const mesmoValor = Math.abs(Number(g.valor) - Number(t.valor)) < 0.01;
-      const mesmaDesc = g.descricao?.toLowerCase().includes(t.descricao?.toLowerCase().slice(0, 6)) ||
-                        t.descricao?.toLowerCase().includes(g.descricao?.toLowerCase().slice(0, 6));
-      const mesmaData = g.data === t.data;
-      return mesmoValor && (mesmaDesc || mesmaData);
+      const descA = g.descricao?.toLowerCase().trim() || "";
+      const descB = t.descricao?.toLowerCase().trim() || "";
+      const mesmaDesc = descA === descB ||
+        (descA.length >= 10 && descB.length >= 10 && descA.slice(0, 15) === descB.slice(0, 15));
+      return mesmoValor && mesmaDesc;
     });
     if (isDuplicata) duplicatas.push(t);
     else novas.push(t);
