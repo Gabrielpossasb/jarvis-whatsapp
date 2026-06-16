@@ -1,0 +1,6 @@
+- Ao clicar para excluir um gasto, tenha que clicar 
+2x no botao, como se fosse uma confirmacao
+
+- Ajustar o cron e o horario dos avisos no backend
+
+

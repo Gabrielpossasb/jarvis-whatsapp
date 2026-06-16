@@ -8,6 +8,7 @@ const { handleWebhook, handleWebChat, handleExtratoUpload, handleExtratoConfirma
 const { iniciarCronJobs } = require("./cron/jobs");
 const { inicializarPlanilhaTarefas } = require("./services/sheets");
 const { inicializarCategorias } = require("./services/categorias");
+const { limparEstadosAntigos } = require("./services/pending-states");
 const { formatarData, formatarHora } = require("./utils/date");
 
 const app = express();
@@ -25,6 +26,7 @@ app.listen(PORT, async () => {
   console.log(`JARVIS na porta ${PORT}`);
   await inicializarPlanilhaTarefas();
   await inicializarCategorias();
+  await limparEstadosAntigos();
   iniciarCronJobs();
   console.log("✅ JARVIS pronto!");
 });
