@@ -2,14 +2,12 @@
 //  state.js — Estado em memória do JARVIS
 // ─────────────────────────────────────────────
 
-// Sugestões de revisão de categorias pendentes
-// { remoteJid: [{linha, descricao, categoriaAtual, categoriaSugerida, motivo}] }
-const pendingReviews = new Map();
+const pendingReviews   = new Map();
+const pendingTaskAdd   = new Map();
+const pendingExtrato   = new Map();
 
-// Tarefa pendente de confirmação (duplicata detectada)
-// { remoteJid: { dados, dataRegistro, tarefaSimilar } }
-const pendingTaskAdd = new Map();
+// Múltiplas tarefas aguardando confirmação/edição
+// { remoteJid: [ { descricao, data, hora, recorrente, categoria, dias_lembrete, hora_lembrete } ] }
+const pendingMultiTarefas = new Map();
 
-const pendingExtrato = new Map();
-
-module.exports = { pendingReviews, pendingTaskAdd, pendingExtrato };
+module.exports = { pendingReviews, pendingTaskAdd, pendingExtrato, pendingMultiTarefas };

@@ -9,7 +9,7 @@ Servidor Node.js que recebe mensagens do WhatsApp, processa com IA e gerencia ga
 - **OpenAI GPT-4o-mini** — interpretação de mensagens
 - **OpenAI Whisper** — transcrição de áudios
 - **Evolution API** — integração WhatsApp
-- **Google Sheets** — armazenamento de dados
+- **Supabase** — banco de dados (tarefas, gastos, categorias)
 - **Railway** — hospedagem
 
 ---
@@ -46,9 +46,8 @@ Servidor Node.js que recebe mensagens do WhatsApp, processa com IA e gerencia ga
 | `EVOLUTION_API_KEY` | Token da instância |
 | `EVOLUTION_INSTANCE` | Nome da instância (ex: JARVIS) |
 | `NUMERO_AUTORIZADO` | Número autorizado (ex: 5567...@s.whatsapp.net) |
-| `SPREADSHEET_ID` | ID da planilha de gastos |
-| `SPREADSHEET_TAREFAS_ID` | ID da planilha de tarefas |
-| `GOOGLE_CREDENTIALS` | JSON da service account (em uma linha) |
+| `SUPABASE_URL` | URL do projeto Supabase |
+| `SUPABASE_KEY` | Chave anon/service do Supabase |
 
 ---
 

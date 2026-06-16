@@ -237,7 +237,31 @@ async function processarMensagem(texto, remoteJid, canal = "whatsapp") {
       return respostas.join("\n\n");
     }
 
-    await responder(`Não entendi. Responda:\n✅ _"sim"_ para adicionar todas as ${novas.length} transações\n✅ _"1,3,5"_ para escolher\n❌ _"não"_ para cancelar`);
+    // Detecta pedido de mudança de mês ("adicionar no julho", "muda para junho", "é de março")
+    const MESES_DETECCAO = {
+      "janeiro": "Janeiro", "fevereiro": "Fevereiro", "março": "Março", "marco": "Março",
+      "abril": "Abril", "maio": "Maio", "junho": "Junho", "julho": "Julho",
+      "agosto": "Agosto", "setembro": "Setembro", "outubro": "Outubro",
+      "novembro": "Novembro", "dezembro": "Dezembro",
+    };
+    const mesMencionado = Object.keys(MESES_DETECCAO).find(m => texto_lower.includes(m));
+    if (mesMencionado) {
+      const novoMes = MESES_DETECCAO[mesMencionado];
+      const novasAtualizadas = novas.map(t => ({ ...t, mes: novoMes }));
+      pendingExtrato.set(remoteJid, { novas: novasAtualizadas, duplicatas });
+      const total = novasAtualizadas.reduce((s, t) => s + Number(t.valor || 0), 0);
+      await responder([
+        `📅 *Mês alterado para ${novoMes}!*`,
+        ``,
+        `${novasAtualizadas.length} transações · R$ ${total.toFixed(2)}`,
+        ``,
+        `✅ _"sim"_ para confirmar`,
+        `❌ _"não"_ para cancelar`,
+      ].join("\n"));
+      return respostas.join("\n\n");
+    }
+
+    await responder(`Não entendi. Responda:\n✅ _"sim"_ para adicionar todas as ${novas.length} transações\n✅ _"1,3,5"_ para escolher\n📅 _"julho"_ para mudar o mês\n❌ _"não"_ para cancelar`);
     return respostas.join("\n\n");
   }
   

@@ -265,7 +265,7 @@ REGRAS:
   Saúde: farmácia (remédio), médico, plano de saúde
   Outros: qualquer outro gasto
   ${historico}
-- mes: sempre use o mês mais recente do extrato (ex: se a maioria das transações é de mai, use "Maio" para todas, independente da data original da parcela)
+- mes: use o mês de FATURAMENTO da fatura, NÃO as datas das transações individuais. Leia o cabeçalho: título ("fatura de junho" → "Junho"), data de emissão ou data de vencimento (vencimento 15/06 → "Junho"). As transações podem ter datas de meses anteriores (parcelas, compras do período) mas todas pertencem ao mês da fatura. Use nome completo: "Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho", "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro".
 - descricao: nome em CAIXA ALTA. Se tiver parcela, adicione no formato NOME-X/Y (ex: "MERCADO LIVRE-2/6")
 - tipo: use ESTAS regras exatas:
   * "fixa": parcelas que NÃO são a última (ex: 2/6, 3/9, 1/7) + assinaturas recorrentes (Spotify, Netflix, HBO, Amazon Prime, Disney, Apple, Google One, etc.) + empréstimos
@@ -344,7 +344,7 @@ Para cada transação extraia:
 - tipo: use ESTAS regras exatas:
   * "fixa": parcelas que NÃO são a última (ex: 2/6, 3/9, 1/7) + assinaturas recorrentes (Spotify, Netflix, HBO, Amazon Prime, Disney, Apple, Google One, etc.) + empréstimos
   * "variavel": compras à vista + última parcela (quando X=Y, ex: 2/2, 3/3, 5/5) + qualquer gasto que não se repete no próximo mês
-- mes: sempre use o mês mais recente do extrato (ex: se a maioria das transações é de mai, use "Maio" para todas, independente da data original da parcela)
+- mes: use o mês de FATURAMENTO da fatura, NÃO as datas das transações individuais. Se houver título ou vencimento no texto ("fatura de junho", "vence em 15/06"), use esse mês. Caso seja apenas uma lista de transações sem cabeçalho de fatura, use o mês mais recente das datas. Use nome completo: "Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho", "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro".
 
 Responda APENAS com JSON válido, sem markdown:
 { "transacoes": [ { "data": "DD/mmm", "descricao": "NOME", "valor": 0.00, "meio_pagamento": "...", "categoria": "...", "tipo": "...", "mes": "NomeMes" } ] }
