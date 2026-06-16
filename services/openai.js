@@ -239,7 +239,7 @@ async function buscarHistoricoCategorizacao() {
   }
 }
 
-async function extrairExtrato(base64, mimetype) {
+async function extrairExtrato(base64, mimetype, contexto = "") {
   const { MESES_CURTOS } = require("../config");
   const dataAtual = new Date().toLocaleDateString("pt-BR");
   const historico = await buscarHistoricoCategorizacao();
@@ -287,20 +287,19 @@ Responda APENAS com JSON válido, sem markdown:
   ]
 }`;
 
+  const contextoExtra = contexto ? `\nCONTEXTO DO USUÁRIO: "${contexto}"\n` : "";
   const isImage = mimetype && (mimetype.includes("image") || mimetype.includes("jpeg") || mimetype.includes("png") || mimetype.includes("webp"));
-  const isPDF = mimetype && mimetype.includes("pdf");
 
   let content;
   if (isImage) {
     content = [
       { type: "image_url", image_url: { url: `data:${mimetype};base64,${base64}` } },
-      { type: "text", text: prompt }
+      { type: "text", text: contextoExtra + prompt }
     ];
   } else {
-    // PDF — usa gpt-4o com document
     content = [
-      { type: "text", text: prompt },
-      { type: "document", source: { type: "base64", media_type: "application/pdf", data: base64 } }
+      { type: "text", text: contextoExtra + prompt },
+      { type: "file", file: { filename: "extrato.pdf", file_data: `data:application/pdf;base64,${base64}` } }
     ];
   }
 

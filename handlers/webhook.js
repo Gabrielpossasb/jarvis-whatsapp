@@ -581,9 +581,9 @@ async function handleWebChat(req, res) {
 
 async function handleExtratoUpload(req, res) {
   try {
-    const { base64, mimetype } = req.body;
+    const { base64, mimetype, contexto } = req.body;
     if (!base64 || !mimetype) return res.status(400).json({ erro: "base64 e mimetype obrigatórios" });
-    const transacoes = await extrairExtrato(base64, mimetype);
+    const transacoes = await extrairExtrato(base64, mimetype, contexto || "");
     if (!transacoes || transacoes.length === 0) {
       return res.status(422).json({ erro: "Nenhuma transação encontrada no extrato" });
     }

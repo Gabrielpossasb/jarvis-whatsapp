@@ -114,6 +114,8 @@ export default function Gastos() {
   const [extratoResultado, setExtratoResultado] = useState(null);
   const [selecionadas, setSelecionadas] = useState({});
   const [confirmando, setConfirmando] = useState(false);
+  const [extratoTexto, setExtratoTexto] = useState("");
+  const [extratoArquivo, setExtratoArquivo] = useState(null);
   const fileRef = useRef();
 
   useEffect(() => { carregarMeses(); }, []);
@@ -146,7 +148,8 @@ export default function Gastos() {
     setGastos(g => g.map(x => x.id === id ? { ...x, [campo]: valor } : x));
   }
 
-  async function analisarExtrato(file) {
+  async function analisarExtrato() {
+    if (!extratoArquivo) return;
     setExtratoLoading(true);
     setExtratoResultado(null);
     try {
@@ -154,12 +157,12 @@ export default function Gastos() {
         const reader = new FileReader();
         reader.onload = () => res(reader.result.split(",")[1]);
         reader.onerror = rej;
-        reader.readAsDataURL(file);
+        reader.readAsDataURL(extratoArquivo);
       });
       const response = await fetch(`${JARVIS_URL}/api/extrato/analisar`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ base64, mimetype: file.type }),
+        body: JSON.stringify({ base64, mimetype: extratoArquivo.type, contexto: extratoTexto }),
       });
       const data = await response.json();
       if (data.erro) throw new Error(data.erro);
@@ -171,6 +174,13 @@ export default function Gastos() {
       alert("Erro ao analisar extrato: " + err.message);
     }
     setExtratoLoading(false);
+  }
+
+  function fecharModalExtrato() {
+    setModalExtrato(false);
+    setExtratoResultado(null);
+    setExtratoTexto("");
+    setExtratoArquivo(null);
   }
 
   async function confirmarExtrato() {
@@ -367,32 +377,57 @@ export default function Gastos() {
             <div className="flex items-center justify-between px-6 py-4 border-b border-[#1e1e2e]">
               <div>
                 <div className="font-semibold">Importar Extrato</div>
-                <div className="text-xs text-[#4a4a6a] mt-0.5">PDF ou foto do extrato Nubank / Mercado Pago</div>
+                <div className="text-xs text-[#4a4a6a] mt-0.5">Anexe o PDF ou foto e descreva o contexto</div>
               </div>
-              <button onClick={() => { setModalExtrato(false); setExtratoResultado(null); }}
+              <button onClick={fecharModalExtrato}
                 className="text-[#6a6a8a] hover:text-[#e8e8f0] transition-colors text-lg">✕</button>
             </div>
 
             <div className="flex-1 overflow-y-auto px-6 py-5">
               {!extratoResultado ? (
-                <div onClick={() => fileRef.current?.click()}
-                  className="border-2 border-dashed border-[#2a2a3e] hover:border-[#6c5fff] rounded-xl p-10 text-center cursor-pointer transition-all group">
-                  <input ref={fileRef} type="file" accept=".pdf,image/*" className="hidden"
-                    onChange={e => e.target.files[0] && analisarExtrato(e.target.files[0])} />
-                  {extratoLoading ? (
-                    <div className="flex flex-col items-center gap-3">
-                      <div className="w-8 h-8 border-2 border-[#6c5fff] border-t-transparent rounded-full animate-spin" />
-                      <span className="text-sm text-[#6a6a8a]">Analisando extrato com IA...</span>
-                    </div>
-                  ) : (
-                    <div className="flex flex-col items-center gap-3">
-                      <span className="text-4xl">📤</span>
-                      <div>
-                        <div className="text-sm font-medium text-[#c8c8e0] group-hover:text-[#a78bfa] transition-colors">Clique para selecionar o arquivo</div>
-                        <div className="text-xs text-[#4a4a6a] mt-1">PDF ou imagem · Nubank ou Mercado Pago</div>
-                      </div>
+                <div className="flex flex-col gap-4">
+                  {/* Chip do arquivo selecionado */}
+                  {extratoArquivo && (
+                    <div className="flex items-center gap-2 px-3 py-2 bg-[#6c5fff15] border border-[#6c5fff40] rounded-xl w-fit max-w-full">
+                      <span className="text-sm">{extratoArquivo.type.includes("pdf") ? "📄" : "🖼️"}</span>
+                      <span className="text-xs text-[#a78bfa] truncate max-w-[260px]">{extratoArquivo.name}</span>
+                      <button onClick={() => { setExtratoArquivo(null); fileRef.current.value = ""; }}
+                        className="text-[#6a6a8a] hover:text-red-400 transition-colors text-xs ml-1">✕</button>
                     </div>
                   )}
+
+                  {/* Input de texto + botão de anexo */}
+                  <div className="flex items-end gap-2 bg-[#0e0e18] border border-[#2a2a3e] rounded-xl px-4 py-3 focus-within:border-[#6c5fff] transition-colors">
+                    <input ref={fileRef} type="file" accept=".pdf,image/*" className="hidden"
+                      onChange={e => e.target.files[0] && setExtratoArquivo(e.target.files[0])} />
+                    <textarea
+                      value={extratoTexto}
+                      onChange={e => setExtratoTexto(e.target.value)}
+                      onKeyDown={e => { if (e.key === "Enter" && !e.shiftKey && extratoArquivo) { e.preventDefault(); analisarExtrato(); } }}
+                      placeholder="Ex: fatura de junho, Nubank..."
+                      rows={2}
+                      className="flex-1 bg-transparent text-sm text-[#e8e8f0] placeholder-[#4a4a6a] outline-none resize-none"
+                    />
+                    <div className="flex items-center gap-2 shrink-0">
+                      <button onClick={() => fileRef.current?.click()}
+                        title="Anexar arquivo"
+                        className="text-[#4a4a6a] hover:text-[#a78bfa] transition-colors text-lg">
+                        📎
+                      </button>
+                      <button
+                        onClick={analisarExtrato}
+                        disabled={!extratoArquivo || extratoLoading}
+                        className="px-4 py-1.5 bg-[#6c5fff] hover:bg-[#7c6fff] disabled:opacity-30 disabled:cursor-not-allowed rounded-lg text-xs font-semibold text-white transition-colors">
+                        {extratoLoading ? (
+                          <span className="flex items-center gap-1.5">
+                            <span className="w-3 h-3 border border-white border-t-transparent rounded-full animate-spin inline-block" />
+                            Analisando...
+                          </span>
+                        ) : "Analisar →"}
+                      </button>
+                    </div>
+                  </div>
+                  <div className="text-[10px] text-[#3a3a5a]">PDF ou imagem · Nubank ou Mercado Pago · Enter para analisar</div>
                 </div>
               ) : (
                 <div className="flex flex-col gap-4">
@@ -462,7 +497,7 @@ export default function Gastos() {
                   {fmt(extratoResultado.novas.filter((_, i) => selecionadas[i]).reduce((s, t) => s + t.valor, 0))}
                 </div>
                 <div className="flex gap-3">
-                  <button onClick={() => { setExtratoResultado(null); setSelecionadas({}); }}
+                  <button onClick={() => { setExtratoResultado(null); setSelecionadas({}); setExtratoArquivo(null); setExtratoTexto(""); if (fileRef.current) fileRef.current.value = ""; }}
                     className="px-4 py-2 text-xs text-[#6a6a8a] hover:text-[#e8e8f0] transition-colors">Voltar</button>
                   <button onClick={confirmarExtrato} disabled={confirmando}
                     className="px-5 py-2 bg-[#6c5fff] hover:bg-[#7c6fff] disabled:opacity-50 rounded-lg text-xs font-semibold text-white transition-colors">
