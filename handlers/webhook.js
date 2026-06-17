@@ -57,6 +57,7 @@ async function adicionarLoteGastos(transacoes) {
     data: t.data, descricao: t.descricao, valor: t.valor,
     meio_pagamento: t.meio_pagamento, categoria: t.categoria,
     tipo: t.tipo, mes: t.mes || mes,
+    natureza: t.natureza || "gasto",
   }));
   const { error } = await supabase.from("gastos").insert(registros);
   if (error) throw error;
@@ -84,6 +85,17 @@ function respostaGasto(dados, dataRegistro) {
     `📅 ${dataRegistro} | 📝 ${dados.descricao}`,
     `💰 R$ ${Number(dados.valor).toFixed(2)} | 💳 ${dados.meio_pagamento}`,
     `🏷️ ${dados.categoria}`,
+    ``, `🤖 _${dados.entendimento}_`,
+  ].join("\n");
+}
+
+// ── Resposta de ganho ─────────────────────────────────────────────
+function respostaGanho(dados, dataRegistro) {
+  return [
+    `✅ *Ganho registrado!*`, ``,
+    `💚 *${dados.categoria}*`,
+    `📅 ${dataRegistro} | 📝 ${dados.descricao}`,
+    `💰 R$ ${Number(dados.valor).toFixed(2)} | 💜 ${dados.meio_pagamento}`,
     ``, `🤖 _${dados.entendimento}_`,
   ].join("\n");
 }
@@ -298,8 +310,13 @@ async function processarMensagem(texto, remoteJid, canal = "whatsapp") {
 
   // ── GASTO ──────────────────────────────────────────────────────
   if (dados.classificacao === "gasto") {
-    await adicionarGasto(dataRegistro, dados.descricao, dados.valor, dados.meio_pagamento, dados.categoria, dados.tipo_despesa);
+    await adicionarGasto(dataRegistro, dados.descricao, dados.valor, dados.meio_pagamento, dados.categoria, dados.tipo_despesa, "gasto");
     await responder(respostaGasto(dados, dataRegistro));
+
+  // ── GANHO ──────────────────────────────────────────────────────
+  } else if (dados.classificacao === "ganho") {
+    await adicionarGasto(dataRegistro, dados.descricao, dados.valor, dados.meio_pagamento, dados.categoria, "variavel", "ganho");
+    await responder(respostaGanho(dados, dataRegistro));
 
   // ── TAREFA ─────────────────────────────────────────────────────
   } else if (dados.classificacao === "tarefa") {

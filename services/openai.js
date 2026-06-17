@@ -40,7 +40,8 @@ ${tabelaDatas}
 - Sempre formato DD/mmm (ex: 02/jun)
 
 CLASSIFICAÇÕES:
-- "gasto": despesa, pagamento, compra já realizada ou valor mencionado
+- "gasto": despesa, pagamento, compra já realizada ou valor mencionado como saída
+- "ganho": entrada de dinheiro, recebimento, salário recebido, freela pago, repasse iFood, PIX recebido de alguém (ex: "recebi R$2000", "caiu meu salário", "freela de R$500", "iFood me pagou", "fulano me pagou")
 - "tarefa": algo a fazer, compromisso, agendamento — se tiver data/hora futura e sem valor, é tarefa mesmo que use "comprar"
 - "consulta": perguntas sobre tarefas (ex: "o que tenho hoje?", "tarefas da faculdade")
 - "concluir": concluiu/fez tarefa (ex: "concluí X", "já fiz X", "feito: X")
@@ -57,6 +58,12 @@ Identifique a categoria automaticamente pelo contexto da tarefa ou gasto.
 Para GASTOS:
 - tipo_despesa: "fixa" (cartão, fatura, assinatura, empréstimo) ou "variavel" (dia a dia)
 - Meio de pagamento: SEMPRE "Nubank" como padrão, EXCETO se mencionar "Mercado Pago" ou "MP"
+- Descrição em CAIXA ALTA
+
+Para GANHOS:
+- tipo_despesa: "variavel" (padrão para ganhos)
+- Meio de pagamento: "Nubank" (onde o dinheiro entra)
+- Categoria: "Salário" (folha CLT, salário mensal), "Freela" (cliente pagou, freela, projeto), "iFood (Entrega)" (repasse iFood, pagamento entregas), "Transferência recebida" (PIX de pessoa, TED), "Outros ganhos"
 - Descrição em CAIXA ALTA
 
 Para TAREFAS:
@@ -86,6 +93,7 @@ Para APROVAR_REVISAO:
 Responda APENAS com JSON válido, sem markdown:
 {
   "classificacao": "...",
+  "natureza": "gasto" ou "ganho" (só para classificacao=gasto ou ganho),
   "descricao": "CAIXA ALTA",
   "data": "DD/mmm ou backlog",
   "tipo_despesa": "fixa|variavel",
@@ -247,10 +255,14 @@ async function extrairExtrato(base64, mimetype, contexto = "") {
 
 Data atual: ${dataAtual}
 
-REGRAS:
+REGRAS — GASTOS (natureza: "gasto"):
 - Extraia TODAS as transações de saída: compras, parcelas, assinaturas, empréstimos, financiamentos da fatura, iFood, Uber, Apple, Google, streaming, e qualquer pagamento feito.
-- Ignore APENAS: "Pagamento da fatura" (é crédito), PIX recebido, depósito recebido, transferência recebida, estornos, cashback e reembolsos.
-- ATENÇÃO — seção "Movimentações na fatura" ou "Parcelamentos ativos": extraia as linhas "Parcela da fatura de ..." como despesa de saída (ex: "Parcela da fatura de janeiro/2026 - Parcela 5 de 6 - R$ 492,68" deve virar uma transação). Ignore apenas o item "Pagamento da fatura de ..." nessa seção.
+- Ignore: "Pagamento da fatura" (é crédito), estornos, cashback e reembolsos (não são nem gasto nem ganho).
+- ATENÇÃO — seção "Movimentações na fatura" ou "Parcelamentos ativos": extraia as linhas "Parcela da fatura de ..." como despesa de saída. Ignore apenas "Pagamento da fatura de ..." nessa seção.
+
+REGRAS — GANHOS (natureza: "ganho"):
+- Extraia PIX recebido, depósito recebido, salário/folha de pagamento, transferência recebida como ganho.
+- Categoria dos ganhos: "Salário" (folha, CLT, holerite), "Freela" (pagamento de cliente, freela, projeto), "iFood (Entrega)" (repasse iFood, pagamento entregas), "Transferência recebida" (PIX recebido de pessoa, TED recebida), "Outros ganhos".
 - Para cada transação extraia: data, descrição, valor, meio_pagamento
 - Data no formato DD/mmm (ex: 15/mai, 03/jun)
 - Valor como número positivo (ex: 45.90)
@@ -278,6 +290,7 @@ Responda APENAS com JSON válido, sem markdown:
   "banco": "Nubank" ou "Mercado Pago",
   "transacoes": [
     {
+      "natureza": "gasto" ou "ganho",
       "data": "DD/mmm",
       "descricao": "NOME EM CAIXA ALTA",
       "valor": 00.00,
@@ -334,17 +347,26 @@ async function extrairExtratoTexto(texto) {
   const { MESES_CURTOS } = require("../config");
   const dataAtual = new Date().toLocaleDateString("pt-BR");
   const historico = await buscarHistoricoCategorizacao();
-  const prompt = `Você é um assistente financeiro. Analise esse texto de extrato bancário e extraia TODAS as transações de saída (gastos, pagamentos, compras). Ignore entradas, créditos, estornos e reembolsos.
+  const prompt = `Você é um assistente financeiro. Analise esse texto de extrato bancário e extraia TODAS as transações — tanto gastos quanto ganhos (entradas de dinheiro).
 
-REGRA CRÍTICA: Extraia CADA linha como uma transação separada, mesmo que a descrição seja IDÊNTICA a outra. Nunca agrupe, combine ou descarte transações por terem o mesmo nome. Se aparecer "Meli+" 3 vezes com valores diferentes, extraia 3 transações distintas.
+REGRA CRÍTICA: Extraia CADA linha como uma transação separada, mesmo que a descrição seja IDÊNTICA a outra. Nunca agrupe, combine ou descarte transações por terem o mesmo nome.
 
 Data atual: ${dataAtual}
 
+REGRAS — GASTOS (natureza: "gasto"):
+- Extraia compras, pagamentos, parcelas, assinaturas, PIX enviado, transferência enviada.
+- Ignore estornos, cashback e reembolsos (não são gasto nem ganho).
+
+REGRAS — GANHOS (natureza: "ganho"):
+- Extraia PIX recebido, depósito recebido, salário/folha de pagamento, transferência recebida.
+- Categoria dos ganhos: "Salário" (folha, CLT), "Freela" (cliente, freela, projeto), "iFood (Entrega)" (repasse iFood), "Transferência recebida" (PIX de pessoa, TED), "Outros ganhos".
+
 Para cada transação extraia:
+- natureza: "gasto" ou "ganho"
 - data: formato DD/mmm (ex: 15/mai)
 - valor: número positivo
 - meio_pagamento: "Nubank" ou "Mercado Pago" conforme o extrato
-- Identifique a categoria automaticamente:
+- Categorias para gastos:
   Assinaturas: Spotify, Netflix, Amazon Prime, Disney, HBO, Apple, iFood Club, Hostgator, cursos
   Cartão/Fatura: parcelas, fatura, Mercado Livre, Shopee, Amazon compras, Gazin, lojas
   Dívidas/Empréstimo: empréstimo, parcela de empréstimo
@@ -357,13 +379,11 @@ Para cada transação extraia:
   Outros: qualquer outro gasto
   ${historico}
 - descricao: nome em CAIXA ALTA. Se tiver parcela, adicione no formato NOME-X/Y (ex: "MERCADO LIVRE-2/6")
-- tipo: use ESTAS regras exatas:
-  * "fixa": parcelas que NÃO são a última (ex: 2/6, 3/9, 1/7) + assinaturas recorrentes (Spotify, Netflix, HBO, Amazon Prime, Disney, Apple, Google One, etc.) + empréstimos
-  * "variavel": compras à vista + última parcela (quando X=Y, ex: 2/2, 3/3, 5/5) + qualquer gasto que não se repete no próximo mês
-- mes: use o mês de FATURAMENTO da fatura, NÃO as datas das transações individuais. Se houver título ou vencimento no texto ("fatura de junho", "vence em 15/06"), use esse mês. Caso seja apenas uma lista de transações sem cabeçalho de fatura, use o mês mais recente das datas. Use nome completo: "Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho", "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro".
+- tipo: "fixa" para parcelas em aberto, assinaturas recorrentes e empréstimos; "variavel" para o restante
+- mes: mês de faturamento ou mês mais recente das datas. Nome completo: "Janeiro"..."Dezembro".
 
 Responda APENAS com JSON válido, sem markdown:
-{ "transacoes": [ { "data": "DD/mmm", "descricao": "NOME", "valor": 0.00, "meio_pagamento": "...", "categoria": "...", "tipo": "...", "mes": "NomeMes" } ] }
+{ "transacoes": [ { "natureza": "gasto", "data": "DD/mmm", "descricao": "NOME", "valor": 0.00, "meio_pagamento": "...", "categoria": "...", "tipo": "...", "mes": "NomeMes" } ] }
 Texto do extrato:
 ${texto}`;
 

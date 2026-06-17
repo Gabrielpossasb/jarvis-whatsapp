@@ -32,7 +32,7 @@ async function inicializarPlanilhaTarefas() {
 // ════════════════════════════════════════════
 //  GASTOS
 // ════════════════════════════════════════════
-async function adicionarGasto(data, descricao, valor, meioPagamento, categoria, tipo) {
+async function adicionarGasto(data, descricao, valor, meioPagamento, categoria, tipo, natureza = "gasto") {
   const mes = MESES[agora().getMonth()];
   const { error } = await supabase.from("gastos").insert([{
     data,
@@ -42,6 +42,7 @@ async function adicionarGasto(data, descricao, valor, meioPagamento, categoria, 
     categoria,
     tipo,
     mes,
+    natureza,
   }]);
   if (error) throw error;
 }

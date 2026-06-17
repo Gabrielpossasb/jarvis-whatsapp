@@ -30,26 +30,31 @@ function MiniBar({ valor, total, cor }) {
 // ── Relatório Anual ──────────────────────────────────────────────
 function RelatorioAnual({ todosMeses }) {
   const resumo = MESES_ORDEM.map(mes => {
-    const gastosMes = todosMeses.filter(g => g.mes === mes);
+    const lancsMes = todosMeses.filter(g => g.mes === mes);
+    const gastosMes = lancsMes.filter(g => (g.natureza || "gasto") === "gasto");
+    const ganhosMes = lancsMes.filter(g => g.natureza === "ganho");
     const fixas = gastosMes.filter(g => g.tipo === "fixa").reduce((s, g) => s + Number(g.valor || 0), 0);
     const variaveis = gastosMes.filter(g => g.tipo === "variavel").reduce((s, g) => s + Number(g.valor || 0), 0);
-    return { mes, fixas, variaveis, total: fixas + variaveis };
+    const ganhos = ganhosMes.reduce((s, g) => s + Number(g.valor || 0), 0);
+    return { mes, fixas, variaveis, total: fixas + variaveis, ganhos, saldo: ganhos - fixas - variaveis };
   });
 
   const totalAnual = resumo.reduce((s, m) => s + m.total, 0);
+  const totalGanhosAnual = resumo.reduce((s, m) => s + m.ganhos, 0);
   const totalFixas = resumo.reduce((s, m) => s + m.fixas, 0);
   const totalVariaveis = resumo.reduce((s, m) => s + m.variaveis, 0);
-  const maxTotal = Math.max(...resumo.map(m => m.total), 1);
+  const maxTotal = Math.max(...resumo.map(m => Math.max(m.total, m.ganhos)), 1);
   const mesesComDados = resumo.filter(m => m.total > 0);
 
   return (
     <div className="flex flex-col gap-6">
       {/* Cards anuais */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
         {[
-          { label: "Total do Ano", valor: fmt(totalAnual), cor: "text-red-400", icon: "💸" },
+          { label: "Ganhos no Ano", valor: fmt(totalGanhosAnual), cor: "text-emerald-400", icon: "💚" },
+          { label: "Gastos no Ano", valor: fmt(totalAnual), cor: "text-red-400", icon: "💸" },
           { label: "Total Fixas", valor: fmt(totalFixas), cor: "text-orange-400", icon: "📌" },
-          { label: "Total Variáveis", valor: fmt(totalVariaveis), cor: "text-violet-400", icon: "🛒" },
+          { label: "Saldo Anual", valor: fmt(totalGanhosAnual - totalAnual), cor: (totalGanhosAnual - totalAnual) >= 0 ? "text-emerald-400" : "text-red-400", icon: "📊" },
         ].map((c, i) => (
           <div key={i} className="bg-[#13131e] border border-[#1e1e2e] rounded-xl p-4">
             <div className="text-xs text-[#4a4a6a] mb-2">{c.icon} {c.label}</div>
@@ -61,31 +66,33 @@ function RelatorioAnual({ todosMeses }) {
       {/* Gráfico de barras anual */}
       <div className="bg-[#13131e] border border-[#1e1e2e] rounded-xl p-5">
         <div className="text-xs text-[#4a4a6a] tracking-wider mb-5">DESPESAS POR MÊS</div>
-        <div className="flex items-end gap-2 h-36">
-          {resumo.map(({ mes, fixas, variaveis, total }) => {
-            const altTotal = total > 0 ? (total / maxTotal) * 100 : 0;
-            const altFixas = total > 0 ? (fixas / maxTotal) * 100 : 0;
-            const altVar = total > 0 ? (variaveis / maxTotal) * 100 : 0;
-            const temDados = total > 0;
+        <div className="flex items-end gap-1 h-36">
+          {resumo.map(({ mes, fixas, variaveis, total, ganhos, saldo }) => {
+            const altGastos = total > 0 ? (total / maxTotal) * 100 : 0;
+            const altGanhos = ganhos > 0 ? (ganhos / maxTotal) * 100 : 0;
+            const temDados = total > 0 || ganhos > 0;
             return (
               <div key={mes} className="flex-1 flex flex-col items-center gap-1 group relative">
-                {/* Tooltip */}
                 {temDados && (
                   <div className="absolute bottom-full mb-2 left-1/2 -translate-x-1/2 bg-[#2a2a3e] border border-[#3a3a50] rounded-lg px-3 py-2 text-xs whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity z-10 pointer-events-none">
                     <div className="font-semibold text-[#e8e8f0] mb-1">{mes}</div>
+                    {ganhos > 0 && <div className="text-emerald-400">Ganhos: {fmt(ganhos)}</div>}
                     <div className="text-orange-400">Fixas: {fmt(fixas)}</div>
                     <div className="text-violet-400">Variáveis: {fmt(variaveis)}</div>
-                    <div className="text-red-400 font-semibold">Total: {fmt(total)}</div>
+                    <div className={`font-semibold ${saldo >= 0 ? "text-emerald-400" : "text-red-400"}`}>Saldo: {fmt(saldo)}</div>
                   </div>
                 )}
-                <div className="w-full flex flex-col justify-end" style={{ height: "100px" }}>
-                  {temDados ? (
-                    <div className="w-full rounded-t overflow-hidden" style={{ height: `${altTotal}%` }}>
-                      <div className="w-full bg-orange-400/70" style={{ height: `${(fixas/total)*100}%` }} />
-                      <div className="w-full bg-violet-400/70" style={{ height: `${(variaveis/total)*100}%` }} />
+                <div className="w-full flex items-end gap-0.5 justify-center" style={{ height: "100px" }}>
+                  {ganhos > 0 && (
+                    <div className="flex-1 rounded-t bg-emerald-400/60" style={{ height: `${altGanhos}%` }} />
+                  )}
+                  {total > 0 ? (
+                    <div className="flex-1 rounded-t overflow-hidden flex flex-col justify-end" style={{ height: `${altGastos}%` }}>
+                      <div className="w-full bg-orange-400/70" style={{ height: `${total > 0 ? (fixas/total)*100 : 0}%` }} />
+                      <div className="w-full bg-violet-400/70" style={{ height: `${total > 0 ? (variaveis/total)*100 : 0}%` }} />
                     </div>
-                  ) : (
-                    <div className="w-full h-1 bg-[#2a2a3e] rounded" />
+                  ) : !ganhos && (
+                    <div className="flex-1 h-1 bg-[#2a2a3e] rounded" />
                   )}
                 </div>
                 <span className="text-[9px] text-[#4a4a6a]">{mes.slice(0,3)}</span>
@@ -94,6 +101,9 @@ function RelatorioAnual({ todosMeses }) {
           })}
         </div>
         <div className="flex gap-4 mt-3">
+          <div className="flex items-center gap-1.5 text-xs text-[#8a8aaa]">
+            <div className="w-3 h-3 rounded-sm bg-emerald-400/60" /> Ganhos
+          </div>
           <div className="flex items-center gap-1.5 text-xs text-[#8a8aaa]">
             <div className="w-3 h-3 rounded-sm bg-orange-400/70" /> Fixas
           </div>
@@ -106,25 +116,30 @@ function RelatorioAnual({ todosMeses }) {
       {/* Tabela resumo anual */}
       <div className="bg-[#13131e] border border-[#1e1e2e] rounded-xl overflow-hidden">
         <div className="grid px-4 py-2.5 border-b border-[#1e1e2e] text-[10px] text-[#4a4a6a] tracking-wider"
-          style={{ gridTemplateColumns: "1fr 1fr 1fr 1fr" }}>
-          <span>MÊS</span><span>FIXAS</span><span>VARIÁVEIS</span><span>TOTAL</span>
+          style={{ gridTemplateColumns: "1fr 1fr 1fr 1fr 1fr" }}>
+          <span>MÊS</span><span>GANHOS</span><span>FIXAS</span><span>VARIÁVEIS</span><span>SALDO</span>
         </div>
-        {resumo.map((m, i) => (
-          <div key={m.mes}
-            className={`grid px-4 py-3 text-sm transition-colors ${m.total > 0 ? "hover:bg-[#1a1a28]" : "opacity-30"} ${i < resumo.length - 1 ? "border-b border-[#1a1a24]" : ""}`}
-            style={{ gridTemplateColumns: "1fr 1fr 1fr 1fr" }}>
-            <span className={m.total > 0 ? "text-[#d8d8f0] font-medium" : "text-[#4a4a6a]"}>{m.mes}</span>
-            <span className="font-mono text-xs text-orange-400">{m.fixas > 0 ? fmt(m.fixas) : "—"}</span>
-            <span className="font-mono text-xs text-violet-400">{m.variaveis > 0 ? fmt(m.variaveis) : "—"}</span>
-            <span className="font-mono text-xs text-red-400 font-semibold">{m.total > 0 ? fmt(m.total) : "—"}</span>
-          </div>
-        ))}
+        {resumo.map((m, i) => {
+          const temDados = m.total > 0 || m.ganhos > 0;
+          return (
+            <div key={m.mes}
+              className={`grid px-4 py-3 text-sm transition-colors ${temDados ? "hover:bg-[#1a1a28]" : "opacity-30"} ${i < resumo.length - 1 ? "border-b border-[#1a1a24]" : ""}`}
+              style={{ gridTemplateColumns: "1fr 1fr 1fr 1fr 1fr" }}>
+              <span className={temDados ? "text-[#d8d8f0] font-medium" : "text-[#4a4a6a]"}>{m.mes}</span>
+              <span className="font-mono text-xs text-emerald-400">{m.ganhos > 0 ? fmt(m.ganhos) : "—"}</span>
+              <span className="font-mono text-xs text-orange-400">{m.fixas > 0 ? fmt(m.fixas) : "—"}</span>
+              <span className="font-mono text-xs text-violet-400">{m.variaveis > 0 ? fmt(m.variaveis) : "—"}</span>
+              <span className={`font-mono text-xs font-semibold ${m.saldo >= 0 ? "text-emerald-400" : "text-red-400"}`}>{temDados ? fmt(m.saldo) : "—"}</span>
+            </div>
+          );
+        })}
         <div className="grid px-4 py-3 border-t border-[#2a2a3e] text-sm font-semibold"
-          style={{ gridTemplateColumns: "1fr 1fr 1fr 1fr" }}>
+          style={{ gridTemplateColumns: "1fr 1fr 1fr 1fr 1fr" }}>
           <span className="text-[#8a8aaa]">TOTAL</span>
+          <span className="font-mono text-emerald-400">{fmt(totalGanhosAnual)}</span>
           <span className="font-mono text-orange-400">{fmt(totalFixas)}</span>
           <span className="font-mono text-violet-400">{fmt(totalVariaveis)}</span>
-          <span className="font-mono text-red-400">{fmt(totalAnual)}</span>
+          <span className={`font-mono ${(totalGanhosAnual - totalAnual) >= 0 ? "text-emerald-400" : "text-red-400"}`}>{fmt(totalGanhosAnual - totalAnual)}</span>
         </div>
       </div>
     </div>
@@ -135,13 +150,17 @@ function RelatorioAnual({ todosMeses }) {
 function RelatorioMensal({ gastos, mes }) {
   const [abaTabela, setAbaTabela] = useState("fixas");
 
-  const fixas    = gastos.filter(g => g.tipo === "fixa");
-  const variaveis = gastos.filter(g => g.tipo === "variavel");
+  const somenteGastos = gastos.filter(g => (g.natureza || "gasto") === "gasto");
+  const somenteGanhos = gastos.filter(g => g.natureza === "ganho");
+  const fixas    = somenteGastos.filter(g => g.tipo === "fixa");
+  const variaveis = somenteGastos.filter(g => g.tipo === "variavel");
   const totalFixas     = fixas.reduce((s, g) => s + Number(g.valor || 0), 0);
   const totalVariaveis = variaveis.reduce((s, g) => s + Number(g.valor || 0), 0);
   const totalGeral     = totalFixas + totalVariaveis;
+  const totalGanhos    = somenteGanhos.reduce((s, g) => s + Number(g.valor || 0), 0);
+  const saldo          = totalGanhos - totalGeral;
 
-  const porCategoria = gastos.reduce((acc, g) => {
+  const porCategoria = somenteGastos.reduce((acc, g) => {
     const cat = g.categoria || "Outros";
     acc[cat] = (acc[cat] || 0) + Number(g.valor || 0);
     return acc;
@@ -163,11 +182,12 @@ function RelatorioMensal({ gastos, mes }) {
   return (
     <div className="flex flex-col gap-6">
       {/* Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
         {[
-          { label: "Total do Mês", valor: fmt(totalGeral), cor: "text-red-400", sub: `${gastos.length} lançamentos`, icon: "💸" },
+          { label: "Ganhos", valor: fmt(totalGanhos), cor: "text-emerald-400", sub: `${somenteGanhos.length} entradas`, icon: "💚" },
+          { label: "Gastos Totais", valor: fmt(totalGeral), cor: "text-red-400", sub: `${somenteGastos.length} lançamentos`, icon: "💸" },
           { label: "Despesas Fixas", valor: fmt(totalFixas), cor: "text-orange-400", sub: `${fixas.length} itens`, icon: "📌" },
-          { label: "Despesas Variáveis", valor: fmt(totalVariaveis), cor: "text-violet-400", sub: `${variaveis.length} itens`, icon: "🛒" },
+          { label: "Saldo", valor: fmt(saldo), cor: saldo >= 0 ? "text-emerald-400" : "text-red-400", sub: saldo >= 0 ? "Positivo" : "Negativo", icon: saldo >= 0 ? "✅" : "⚠️" },
         ].map((c, i) => (
           <div key={i} className="bg-[#13131e] border border-[#1e1e2e] rounded-xl p-4">
             <div className="text-xs text-[#4a4a6a] mb-2">{c.icon} {c.label}</div>

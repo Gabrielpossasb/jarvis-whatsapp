@@ -11,18 +11,26 @@ const CORES_CAT = {
   "Alimentação": "#fbbf24", "Relacionamento": "#f472b6",
   "Presentes": "#a78bfa", "Cuidados Pessoais": "#38bdf8",
   "Saúde": "#4ade80", "Outros": "#94a3b8",
+  "Salário": "#10b981", "Freela": "#06b6d4",
+  "iFood (Entrega)": "#84cc16", "Transferência recebida": "#22d3ee",
+  "Outros ganhos": "#a3e635",
 };
 
 const CAT_ABREV = {
   "Dívidas/Empréstimo": "Dívidas",
   "Cuidados Pessoais": "Cuidados",
   "Cartão/Fatura": "Cartão",
+  "Transferência recebida": "Transferência",
+  "iFood (Entrega)": "iFood Ent.",
+  "Outros ganhos": "Outros G.",
 };
 
-const TODAS_CATS = [
+const CATS_GASTO = [
   "Alimentação","Assinaturas","Cartão/Fatura","Cuidados Pessoais",
   "Dívidas/Empréstimo","Outros","Presentes","Relacionamento","Saúde","Transporte"
 ];
+const CATS_GANHO = ["Salário","Freela","iFood (Entrega)","Transferência recebida","Outros ganhos"];
+const TODAS_CATS = [...CATS_GASTO, ...CATS_GANHO];
 
 // ── Célula de categoria editável ──────────────────────────────────
 function CatCell({ gasto, onUpdate }) {
@@ -42,13 +50,14 @@ function CatCell({ gasto, onUpdate }) {
   }
 
   if (editando) {
+    const opcoes = gasto.natureza === "ganho" ? CATS_GANHO : CATS_GASTO;
     return (
       <select ref={selectRef} defaultValue={gasto.categoria}
         onChange={e => salvar(e.target.value)}
         onBlur={() => setEditando(false)}
         className="text-[10px] px-1.5 py-0.5 rounded border border-[#6c5fff] bg-[#1a1a28] text-[#e8e8f0] outline-none w-full cursor-pointer"
         style={{ maxWidth: 90 }}>
-        {TODAS_CATS.map(c => <option key={c} value={c}>{c}</option>)}
+        {opcoes.map(c => <option key={c} value={c}>{c}</option>)}
       </select>
     );
   }
@@ -114,6 +123,8 @@ export default function Gastos() {
     setToast({ message, type });
     setTimeout(() => setToast(null), 3500);
   }
+
+  const [naturezaFiltro, setNaturezaFiltro] = useState("Todos");
 
   const [modalExtrato, setModalExtrato] = useState(false);
   const [extratoLoading, setExtratoLoading] = useState(false);
@@ -233,7 +244,12 @@ export default function Gastos() {
   const categorias = ["Todas", ...new Set(gastos.map(g => g.categoria).filter(Boolean))].sort();
   const meios = ["Todos", ...new Set(gastos.map(g => g.meio_pagamento).filter(Boolean))];
 
+  const somenteGastos = gastos.filter(g => (g.natureza || "gasto") === "gasto");
+  const somenteGanhos = gastos.filter(g => g.natureza === "ganho");
+
   const filtrados = gastos.filter(g => {
+    if (naturezaFiltro === "Gastos" && (g.natureza || "gasto") !== "gasto") return false;
+    if (naturezaFiltro === "Ganhos" && g.natureza !== "ganho") return false;
     if (tipoFiltro === "Fixa" && g.tipo !== "fixa") return false;
     if (tipoFiltro === "Variável" && g.tipo !== "variavel") return false;
     if (catFiltro !== "Todas" && g.categoria !== catFiltro) return false;
@@ -242,8 +258,10 @@ export default function Gastos() {
   });
 
   const total = filtrados.reduce((s, g) => s + Number(g.valor || 0), 0);
-  const fixas = gastos.filter(g => g.tipo === "fixa").reduce((s, g) => s + Number(g.valor || 0), 0);
-  const variaveis = gastos.filter(g => g.tipo === "variavel").reduce((s, g) => s + Number(g.valor || 0), 0);
+  const totalGanhos = somenteGanhos.reduce((s, g) => s + Number(g.valor || 0), 0);
+  const fixas = somenteGastos.filter(g => g.tipo === "fixa").reduce((s, g) => s + Number(g.valor || 0), 0);
+  const variaveis = somenteGastos.filter(g => g.tipo === "variavel").reduce((s, g) => s + Number(g.valor || 0), 0);
+  const saldo = totalGanhos - (fixas + variaveis);
 
   const FiltroBtn = ({ ativo, onClick, children }) => (
     <button onClick={onClick}
@@ -259,7 +277,7 @@ export default function Gastos() {
       <div className="px-6 py-4 border-b border-[#1e1e2e]">
         <div className="flex items-center justify-between flex-wrap gap-3">
           <div>
-            <div className="text-base font-semibold">Controle de Gastos</div>
+            <div className="text-base font-semibold">Lançamentos</div>
             <div className="text-xs text-[#4a4a6a] mt-0.5">{filtrados.length} lançamentos · {mesSel}</div>
           </div>
           <div className="flex items-center gap-3 flex-wrap">
@@ -285,11 +303,12 @@ export default function Gastos() {
 
       <div className="flex-1 overflow-y-auto px-6 py-5">
         {/* Cards */}
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-5">
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-5">
           {[
-            { label: "Total do Mês", valor: fmt(fixas + variaveis), cor: "text-red-400", icon: "💸" },
+            { label: "Ganhos", valor: fmt(totalGanhos), cor: "text-emerald-400", icon: "💚" },
+            { label: "Gastos Totais", valor: fmt(fixas + variaveis), cor: "text-red-400", icon: "💸" },
             { label: "Despesas Fixas", valor: fmt(fixas), cor: "text-orange-400", icon: "📌" },
-            { label: "Despesas Variáveis", valor: fmt(variaveis), cor: "text-violet-400", icon: "🛒" },
+            { label: "Saldo", valor: fmt(saldo), cor: saldo >= 0 ? "text-emerald-400" : "text-red-400", icon: saldo >= 0 ? "✅" : "⚠️" },
           ].map((c, i) => (
             <div key={i} className="bg-[#13131e] border border-[#1e1e2e] rounded-xl p-4">
               <div className="text-xs text-[#4a4a6a] mb-2">{c.icon} {c.label}</div>
@@ -300,6 +319,12 @@ export default function Gastos() {
 
         {/* Filtros */}
         <div className="flex flex-col gap-2 mb-4">
+          <div className="flex items-center gap-2 flex-wrap">
+            <span className="text-[10px] text-[#4a4a6a] tracking-wider w-16">NATUREZA</span>
+            {["Todos","Gastos","Ganhos"].map(f => (
+              <FiltroBtn key={f} ativo={naturezaFiltro === f} onClick={() => setNaturezaFiltro(f)}>{f}</FiltroBtn>
+            ))}
+          </div>
           <div className="flex items-center gap-2 flex-wrap">
             <span className="text-[10px] text-[#4a4a6a] tracking-wider w-16">TIPO</span>
             {["Todos","Fixa","Variável"].map(f => (
@@ -344,7 +369,7 @@ export default function Gastos() {
                   style={{ gridTemplateColumns: "60px 1fr 95px 110px 90px 60px 24px" }}>
                   <span className="font-mono text-xs text-[#6a6a8a]">{g.data}</span>
                   <span className="text-[#d8d8f0] font-medium truncate pr-1 text-sm">{g.descricao}</span>
-                  <span className="font-mono text-xs text-red-400 font-semibold">{fmt(g.valor)}</span>
+                  <span className={`font-mono text-xs font-semibold ${g.natureza === "ganho" ? "text-emerald-400" : "text-red-400"}`}>{g.natureza === "ganho" ? "+" : ""}{fmt(g.valor)}</span>
                   <span className="text-xs text-[#8a8aaa] truncate">
                     {g.meio_pagamento === "Nubank" ? "💜 Nubank" : "🟡 Mercado Pago"}
                   </span>
@@ -358,7 +383,7 @@ export default function Gastos() {
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center justify-between gap-2">
                       <span className="text-sm font-medium text-[#d8d8f0] truncate">{g.descricao}</span>
-                      <span className="font-mono text-sm text-red-400 font-semibold shrink-0">{fmt(g.valor)}</span>
+                      <span className={`font-mono text-sm font-semibold shrink-0 ${g.natureza === "ganho" ? "text-emerald-400" : "text-red-400"}`}>{g.natureza === "ganho" ? "+" : ""}{fmt(g.valor)}</span>
                     </div>
                     <div className="flex items-center gap-2 mt-1.5 flex-wrap">
                       <span className="font-mono text-[10px] text-[#6a6a8a]">{g.data}</span>
@@ -375,7 +400,7 @@ export default function Gastos() {
             {filtrados.length > 0 && (
               <div className="px-4 py-3 border-t border-[#2a2a3e] flex justify-between items-center">
                 <span className="text-xs text-[#4a4a6a]">{filtrados.length} itens</span>
-                <span className="font-mono text-sm font-semibold text-red-400">{fmt(total)}</span>
+                <span className={`font-mono text-sm font-semibold ${naturezaFiltro === "Ganhos" ? "text-emerald-400" : "text-red-400"}`}>{fmt(total)}</span>
               </div>
             )}
           </div>
@@ -466,27 +491,37 @@ export default function Gastos() {
                         </button>
                       </div>
                       <div className="flex flex-col gap-2">
-                        {extratoResultado.novas.map((t, i) => (
-                          <div key={i} onClick={() => setSelecionadas(s => ({ ...s, [i]: !s[i] }))}
-                            className={`flex items-center gap-3 p-3 rounded-xl border cursor-pointer transition-all
-                              ${selecionadas[i] ? "border-[#6c5fff] bg-[#6c5fff10]" : "border-[#1e1e2e] hover:border-[#3a3a50]"}`}>
-                            <div className={`w-4 h-4 rounded border-2 flex items-center justify-center shrink-0
-                              ${selecionadas[i] ? "border-[#6c5fff] bg-[#6c5fff]" : "border-[#3a3a50]"}`}>
-                              {selecionadas[i] && <span className="text-[10px] text-white font-bold">✓</span>}
-                            </div>
-                            <div className="flex-1 min-w-0">
-                              <div className="text-sm font-medium text-[#d8d8f0] truncate">{t.descricao}</div>
-                              <div className="text-xs text-[#6a6a8a] mt-0.5">{t.data} · {t.meio_pagamento === "Nubank" ? "💜" : "🟡"} {t.meio_pagamento}</div>
-                            </div>
-                            <div className="text-right shrink-0">
-                              <div className="font-mono text-sm text-red-400 font-semibold">{fmt(t.valor)}</div>
-                              <div className="text-[10px] px-1.5 py-0.5 rounded mt-1"
-                                style={{ background: `${CORES_CAT[t.categoria] || "#6c5fff"}20`, color: CORES_CAT[t.categoria] || "#6c5fff" }}>
-                                {t.categoria}
+                        {extratoResultado.novas.map((t, i) => {
+                          const isGanho = t.natureza === "ganho";
+                          return (
+                            <div key={i} onClick={() => setSelecionadas(s => ({ ...s, [i]: !s[i] }))}
+                              className={`flex items-center gap-3 p-3 rounded-xl border cursor-pointer transition-all
+                                ${selecionadas[i]
+                                  ? isGanho ? "border-emerald-500 bg-emerald-500/10" : "border-[#6c5fff] bg-[#6c5fff10]"
+                                  : "border-[#1e1e2e] hover:border-[#3a3a50]"}`}>
+                              <div className={`w-4 h-4 rounded border-2 flex items-center justify-center shrink-0
+                                ${selecionadas[i]
+                                  ? isGanho ? "border-emerald-500 bg-emerald-500" : "border-[#6c5fff] bg-[#6c5fff]"
+                                  : "border-[#3a3a50]"}`}>
+                                {selecionadas[i] && <span className="text-[10px] text-white font-bold">✓</span>}
+                              </div>
+                              <div className="flex-1 min-w-0">
+                                <div className="flex items-center gap-1.5">
+                                  {isGanho && <span className="text-[10px] px-1.5 py-0.5 rounded bg-emerald-500/20 text-emerald-400 font-medium">GANHO</span>}
+                                  <span className="text-sm font-medium text-[#d8d8f0] truncate">{t.descricao}</span>
+                                </div>
+                                <div className="text-xs text-[#6a6a8a] mt-0.5">{t.data} · {t.meio_pagamento === "Nubank" ? "💜" : "🟡"} {t.meio_pagamento}</div>
+                              </div>
+                              <div className="text-right shrink-0">
+                                <div className={`font-mono text-sm font-semibold ${isGanho ? "text-emerald-400" : "text-red-400"}`}>{isGanho ? "+" : ""}{fmt(t.valor)}</div>
+                                <div className="text-[10px] px-1.5 py-0.5 rounded mt-1"
+                                  style={{ background: `${CORES_CAT[t.categoria] || "#6c5fff"}20`, color: CORES_CAT[t.categoria] || "#6c5fff" }}>
+                                  {t.categoria}
+                                </div>
                               </div>
                             </div>
-                          </div>
-                        ))}
+                          );
+                        })}
                       </div>
                     </div>
                   )}
