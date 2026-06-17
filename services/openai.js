@@ -248,8 +248,9 @@ async function extrairExtrato(base64, mimetype, contexto = "") {
 Data atual: ${dataAtual}
 
 REGRAS:
-- Extraia APENAS transações de SAÍDA (débitos, pagamentos, compras). Ignore entradas/créditos/estornos/reembolsos.
-- INCLUA "Financiamento da fatura", "Parcelamento da fatura", "Refinanciamento" e similares — são despesas de saída, NÃO são créditos.
+- Extraia TODAS as transações de saída: compras, parcelas, assinaturas, empréstimos, financiamentos da fatura, iFood, Uber, Apple, Google, streaming, e qualquer pagamento feito.
+- Ignore APENAS: valores recebidos (PIX recebido, depósito recebido, transferência recebida), estornos, cashback e reembolsos.
+- "Financiamento da fatura" e "Parcelamento da fatura" SÃO despesas — extraia normalmente.
 - Para cada transação extraia: data, descrição, valor, meio_pagamento
 - Data no formato DD/mmm (ex: 15/mai, 03/jun)
 - Valor como número positivo (ex: 45.90)
