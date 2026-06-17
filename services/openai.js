@@ -249,8 +249,8 @@ Data atual: ${dataAtual}
 
 REGRAS:
 - Extraia TODAS as transações de saída: compras, parcelas, assinaturas, empréstimos, financiamentos da fatura, iFood, Uber, Apple, Google, streaming, e qualquer pagamento feito.
-- Ignore APENAS: valores recebidos (PIX recebido, depósito recebido, transferência recebida), estornos, cashback e reembolsos.
-- "Financiamento da fatura" e "Parcelamento da fatura" SÃO despesas — extraia normalmente.
+- Ignore APENAS: "Pagamento da fatura" (é crédito), PIX recebido, depósito recebido, transferência recebida, estornos, cashback e reembolsos.
+- ATENÇÃO — seção "Movimentações na fatura" ou "Parcelamentos ativos": extraia as linhas "Parcela da fatura de ..." como despesa de saída (ex: "Parcela da fatura de janeiro/2026 - Parcela 5 de 6 - R$ 492,68" deve virar uma transação). Ignore apenas o item "Pagamento da fatura de ..." nessa seção.
 - Para cada transação extraia: data, descrição, valor, meio_pagamento
 - Data no formato DD/mmm (ex: 15/mai, 03/jun)
 - Valor como número positivo (ex: 45.90)
