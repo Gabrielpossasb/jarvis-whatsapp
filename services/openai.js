@@ -307,11 +307,24 @@ Responda APENAS com JSON válido, sem markdown:
   const response = await openai.chat.completions.create({
     model: "gpt-4o",
     messages: [{ role: "user", content }],
-    max_tokens: 4000,
+    max_tokens: 16000,
   });
 
   const text = response.choices[0].message.content.trim();
-  const parsed = JSON.parse(text.replace(/```json|```/g, "").trim());
+  const clean = text.replace(/```json|```/g, "").trim();
+  let parsed;
+  try {
+    parsed = JSON.parse(clean);
+  } catch {
+    // JSON truncado — tenta recuperar array parcial
+    const match = clean.match(/\[\s*\{[\s\S]*\}/);
+    if (match) {
+      const recovered = match[0].replace(/,\s*$/, "") + "]";
+      parsed = { transacoes: JSON.parse(recovered) };
+    } else {
+      throw new Error("Resposta da IA inválida ou incompleta. Tente novamente.");
+    }
+  }
   return parsed.transacoes || [];
 }
 
