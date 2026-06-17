@@ -334,6 +334,8 @@ async function extrairExtratoTexto(texto) {
   const historico = await buscarHistoricoCategorizacao();
   const prompt = `Você é um assistente financeiro. Analise esse texto de extrato bancário e extraia TODAS as transações de saída (gastos, pagamentos, compras). Ignore entradas, créditos, estornos e reembolsos.
 
+REGRA CRÍTICA: Extraia CADA linha como uma transação separada, mesmo que a descrição seja IDÊNTICA a outra. Nunca agrupe, combine ou descarte transações por terem o mesmo nome. Se aparecer "Meli+" 3 vezes com valores diferentes, extraia 3 transações distintas.
+
 Data atual: ${dataAtual}
 
 Para cada transação extraia:
