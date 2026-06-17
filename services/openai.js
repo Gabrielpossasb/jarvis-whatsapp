@@ -367,12 +367,24 @@ ${texto}`;
   const response = await openai.chat.completions.create({
     model: "gpt-4o-mini",
     messages: [{ role: "user", content: prompt }],
-    max_tokens: 4000,
+    max_tokens: 16000,
     temperature: 0.1,
   });
 
   const content = response.choices[0].message.content.trim();
-  const parsed = JSON.parse(content.replace(/```json|```/g, "").trim());
+  const clean = content.replace(/```json|```/g, "").trim();
+  let parsed;
+  try {
+    parsed = JSON.parse(clean);
+  } catch {
+    const match = clean.match(/\[\s*\{[\s\S]*\}/);
+    if (match) {
+      const recovered = match[0].replace(/,\s*$/, "") + "]";
+      parsed = { transacoes: JSON.parse(recovered) };
+    } else {
+      throw new Error("Resposta da IA inválida ou incompleta. Tente novamente.");
+    }
+  }
   return parsed.transacoes || [];
 }
 
