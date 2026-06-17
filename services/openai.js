@@ -249,6 +249,7 @@ Data atual: ${dataAtual}
 
 REGRAS:
 - Extraia APENAS transações de SAÍDA (débitos, pagamentos, compras). Ignore entradas/créditos/estornos/reembolsos.
+- INCLUA "Financiamento da fatura", "Parcelamento da fatura", "Refinanciamento" e similares — são despesas de saída, NÃO são créditos.
 - Para cada transação extraia: data, descrição, valor, meio_pagamento
 - Data no formato DD/mmm (ex: 15/mai, 03/jun)
 - Valor como número positivo (ex: 45.90)
