@@ -7,6 +7,14 @@ export default function Chat({ messages, setMessages }) {
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
   const chatRef = useRef(null);
+  const textareaRef = useRef(null);
+
+  function autoResize() {
+    const el = textareaRef.current;
+    if (!el) return;
+    el.style.height = "auto";
+    el.style.height = Math.min(el.scrollHeight, 150) + "px";
+  }
 
   useEffect(() => {
     if (chatRef.current) chatRef.current.scrollTop = chatRef.current.scrollHeight;
@@ -16,6 +24,7 @@ export default function Chat({ messages, setMessages }) {
     if (!input.trim() || loading) return;
     const texto = input.trim();
     setInput("");
+    if (textareaRef.current) textareaRef.current.style.height = "auto";
     setMessages(m => [...m, { role: "user", text: texto }]);
     setLoading(true);
 
@@ -96,13 +105,18 @@ export default function Chat({ messages, setMessages }) {
       </div>
 
       {/* Input */}
-      <div className="px-6 py-4 flex gap-3">
-        <input value={input} onChange={e => setInput(e.target.value)}
-          onKeyDown={e => e.key === "Enter" && !e.shiftKey && enviar()}
+      <div className="px-6 py-4 flex gap-3 items-end">
+        <textarea
+          ref={textareaRef}
+          value={input}
+          onChange={e => { setInput(e.target.value); autoResize(); }}
+          onKeyDown={e => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); enviar(); } }}
           placeholder="Ex: adicionar reunião amanhã às 14h, gastei 50 no almoço..."
-          className="flex-1 bg-[#1a1a28] border border-[#2a2a3e] rounded-xl px-4 py-2.5 text-sm text-[#e8e8f0] placeholder-[#4a4a6a] focus:outline-none focus:border-[#6c5fff] transition-colors" />
+          rows={1}
+          style={{ maxHeight: "150px" }}
+          className="flex-1 bg-[#1a1a28] border border-[#2a2a3e] rounded-xl px-4 py-2.5 text-sm text-[#e8e8f0] placeholder-[#4a4a6a] focus:outline-none focus:border-[#6c5fff] transition-colors resize-none overflow-y-auto leading-relaxed" />
         <button onClick={enviar} disabled={loading}
-          className="px-5 py-2.5 bg-[#6c5fff] hover:bg-[#7c6fff] disabled:opacity-50 rounded-xl text-sm font-semibold text-white transition-colors">
+          className="px-5 py-2.5 bg-[#6c5fff] hover:bg-[#7c6fff] disabled:opacity-50 rounded-xl text-sm font-semibold text-white transition-colors shrink-0">
           Enviar
         </button>
       </div>

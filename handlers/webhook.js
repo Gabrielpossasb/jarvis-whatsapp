@@ -225,7 +225,10 @@ async function processarMensagem(texto, remoteJid, canal = "whatsapp") {
     const matchNumeros = texto_lower.match(/(?:adicionar\s+)?([\d,\s]+)/);
     if (matchNumeros) {
       const nums = matchNumeros[1].split(",").map(n => parseInt(n.trim())).filter(n => !isNaN(n));
-      const selecionadas = nums.map(n => novas[n - 1]).filter(Boolean);
+      const selecionadas = nums.map(n => {
+        if (n <= novas.length) return novas[n - 1];
+        return (duplicatas || [])[n - novas.length - 1];
+      }).filter(Boolean);
       if (selecionadas.length > 0) {
         await deletarEstado(remoteJid, "extrato");
         const qtd = await adicionarLoteGastos(selecionadas);
@@ -489,10 +492,13 @@ async function processarMensagem(texto, remoteJid, canal = "whatsapp") {
       let msg = `📊 *Extrato analisado!*\nEncontrei *${transacoes.length} transações*.\n\n`;
       msg += formatarMsgExtrato(novas, `✅ *${novas.length} novas transações:*`);
       if (duplicatas.length > 0) {
-        msg += `\n\n⚠️ *${duplicatas.length} possíveis duplicatas:*\n`;
-        duplicatas.forEach(t => { msg += `• ${t.descricao} — R$ ${t.valor.toFixed(2)} · ${t.data}\n`; });
+        msg += `\n\n⚠️ *${duplicatas.length} possíveis duplicatas* (já existem no mês):\n`;
+        duplicatas.forEach((t, i) => {
+          msg += `*${novas.length + i + 1}.* ${t.descricao} — R$ ${t.valor.toFixed(2)} · ${t.data}\n`;
+        });
+        msg += `_Use o número para incluir mesmo assim._\n`;
       }
-      msg += `\n\nO que deseja?\n✅ _"sim"_ para adicionar todas\n✅ _"1,3,5"_ para escolher\n❌ _"não"_ para cancelar`;
+      msg += `\n\nO que deseja?\n✅ _"sim"_ para adicionar todas as novas\n✅ _"1,3,5"_ para escolher (inclua o nº da duplicata se quiser)\n❌ _"não"_ para cancelar`;
       await responder(msg);
     } catch (err) {
       await responder(`❌ Erro ao analisar extrato: ${err.message}`);
