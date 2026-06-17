@@ -108,6 +108,12 @@ export default function Gastos() {
   const [meioFiltro, setMeioFiltro] = useState("Todos");
   const [mesSel, setMesSel] = useState("");
   const [mesesComDados, setMesesComDados] = useState(new Set());
+  const [toast, setToast] = useState(null);
+
+  function showToast(message, type = "success") {
+    setToast({ message, type });
+    setTimeout(() => setToast(null), 3500);
+  }
 
   const [modalExtrato, setModalExtrato] = useState(false);
   const [extratoLoading, setExtratoLoading] = useState(false);
@@ -172,7 +178,7 @@ export default function Gastos() {
       data.novas.forEach((_, i) => { sel[i] = true; });
       setSelecionadas(sel);
     } catch (err) {
-      alert("Erro ao analisar extrato: " + err.message);
+      showToast("Erro ao analisar extrato: " + err.message, "error");
     }
     setExtratoLoading(false);
   }
@@ -193,7 +199,7 @@ export default function Gastos() {
       ...extratoResultado.novas.filter((_, i) => selecionadas[i]),
       ...dupsSelecionadas,
     ];
-    if (paraAdicionar.length === 0) { alert("Selecione pelo menos uma transação."); setConfirmando(false); return; }
+    if (paraAdicionar.length === 0) { showToast("Selecione pelo menos uma transação.", "error"); setConfirmando(false); return; }
     try {
       const response = await fetch(`${JARVIS_URL}/api/extrato/confirmar`, {
         method: "POST",
@@ -217,9 +223,9 @@ export default function Gastos() {
         await carregar();
       }
 
-      alert(`✅ ${data.adicionados} gastos adicionados com sucesso!`);
+      showToast(`${data.adicionados} gastos adicionados com sucesso!`);
     } catch (err) {
-      alert("Erro ao confirmar: " + err.message);
+      showToast("Erro ao confirmar: " + err.message, "error");
     }
     setConfirmando(false);
   }
@@ -375,6 +381,15 @@ export default function Gastos() {
           </div>
         )}
       </div>
+
+      {/* Toast */}
+      {toast && (
+        <div className={`fixed bottom-6 left-1/2 -translate-x-1/2 z-[100] flex items-center gap-3 px-5 py-3 rounded-xl shadow-lg text-sm font-medium text-white transition-all animate-fade-in
+          ${toast.type === "error" ? "bg-red-500" : "bg-emerald-500"}`}>
+          <span>{toast.type === "error" ? "✕" : "✓"}</span>
+          {toast.message}
+        </div>
+      )}
 
       {/* Modal extrato */}
       {modalExtrato && (
