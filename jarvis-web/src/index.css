@@ -3,8 +3,15 @@
 @tailwind utilities;
 
 /* Mobile viewport fix: ocupa exatamente o espaço visível (não o 100vh que inclui barra de endereços) */
-html, body { height: 100%; margin: 0; }
-#root { height: 100%; }
+html, body {
+  height: 100%;
+  margin: 0;
+  position: fixed;
+  inset: 0;
+  overflow: hidden;
+  overscroll-behavior: none;
+}
+#root { height: 100%; width: 100%; }
 
 /* Impede zoom automático em inputs no iOS Safari e Chrome mobile (font-size < 16px dispara zoom) */
 input, textarea, select { font-size: 16px !important; }

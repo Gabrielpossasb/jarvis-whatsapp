@@ -1,5 +1,5 @@
 import { NavLink } from "react-router-dom";
-import logo from "../assets/logo.png";
+import logo from "../assets/logo-transparent.png";
 
 const links = [
   { to: "/", icon: "💬", label: "Chat" },
@@ -14,9 +14,7 @@ export default function Sidebar() {
       {/* Logo */}
       <div className="px-3 md:px-5 pb-5 border-b border-[#1e1e2e] mb-4">
         <div className="flex items-center gap-2">
-          <div className="w-8 h-8 rounded-lg bg-black flex items-center justify-center shrink-0 overflow-hidden p-1">
-            <img src={logo} alt="JARVIS" className="w-full h-full object-contain" />
-          </div>
+          <img src={logo} alt="JARVIS" className="w-11 h-11 object-contain shrink-0" />
           <div className="hidden md:block">
             <div className="text-[#a78bfa] text-xs font-mono font-medium tracking-widest">JARVIS</div>
             <div className="text-[#4a4a6a] text-[10px] tracking-wider">ASSISTENTE PESSOAL</div>

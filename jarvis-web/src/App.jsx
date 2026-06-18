@@ -14,7 +14,7 @@ export default function App() {
   return (
     <HashRouter>
       <div className="flex h-dvh bg-[#0f0f13] text-[#e8e8f0] overflow-hidden"
-        style={{ fontFamily: "'DM Sans', system-ui, sans-serif" }}>
+        style={{ fontFamily: "'DM Sans', system-ui, sans-serif", paddingTop: "env(safe-area-inset-top)" }}>
         <Sidebar />
         <main className="flex-1 flex flex-col overflow-hidden">
           <Routes>
