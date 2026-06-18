@@ -274,30 +274,30 @@ export default function Gastos() {
   return (
     <div className="flex flex-col h-full">
       {/* Header */}
-      <div className="px-6 py-4 border-b border-[#1e1e2e]">
-        <div className="flex items-center justify-between flex-wrap gap-3">
+      <div className="px-6 py-3 border-b border-[#1e1e2e]">
+        <div className="flex items-center justify-between gap-3">
           <div>
             <div className="text-base font-semibold">Lançamentos</div>
             <div className="text-xs text-[#4a4a6a] mt-0.5">{filtrados.length} lançamentos · {mesSel}</div>
           </div>
-          <div className="flex items-center gap-3 flex-wrap">
-            {MESES_ORDEM.map(m => (
-              <button key={m} onClick={() => setMesSel(m)}
-                className={`px-2.5 py-1 rounded-lg text-xs font-medium border transition-all
-                  ${mesSel === m
-                    ? "border-[#6c5fff] bg-[#6c5fff22] text-[#a78bfa]"
-                    : mesesComDados.has(m)
-                      ? "border-[#2a2a3e] text-[#6a6a8a] hover:border-[#3a3a50]"
-                      : "border-[#1a1a24] text-[#2a2a3a] hover:border-[#2a2a3e] hover:text-[#4a4a6a]"
-                  }`}>
-                {m.slice(0, 3)}
-              </button>
-            ))}
-            <button onClick={() => setModalExtrato(true)}
-              className="flex items-center gap-2 px-4 py-1.5 bg-[#6c5fff] hover:bg-[#7c6fff] rounded-lg text-xs font-semibold text-white transition-colors">
-              📤 Importar extrato
+          <button onClick={() => setModalExtrato(true)}
+            className="flex items-center gap-2 px-4 py-1.5 bg-[#6c5fff] hover:bg-[#7c6fff] rounded-lg text-xs font-semibold text-white transition-colors shrink-0">
+            📤 Importar extrato
+          </button>
+        </div>
+        <div className="flex gap-2 overflow-x-auto no-scrollbar mt-2">
+          {[mesSel, ...MESES_ORDEM.filter(m => m !== mesSel)].map(m => (
+            <button key={m} onClick={() => setMesSel(m)}
+              className={`px-2.5 py-1 rounded-lg text-xs font-medium border transition-all shrink-0
+                ${mesSel === m
+                  ? "border-[#6c5fff] bg-[#6c5fff22] text-[#a78bfa]"
+                  : mesesComDados.has(m)
+                    ? "border-[#2a2a3e] text-[#6a6a8a] hover:border-[#3a3a50]"
+                    : "border-[#1a1a24] text-[#2a2a3a] hover:border-[#2a2a3e] hover:text-[#4a4a6a]"
+                }`}>
+              {m.slice(0, 3)}
             </button>
-          </div>
+          ))}
         </div>
       </div>
 
@@ -319,28 +319,24 @@ export default function Gastos() {
 
         {/* Filtros */}
         <div className="flex flex-col gap-2 mb-4">
-          <div className="flex items-center gap-2 overflow-x-auto no-scrollbar">
-            <span className="text-[10px] text-[#4a4a6a] tracking-wider shrink-0 w-16">NATUREZA</span>
+          <div className="flex gap-2 overflow-x-auto no-scrollbar">
             {[naturezaFiltro, ...["Todos","Gastos","Ganhos"].filter(f => f !== naturezaFiltro)].map(f => (
               <FiltroBtn key={f} ativo={naturezaFiltro === f} onClick={() => setNaturezaFiltro(f)}>{f}</FiltroBtn>
             ))}
           </div>
-          <div className="flex items-center gap-2 overflow-x-auto no-scrollbar">
-            <span className="text-[10px] text-[#4a4a6a] tracking-wider shrink-0 w-16">TIPO</span>
+          <div className="flex gap-2 overflow-x-auto no-scrollbar">
             {[tipoFiltro, ...["Todos","Fixa","Variável"].filter(f => f !== tipoFiltro)].map(f => (
               <FiltroBtn key={f} ativo={tipoFiltro === f} onClick={() => setTipoFiltro(f)}>{f}</FiltroBtn>
             ))}
           </div>
-          <div className="flex items-center gap-2 overflow-x-auto no-scrollbar">
-            <span className="text-[10px] text-[#4a4a6a] tracking-wider shrink-0 w-16">CATEGORIA</span>
+          <div className="flex gap-2 overflow-x-auto no-scrollbar">
             {[catFiltro, ...categorias.filter(c => c !== catFiltro)].map(c => (
               <FiltroBtn key={c} ativo={catFiltro === c} onClick={() => setCatFiltro(c)}>
                 {c !== "Todas" ? (CAT_ABREV[c] || c) : c}
               </FiltroBtn>
             ))}
           </div>
-          <div className="flex items-center gap-2 overflow-x-auto no-scrollbar">
-            <span className="text-[10px] text-[#4a4a6a] tracking-wider shrink-0 w-16">PAGAMENTO</span>
+          <div className="flex gap-2 overflow-x-auto no-scrollbar">
             {[meioFiltro, ...meios.filter(m => m !== meioFiltro)].map(m => (
               <FiltroBtn key={m} ativo={meioFiltro === m} onClick={() => setMeioFiltro(m)}>
                 {m === "Nubank" ? "💜 Nubank" : m === "Mercado Pago" ? "🟡 Mercado Pago" : m}

@@ -145,20 +145,17 @@ export default function Tarefas() {
       <div className="flex-1 overflow-y-auto px-6 py-5">
         {/* Filtros */}
         <div className="flex flex-col gap-2 mb-5">
-          <div className="flex items-center gap-2 overflow-x-auto no-scrollbar">
-            <span className="text-[10px] text-[#4a4a6a] tracking-wider shrink-0 w-12">DATA</span>
+          <div className="flex gap-2 overflow-x-auto no-scrollbar">
             {[dataFiltro, ...["Todas","Hoje","Backlog","Recorrentes"].filter(f => f !== dataFiltro)].map(f => (
               <FiltroBtn key={f} ativo={dataFiltro === f} onClick={() => setDataFiltro(f)}>{f}</FiltroBtn>
             ))}
           </div>
-          <div className="flex items-center gap-2 overflow-x-auto no-scrollbar">
-            <span className="text-[10px] text-[#4a4a6a] tracking-wider shrink-0 w-12">STATUS</span>
+          <div className="flex gap-2 overflow-x-auto no-scrollbar">
             {[statusFiltro, ...["Todas","Pendente","Concluída"].filter(s => s !== statusFiltro)].map(s => (
               <FiltroBtn key={s} ativo={statusFiltro === s} onClick={() => setStatusFiltro(s)}>{s}</FiltroBtn>
             ))}
           </div>
-          <div className="flex items-center gap-2 overflow-x-auto no-scrollbar">
-            <span className="text-[10px] text-[#4a4a6a] tracking-wider shrink-0 w-12">CATEGORIA</span>
+          <div className="flex gap-2 overflow-x-auto no-scrollbar">
             {[catFiltro, ...nomeCats.filter(c => c !== catFiltro)].map(c => (
               <FiltroBtn key={c} ativo={catFiltro === c} onClick={() => setCatFiltro(c)}>
                 {c !== "Todas" ? (EMOJI[c] || "📌") + " " : ""}{c}

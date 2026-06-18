@@ -95,7 +95,7 @@ export default function Chat({ messages, setMessages }) {
       </div>
 
       {/* Sugestões rápidas */}
-      <div className="px-4 py-2 flex gap-2 flex-wrap border-t border-[#1e1e2e] overflow-x-auto">
+      <div className="px-4 py-2 flex gap-2 overflow-x-auto no-scrollbar border-t border-[#1e1e2e]">
         {["Tarefas de hoje", "Tarefas pendentes", "Gastos do mês"].map(s => (
           <button key={s} onClick={() => { setInput(s); }}
             className="text-xs px-3 py-1 rounded-full border border-[#2a2a3e] text-[#6a6a8a] hover:border-[#6c5fff] hover:text-[#a78bfa] transition-all">
@@ -112,7 +112,7 @@ export default function Chat({ messages, setMessages }) {
           value={input}
           onChange={e => { setInput(e.target.value); autoResize(); }}
           onKeyDown={e => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); enviar(); } }}
-          placeholder="Ex: adicionar reunião amanhã às 14h, gastei 50 no almoço..."
+          placeholder="Como posso ajudar hoje?"
           rows={1}
           style={{ maxHeight: "150px" }}
           className="flex-1 bg-[#1a1a28] border border-[#2a2a3e] rounded-xl px-4 py-2.5 text-[16px] text-[#e8e8f0] placeholder-[#4a4a6a] focus:outline-none focus:border-[#6c5fff] transition-colors resize-none overflow-y-auto leading-relaxed" />
