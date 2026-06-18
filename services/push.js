@@ -1,11 +1,18 @@
 const webpush = require("web-push");
 const { supabase } = require("./supabase");
 
-webpush.setVapidDetails(
-  process.env.VAPID_EMAIL || "mailto:gabrielpossas2014@gmail.com",
-  process.env.VAPID_PUBLIC_KEY || "",
-  process.env.VAPID_PRIVATE_KEY || ""
-);
+function configurarVapid() {
+  const pub = process.env.VAPID_PUBLIC_KEY;
+  const priv = process.env.VAPID_PRIVATE_KEY;
+  const email = process.env.VAPID_EMAIL || "mailto:gabrielpossas2014@gmail.com";
+  if (!pub || !priv) return false;
+  try {
+    webpush.setVapidDetails(email, pub, priv);
+    return true;
+  } catch {
+    return false;
+  }
+}
 
 async function salvarSubscription(subscription) {
   await supabase.from("push_subscriptions").upsert({
@@ -15,7 +22,7 @@ async function salvarSubscription(subscription) {
 }
 
 async function enviarPush(titulo, corpo) {
-  if (!process.env.VAPID_PUBLIC_KEY) return;
+  if (!configurarVapid()) return;
   const { data } = await supabase.from("push_subscriptions").select("subscription");
   for (const row of data || []) {
     try {
