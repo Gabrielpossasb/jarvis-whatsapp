@@ -319,29 +319,29 @@ export default function Gastos() {
 
         {/* Filtros */}
         <div className="flex flex-col gap-2 mb-4">
-          <div className="flex items-center gap-2 flex-wrap">
-            <span className="text-[10px] text-[#4a4a6a] tracking-wider w-16">NATUREZA</span>
-            {["Todos","Gastos","Ganhos"].map(f => (
+          <div className="flex items-center gap-2 overflow-x-auto no-scrollbar">
+            <span className="text-[10px] text-[#4a4a6a] tracking-wider shrink-0 w-16">NATUREZA</span>
+            {[naturezaFiltro, ...["Todos","Gastos","Ganhos"].filter(f => f !== naturezaFiltro)].map(f => (
               <FiltroBtn key={f} ativo={naturezaFiltro === f} onClick={() => setNaturezaFiltro(f)}>{f}</FiltroBtn>
             ))}
           </div>
-          <div className="flex items-center gap-2 flex-wrap">
-            <span className="text-[10px] text-[#4a4a6a] tracking-wider w-16">TIPO</span>
-            {["Todos","Fixa","Variável"].map(f => (
+          <div className="flex items-center gap-2 overflow-x-auto no-scrollbar">
+            <span className="text-[10px] text-[#4a4a6a] tracking-wider shrink-0 w-16">TIPO</span>
+            {[tipoFiltro, ...["Todos","Fixa","Variável"].filter(f => f !== tipoFiltro)].map(f => (
               <FiltroBtn key={f} ativo={tipoFiltro === f} onClick={() => setTipoFiltro(f)}>{f}</FiltroBtn>
             ))}
           </div>
-          <div className="flex items-center gap-2 flex-wrap">
-            <span className="text-[10px] text-[#4a4a6a] tracking-wider w-16">CATEGORIA</span>
-            {categorias.map(c => (
+          <div className="flex items-center gap-2 overflow-x-auto no-scrollbar">
+            <span className="text-[10px] text-[#4a4a6a] tracking-wider shrink-0 w-16">CATEGORIA</span>
+            {[catFiltro, ...categorias.filter(c => c !== catFiltro)].map(c => (
               <FiltroBtn key={c} ativo={catFiltro === c} onClick={() => setCatFiltro(c)}>
                 {c !== "Todas" ? (CAT_ABREV[c] || c) : c}
               </FiltroBtn>
             ))}
           </div>
-          <div className="flex items-center gap-2 flex-wrap">
-            <span className="text-[10px] text-[#4a4a6a] tracking-wider w-16">PAGAMENTO</span>
-            {meios.map(m => (
+          <div className="flex items-center gap-2 overflow-x-auto no-scrollbar">
+            <span className="text-[10px] text-[#4a4a6a] tracking-wider shrink-0 w-16">PAGAMENTO</span>
+            {[meioFiltro, ...meios.filter(m => m !== meioFiltro)].map(m => (
               <FiltroBtn key={m} ativo={meioFiltro === m} onClick={() => setMeioFiltro(m)}>
                 {m === "Nubank" ? "💜 Nubank" : m === "Mercado Pago" ? "🟡 Mercado Pago" : m}
               </FiltroBtn>

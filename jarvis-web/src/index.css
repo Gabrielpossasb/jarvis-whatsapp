@@ -16,3 +16,7 @@ input, textarea, select { font-size: 16px !important; }
 .animate-fade-in {
   animation: fade-in-up 0.25s ease-out both;
 }
+
+/* Scrollbar invisível mas funcional (para filtros horizontais) */
+.no-scrollbar::-webkit-scrollbar { display: none; }
+.no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
