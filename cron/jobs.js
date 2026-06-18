@@ -13,6 +13,7 @@ const {
 const { agora, formatarData, formatarHora } = require("../utils/date");
 const { executarComLog } = require("../services/cron-logs");
 const { limparEstadosAntigos } = require("../services/pending-states");
+const { enviarPush } = require("../services/push");
 
 // ── Resumo diário às 7h ───────────────────────────────────────────
 async function enviarResumoDiario() {
@@ -46,6 +47,7 @@ async function enviarResumoDiario() {
 
   msg += "\nBora! 💪";
   await enviarMensagem(CONFIG.NUMERO_AUTORIZADO, msg);
+  await enviarPush("🗓️ Bom dia, Gabriel!", `${tarefas.length} tarefa(s) para hoje`);
 }
 
 // ── Lembretes a cada 15min ────────────────────────────────────────
@@ -69,6 +71,7 @@ async function verificarLembretes() {
         ? `⏰ *Lembrete!*\n${emoji} *${t.descricao}*\n🔁 Recorrente: ${t.recorrente}`
         : `⏰ *Lembrete!*\nDaqui 1h: ${emoji} *${t.descricao}* às ${t.hora}`;
       await enviarMensagem(CONFIG.NUMERO_AUTORIZADO, msg);
+      await enviarPush("⏰ Lembrete JARVIS", t.descricao);
       if (!ehRecorrente) await marcarLembreteEnviado(t.linha, "Sim");
     }
   }
@@ -84,6 +87,7 @@ async function verificarLembretes() {
     const prazo = t.data && t.data !== "backlog" ? `\n📅 Prazo: ${t.data}` : "";
     const msg = `🔔 *Lembrete programado!*\n${emoji} *${t.descricao}*${prazo}\n_Lembrete toda ${t.diasLembrete} às ${t.horaLembrete}_`;
     await enviarMensagem(CONFIG.NUMERO_AUTORIZADO, msg);
+    await enviarPush("🔔 Lembrete JARVIS", t.descricao);
     await marcarLembreteEnviado(t.linha, dataHoje);
   }
 }
@@ -102,6 +106,7 @@ async function verificarTarefasVencidas() {
       `🗑️ _"excluir ${t.descricao.toLowerCase()}"_`,
     ].join("\n");
     await enviarMensagem(CONFIG.NUMERO_AUTORIZADO, msg);
+    await enviarPush("⚠️ Tarefa vencida", t.descricao);
   }
 }
 

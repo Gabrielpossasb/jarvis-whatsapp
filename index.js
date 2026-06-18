@@ -4,7 +4,8 @@
 
 const express = require("express");
 const cors = require("cors");
-const { handleWebhook, handleWebChat, handleExtratoUpload, handleExtratoConfirmar } = require("./handlers/webhook");
+const { handleWebhook, handleWebChat, handleMensagemArquivo, handleExtratoUpload, handleExtratoConfirmar } = require("./handlers/webhook");
+const { salvarSubscription, enviarPush } = require("./services/push");
 const { iniciarCronJobs } = require("./cron/jobs");
 const { inicializarPlanilhaTarefas } = require("./services/sheets");
 const { inicializarCategorias } = require("./services/categorias");
@@ -17,8 +18,13 @@ app.use(express.json({ limit: "50mb" }));
 
 app.post("/webhook", handleWebhook);
 app.post("/api/mensagem", handleWebChat);
+app.post("/api/mensagem/arquivo", handleMensagemArquivo);
 app.post("/api/extrato/analisar", handleExtratoUpload);
 app.post("/api/extrato/confirmar", handleExtratoConfirmar);
+app.post("/api/push/subscribe", async (req, res) => {
+  try { await salvarSubscription(req.body); res.json({ ok: true }); }
+  catch (err) { res.status(500).json({ erro: err.message }); }
+});
 app.get("/", (req, res) => res.json({ status: "JARVIS online 🤖", hora: formatarHora(), data: formatarData() }));
 
 const PORT = process.env.PORT || 3000;

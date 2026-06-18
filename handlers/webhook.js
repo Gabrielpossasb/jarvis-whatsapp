@@ -606,6 +606,30 @@ async function handleWebChat(req, res) {
   }
 }
 
+async function handleMensagemArquivo(req, res) {
+  try {
+    const { base64, mimetype, texto } = req.body;
+    if (!base64 || !mimetype) return res.status(400).json({ erro: "base64 e mimetype obrigatórios" });
+
+    let conteudo = "";
+    if (mimetype.startsWith("audio/")) {
+      conteudo = await transcreverAudio(base64, mimetype);
+    } else if (mimetype.startsWith("image/")) {
+      conteudo = await analisarImagem(base64, mimetype);
+    } else if (mimetype === "application/pdf") {
+      conteudo = await analisarPDF(base64);
+    }
+
+    const mensagem = [texto, conteudo].filter(Boolean).join("\n");
+    const sessionId = CONFIG.NUMERO_AUTORIZADO;
+    const resposta = await processarMensagem(mensagem, sessionId, "web");
+    res.json({ texto: resposta });
+  } catch (err) {
+    console.error("Erro mensagem arquivo:", err);
+    res.status(500).json({ erro: err.message });
+  }
+}
+
 async function handleExtratoUpload(req, res) {
   try {
     const { base64, mimetype, contexto } = req.body;
@@ -636,4 +660,4 @@ async function handleExtratoConfirmar(req, res) {
   }
 }
 
-module.exports = { handleWebhook, handleWebChat, handleExtratoUpload, handleExtratoConfirmar };
+module.exports = { handleWebhook, handleWebChat, handleMensagemArquivo, handleExtratoUpload, handleExtratoConfirmar };
