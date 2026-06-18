@@ -13,7 +13,7 @@ export default function App() {
 
   return (
     <HashRouter>
-      <div className="flex h-screen bg-[#0f0f13] text-[#e8e8f0] overflow-hidden"
+      <div className="flex h-dvh bg-[#0f0f13] text-[#e8e8f0] overflow-hidden"
         style={{ fontFamily: "'DM Sans', system-ui, sans-serif" }}>
         <Sidebar />
         <main className="flex-1 flex flex-col overflow-hidden">

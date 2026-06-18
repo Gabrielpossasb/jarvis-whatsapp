@@ -55,7 +55,7 @@ export default function Chat({ messages, setMessages }) {
   return (
     <div className="flex flex-col h-full">
       {/* Header */}
-      <div className="px-6 py-4 border-b border-[#1e1e2e] flex items-center justify-between">
+      <div className="px-4 md:px-6 py-3 md:py-4 border-b border-[#1e1e2e] flex items-center justify-between">
         <div>
           <div className="text-base font-semibold">Chat com JARVIS</div>
           <div className="text-xs text-[#4a4a6a] mt-0.5">Mesmas funcionalidades do WhatsApp</div>
@@ -67,7 +67,7 @@ export default function Chat({ messages, setMessages }) {
       </div>
 
       {/* Mensagens */}
-      <div ref={chatRef} className="flex-1 overflow-y-auto px-6 py-5 flex flex-col gap-4">
+      <div ref={chatRef} className="flex-1 overflow-y-auto px-4 md:px-6 py-4 flex flex-col gap-4">
         {messages.map((m, i) => (
           <div key={i} className={`flex gap-3 ${m.role === "user" ? "justify-end" : "justify-start"}`}>
             {m.role === "jarvis" && (
@@ -95,7 +95,7 @@ export default function Chat({ messages, setMessages }) {
       </div>
 
       {/* Sugestões rápidas */}
-      <div className="px-6 py-2 flex gap-2 flex-wrap border-t border-[#1e1e2e]">
+      <div className="px-4 py-2 flex gap-2 flex-wrap border-t border-[#1e1e2e] overflow-x-auto">
         {["Tarefas de hoje", "Tarefas pendentes", "Gastos do mês"].map(s => (
           <button key={s} onClick={() => { setInput(s); }}
             className="text-xs px-3 py-1 rounded-full border border-[#2a2a3e] text-[#6a6a8a] hover:border-[#6c5fff] hover:text-[#a78bfa] transition-all">
@@ -105,7 +105,8 @@ export default function Chat({ messages, setMessages }) {
       </div>
 
       {/* Input */}
-      <div className="px-6 py-4 flex gap-3 items-end">
+      <div className="px-4 py-3 flex gap-3 items-end"
+           style={{ paddingBottom: "max(12px, env(safe-area-inset-bottom))" }}>
         <textarea
           ref={textareaRef}
           value={input}
@@ -114,7 +115,7 @@ export default function Chat({ messages, setMessages }) {
           placeholder="Ex: adicionar reunião amanhã às 14h, gastei 50 no almoço..."
           rows={1}
           style={{ maxHeight: "150px" }}
-          className="flex-1 bg-[#1a1a28] border border-[#2a2a3e] rounded-xl px-4 py-2.5 text-sm text-[#e8e8f0] placeholder-[#4a4a6a] focus:outline-none focus:border-[#6c5fff] transition-colors resize-none overflow-y-auto leading-relaxed" />
+          className="flex-1 bg-[#1a1a28] border border-[#2a2a3e] rounded-xl px-4 py-2.5 text-[16px] text-[#e8e8f0] placeholder-[#4a4a6a] focus:outline-none focus:border-[#6c5fff] transition-colors resize-none overflow-y-auto leading-relaxed" />
         <button onClick={enviar} disabled={loading}
           className="px-5 py-2.5 bg-[#6c5fff] hover:bg-[#7c6fff] disabled:opacity-50 rounded-xl text-sm font-semibold text-white transition-colors shrink-0">
           Enviar

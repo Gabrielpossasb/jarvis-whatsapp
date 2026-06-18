@@ -115,31 +115,35 @@ function RelatorioAnual({ todosMeses }) {
 
       {/* Tabela resumo anual */}
       <div className="bg-[#13131e] border border-[#1e1e2e] rounded-xl overflow-hidden">
-        <div className="grid px-4 py-2.5 border-b border-[#1e1e2e] text-[10px] text-[#4a4a6a] tracking-wider"
-          style={{ gridTemplateColumns: "1fr 1fr 1fr 1fr 1fr" }}>
-          <span>MÊS</span><span>GANHOS</span><span>FIXAS</span><span>VARIÁVEIS</span><span>SALDO</span>
-        </div>
-        {resumo.map((m, i) => {
-          const temDados = m.total > 0 || m.ganhos > 0;
-          return (
-            <div key={m.mes}
-              className={`grid px-4 py-3 text-sm transition-colors ${temDados ? "hover:bg-[#1a1a28]" : "opacity-30"} ${i < resumo.length - 1 ? "border-b border-[#1a1a24]" : ""}`}
+        <div className="overflow-x-auto">
+          <div style={{ minWidth: "420px" }}>
+            <div className="grid px-4 py-2.5 border-b border-[#1e1e2e] text-[10px] text-[#4a4a6a] tracking-wider"
               style={{ gridTemplateColumns: "1fr 1fr 1fr 1fr 1fr" }}>
-              <span className={temDados ? "text-[#d8d8f0] font-medium" : "text-[#4a4a6a]"}>{m.mes}</span>
-              <span className="font-mono text-xs text-emerald-400">{m.ganhos > 0 ? fmt(m.ganhos) : "—"}</span>
-              <span className="font-mono text-xs text-orange-400">{m.fixas > 0 ? fmt(m.fixas) : "—"}</span>
-              <span className="font-mono text-xs text-violet-400">{m.variaveis > 0 ? fmt(m.variaveis) : "—"}</span>
-              <span className={`font-mono text-xs font-semibold ${m.saldo >= 0 ? "text-emerald-400" : "text-red-400"}`}>{temDados ? fmt(m.saldo) : "—"}</span>
+              <span>MÊS</span><span>GANHOS</span><span>FIXAS</span><span>VARIÁVEIS</span><span>SALDO</span>
             </div>
-          );
-        })}
-        <div className="grid px-4 py-3 border-t border-[#2a2a3e] text-sm font-semibold"
-          style={{ gridTemplateColumns: "1fr 1fr 1fr 1fr 1fr" }}>
-          <span className="text-[#8a8aaa]">TOTAL</span>
-          <span className="font-mono text-emerald-400">{fmt(totalGanhosAnual)}</span>
-          <span className="font-mono text-orange-400">{fmt(totalFixas)}</span>
-          <span className="font-mono text-violet-400">{fmt(totalVariaveis)}</span>
-          <span className={`font-mono ${(totalGanhosAnual - totalAnual) >= 0 ? "text-emerald-400" : "text-red-400"}`}>{fmt(totalGanhosAnual - totalAnual)}</span>
+            {resumo.map((m, i) => {
+              const temDados = m.total > 0 || m.ganhos > 0;
+              return (
+                <div key={m.mes}
+                  className={`grid px-4 py-3 text-sm transition-colors ${temDados ? "hover:bg-[#1a1a28]" : "opacity-30"} ${i < resumo.length - 1 ? "border-b border-[#1a1a24]" : ""}`}
+                  style={{ gridTemplateColumns: "1fr 1fr 1fr 1fr 1fr" }}>
+                  <span className={temDados ? "text-[#d8d8f0] font-medium" : "text-[#4a4a6a]"}>{m.mes}</span>
+                  <span className="font-mono text-xs text-emerald-400">{m.ganhos > 0 ? fmt(m.ganhos) : "—"}</span>
+                  <span className="font-mono text-xs text-orange-400">{m.fixas > 0 ? fmt(m.fixas) : "—"}</span>
+                  <span className="font-mono text-xs text-violet-400">{m.variaveis > 0 ? fmt(m.variaveis) : "—"}</span>
+                  <span className={`font-mono text-xs font-semibold ${m.saldo >= 0 ? "text-emerald-400" : "text-red-400"}`}>{temDados ? fmt(m.saldo) : "—"}</span>
+                </div>
+              );
+            })}
+            <div className="grid px-4 py-3 border-t border-[#2a2a3e] text-sm font-semibold"
+              style={{ gridTemplateColumns: "1fr 1fr 1fr 1fr 1fr" }}>
+              <span className="text-[#8a8aaa]">TOTAL</span>
+              <span className="font-mono text-emerald-400">{fmt(totalGanhosAnual)}</span>
+              <span className="font-mono text-orange-400">{fmt(totalFixas)}</span>
+              <span className="font-mono text-violet-400">{fmt(totalVariaveis)}</span>
+              <span className={`font-mono ${(totalGanhosAnual - totalAnual) >= 0 ? "text-emerald-400" : "text-red-400"}`}>{fmt(totalGanhosAnual - totalAnual)}</span>
+            </div>
+          </div>
         </div>
       </div>
     </div>
@@ -270,24 +274,28 @@ function RelatorioMensal({ gastos, mes }) {
             </span>
           </div>
         </div>
-        <div className="grid px-4 py-2.5 border-b border-[#1e1e2e] text-[10px] text-[#4a4a6a] tracking-wider"
-          style={{ gridTemplateColumns: "70px 1fr 110px 140px 120px" }}>
-          <span>DATA</span><span>DESCRIÇÃO</span><span>VALOR</span><span>PAGAMENTO</span><span>CATEGORIA</span>
-        </div>
-        {tabela.map((g, i) => (
-          <div key={g.id}
-            className={`grid items-center px-4 py-3 text-sm hover:bg-[#1a1a28] transition-colors ${i < tabela.length - 1 ? "border-b border-[#1a1a24]" : ""}`}
-            style={{ gridTemplateColumns: "70px 1fr 110px 140px 120px" }}>
-            <span className="font-mono text-xs text-[#6a6a8a]">{g.data}</span>
-            <span className="text-[#d8d8f0] font-medium truncate pr-2">{g.descricao}</span>
-            <span className="font-mono text-red-400 font-semibold">{fmt(g.valor)}</span>
-            <span className="text-xs text-[#8a8aaa]">{g.meio_pagamento === "Nubank" ? "💜 Nubank" : "🟡 Mercado Pago"}</span>
-            <span className="text-xs px-2 py-0.5 rounded w-fit"
-              style={{ background: `${CORES_CAT[g.categoria] || "#6c5fff"}20`, color: CORES_CAT[g.categoria] || "#6c5fff" }}>
-              {g.categoria}
-            </span>
+        <div className="overflow-x-auto">
+          <div style={{ minWidth: "500px" }}>
+            <div className="grid px-4 py-2.5 border-b border-[#1e1e2e] text-[10px] text-[#4a4a6a] tracking-wider"
+              style={{ gridTemplateColumns: "70px 1fr 110px 140px 120px" }}>
+              <span>DATA</span><span>DESCRIÇÃO</span><span>VALOR</span><span>PAGAMENTO</span><span>CATEGORIA</span>
+            </div>
+            {tabela.map((g, i) => (
+              <div key={g.id}
+                className={`grid items-center px-4 py-3 text-sm hover:bg-[#1a1a28] transition-colors ${i < tabela.length - 1 ? "border-b border-[#1a1a24]" : ""}`}
+                style={{ gridTemplateColumns: "70px 1fr 110px 140px 120px" }}>
+                <span className="font-mono text-xs text-[#6a6a8a]">{g.data}</span>
+                <span className="text-[#d8d8f0] font-medium truncate pr-2">{g.descricao}</span>
+                <span className="font-mono text-red-400 font-semibold">{fmt(g.valor)}</span>
+                <span className="text-xs text-[#8a8aaa]">{g.meio_pagamento === "Nubank" ? "💜 Nubank" : "🟡 Mercado Pago"}</span>
+                <span className="text-xs px-2 py-0.5 rounded w-fit"
+                  style={{ background: `${CORES_CAT[g.categoria] || "#6c5fff"}20`, color: CORES_CAT[g.categoria] || "#6c5fff" }}>
+                  {g.categoria}
+                </span>
+              </div>
+            ))}
           </div>
-        ))}
+        </div>
       </div>
     </div>
   );
