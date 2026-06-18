@@ -1,4 +1,5 @@
 import { NavLink } from "react-router-dom";
+import logo from "../assets/logo.png";
 
 const links = [
   { to: "/", icon: "💬", label: "Chat" },
@@ -13,8 +14,8 @@ export default function Sidebar() {
       {/* Logo */}
       <div className="px-3 md:px-5 pb-5 border-b border-[#1e1e2e] mb-4">
         <div className="flex items-center gap-2">
-          <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-[#6c5fff] to-[#a78bfa] flex items-center justify-center text-base shrink-0">
-            🤖
+          <div className="w-8 h-8 rounded-lg bg-black flex items-center justify-center shrink-0 overflow-hidden p-1">
+            <img src={logo} alt="JARVIS" className="w-full h-full object-contain" />
           </div>
           <div className="hidden md:block">
             <div className="text-[#a78bfa] text-xs font-mono font-medium tracking-widest">JARVIS</div>

@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect } from "react";
+import logo from "../assets/logo.png";
 
 const JARVIS_URL = import.meta.env.VITE_JARVIS_URL || "https://web-production-f30e8.up.railway.app";
 
@@ -206,7 +207,9 @@ export default function Chat({ messages, setMessages }) {
         {messages.map((m, i) => (
           <div key={i} className={`flex gap-3 ${m.role === "user" ? "justify-end" : "justify-start"}`}>
             {m.role === "jarvis" && (
-              <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-[#6c5fff] to-[#a78bfa] flex items-center justify-center text-sm shrink-0 mt-1">🤖</div>
+              <div className="w-7 h-7 rounded-lg bg-black flex items-center justify-center shrink-0 mt-1 overflow-hidden p-1">
+                <img src={logo} alt="JARVIS" className="w-full h-full object-contain" />
+              </div>
             )}
             <div className={`max-w-[75%] px-4 py-2.5 rounded-2xl text-sm leading-relaxed
               ${m.role === "user"
@@ -233,7 +236,9 @@ export default function Chat({ messages, setMessages }) {
         ))}
         {loading && (
           <div className="flex gap-3">
-            <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-[#6c5fff] to-[#a78bfa] flex items-center justify-center text-sm">🤖</div>
+            <div className="w-7 h-7 rounded-lg bg-black flex items-center justify-center overflow-hidden p-1">
+              <img src={logo} alt="JARVIS" className="w-full h-full object-contain" />
+            </div>
             <div className="bg-[#1a1a28] px-4 py-3 rounded-2xl rounded-bl-sm flex gap-1.5 items-center">
               {[0, 1, 2].map(i => (
                 <div key={i} className="w-1.5 h-1.5 rounded-full bg-[#6c5fff] animate-bounce"
