@@ -630,6 +630,18 @@ async function handleMensagemArquivo(req, res) {
   }
 }
 
+async function handleTranscricaoAudio(req, res) {
+  try {
+    const { base64, mimetype } = req.body;
+    if (!base64 || !mimetype) return res.status(400).json({ erro: "base64 e mimetype obrigatórios" });
+    const texto = await transcreverAudio(base64, mimetype);
+    res.json({ texto });
+  } catch (err) {
+    console.error("Erro transcrição áudio:", err);
+    res.status(500).json({ erro: err.message });
+  }
+}
+
 async function handleExtratoUpload(req, res) {
   try {
     const { base64, mimetype, contexto } = req.body;
@@ -660,4 +672,4 @@ async function handleExtratoConfirmar(req, res) {
   }
 }
 
-module.exports = { handleWebhook, handleWebChat, handleMensagemArquivo, handleExtratoUpload, handleExtratoConfirmar };
+module.exports = { handleWebhook, handleWebChat, handleMensagemArquivo, handleTranscricaoAudio, handleExtratoUpload, handleExtratoConfirmar };

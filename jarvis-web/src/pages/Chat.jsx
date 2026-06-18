@@ -2,33 +2,84 @@ import { useState, useRef, useEffect } from "react";
 
 const JARVIS_URL = import.meta.env.VITE_JARVIS_URL || "https://web-production-f30e8.up.railway.app";
 
+function MicIcon({ size = 20 }) {
+  return (
+    <svg viewBox="0 0 24 24" width={size} height={size} fill="currentColor">
+      <path d="M12 14c1.66 0 3-1.34 3-3V5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3z" />
+      <path d="M17 11c0 2.76-2.24 5-5 5s-5-2.24-5-5H5c0 3.53 2.61 6.43 6 6.92V21h2v-3.08c3.39-.49 6-3.39 6-6.92h-2z" />
+    </svg>
+  );
+}
+
+function ImageIcon() {
+  return (
+    <svg viewBox="0 0 24 24" width={18} height={18} fill="currentColor">
+      <path d="M21 19V5c0-1.1-.9-2-2-2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2zM8.5 13.5l2.5 3.01L14.5 12l4.5 6H5l3.5-4.5z" />
+    </svg>
+  );
+}
+
+function PDFIcon() {
+  return (
+    <svg viewBox="0 0 24 24" width={18} height={18} fill="currentColor">
+      <path d="M14 2H6c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V8l-6-6zm2 16H8v-2h8v2zm0-4H8v-2h8v2zm-3-5V3.5L18.5 9H13z" />
+    </svg>
+  );
+}
+
+function DocIcon() {
+  return (
+    <svg viewBox="0 0 24 24" width={18} height={18} fill="currentColor">
+      <path d="M14 2H6c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V8l-6-6zm-1 7V3.5L18.5 9H13zm-5 4h8v2H8v-2zm0 4h5v2H8v-2z" />
+    </svg>
+  );
+}
+
 export default function Chat({ messages, setMessages }) {
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
   const [recording, setRecording] = useState(false);
-  const [mediaRecorder, setMediaRecorder] = useState(null);
-  const [preview, setPreview] = useState(null); // { base64, mimetype, name, isAudio }
+  const [transcrevendo, setTranscrevendo] = useState(false);
+  const [preview, setPreview] = useState(null); // { base64, mimetype, name }
+  const [showMenu, setShowMenu] = useState(false);
+
   const chatRef = useRef(null);
   const textareaRef = useRef(null);
   const fileRef = useRef(null);
-
-  function autoResize() {
-    const el = textareaRef.current;
-    if (!el) return;
-    el.style.height = "auto";
-    el.style.height = Math.min(el.scrollHeight, 150) + "px";
-  }
+  const menuRef = useRef(null);
+  const mediaRecorderRef = useRef(null);
+  const streamRef = useRef(null);
+  const pressStartRef = useRef(null);
+  const holdTimerRef = useRef(null);
+  const isHoldModeRef = useRef(false);
+  const recordingRef = useRef(false);
 
   useEffect(() => {
     if (chatRef.current) chatRef.current.scrollTop = chatRef.current.scrollHeight;
   }, [messages]);
 
+  useEffect(() => {
+    const el = textareaRef.current;
+    if (!el) return;
+    el.style.height = "auto";
+    el.style.height = Math.min(el.scrollHeight, 150) + "px";
+  }, [input]);
+
+  // Fechar menu ao clicar fora
+  useEffect(() => {
+    if (!showMenu) return;
+    function handleOutside(e) {
+      if (menuRef.current && !menuRef.current.contains(e.target)) setShowMenu(false);
+    }
+    document.addEventListener("mousedown", handleOutside);
+    return () => document.removeEventListener("mousedown", handleOutside);
+  }, [showMenu]);
+
   async function enviar() {
-    if (preview) { enviarArquivo(preview.base64, preview.mimetype, preview.name); return; }
+    if (preview) { enviarArquivo(); return; }
     if (!input.trim() || loading) return;
     const texto = input.trim();
     setInput("");
-    if (textareaRef.current) textareaRef.current.style.height = "auto";
     setMessages(m => [...m, { role: "user", text: texto }]);
     setLoading(true);
     try {
@@ -45,12 +96,14 @@ export default function Chat({ messages, setMessages }) {
     setLoading(false);
   }
 
-  async function enviarArquivo(base64, mimetype, name) {
+  async function enviarArquivo() {
+    if (!preview) return;
+    const { base64, mimetype, name } = preview;
     setPreview(null);
     setMessages(m => [...m, {
       role: "user",
       text: input.trim() || name,
-      attachment: { base64, mimetype, isAudio: mimetype.startsWith("audio/") },
+      attachment: { base64, mimetype },
     }]);
     setInput("");
     setLoading(true);
@@ -68,49 +121,102 @@ export default function Chat({ messages, setMessages }) {
     setLoading(false);
   }
 
+  async function transcreverAudioInput(base64) {
+    setTranscrevendo(true);
+    try {
+      const res = await fetch(`${JARVIS_URL}/api/audio/transcrever`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ base64, mimetype: "audio/webm" }),
+      });
+      const data = await res.json();
+      if (data.texto) {
+        setInput(data.texto);
+        setTimeout(() => textareaRef.current?.focus(), 50);
+      }
+    } catch {
+      // silently ignore
+    }
+    setTranscrevendo(false);
+  }
+
+  async function iniciarGravacao() {
+    if (recordingRef.current) return;
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      streamRef.current = stream;
+      const mr = new MediaRecorder(stream);
+      const chunks = [];
+      mr.ondataavailable = e => chunks.push(e.data);
+      mr.onstop = () => {
+        const blob = new Blob(chunks, { type: "audio/webm" });
+        const reader = new FileReader();
+        reader.onload = ev => transcreverAudioInput(ev.target.result.split(",")[1]);
+        reader.readAsDataURL(blob);
+        stream.getTracks().forEach(t => t.stop());
+      };
+      mr.start();
+      mediaRecorderRef.current = mr;
+      recordingRef.current = true;
+      setRecording(true);
+    } catch {
+      // mic not available or permission denied
+    }
+  }
+
+  function pararGravacao() {
+    if (!recordingRef.current) return;
+    mediaRecorderRef.current?.stop();
+    recordingRef.current = false;
+    setRecording(false);
+  }
+
+  // Desktop: clique para toggle
+  function handleMicClick() {
+    if (recording) pararGravacao();
+    else iniciarGravacao();
+  }
+
+  // Mobile: toque curto = toggle, segurar = gravar enquanto segura
+  function handleTouchStart(e) {
+    e.preventDefault();
+    pressStartRef.current = Date.now();
+    isHoldModeRef.current = false;
+    holdTimerRef.current = setTimeout(() => {
+      isHoldModeRef.current = true;
+      iniciarGravacao();
+    }, 350);
+  }
+
+  function handleTouchEnd(e) {
+    e.preventDefault();
+    clearTimeout(holdTimerRef.current);
+    if (isHoldModeRef.current) {
+      pararGravacao();
+    } else {
+      handleMicClick();
+    }
+  }
+
+  function abrirArquivo(accept) {
+    setShowMenu(false);
+    if (fileRef.current) {
+      fileRef.current.accept = accept;
+      fileRef.current.value = "";
+      fileRef.current.click();
+    }
+  }
+
   function onFileChange(e) {
     const file = e.target.files[0];
     if (!file) return;
-    e.target.value = "";
     const reader = new FileReader();
     reader.onload = ev => setPreview({
       base64: ev.target.result.split(",")[1],
       mimetype: file.type,
       name: file.name,
-      isAudio: false,
     });
     reader.readAsDataURL(file);
-  }
-
-  async function toggleGravacao() {
-    if (!recording) {
-      try {
-        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-        const mr = new MediaRecorder(stream);
-        const chunks = [];
-        mr.ondataavailable = e => chunks.push(e.data);
-        mr.onstop = () => {
-          const blob = new Blob(chunks, { type: "audio/webm" });
-          const reader = new FileReader();
-          reader.onload = ev => setPreview({
-            base64: ev.target.result.split(",")[1],
-            mimetype: "audio/webm",
-            name: "audio.webm",
-            isAudio: true,
-          });
-          reader.readAsDataURL(blob);
-          stream.getTracks().forEach(t => t.stop());
-        };
-        mr.start();
-        setMediaRecorder(mr);
-        setRecording(true);
-      } catch {
-        alert("Não foi possível acessar o microfone.");
-      }
-    } else {
-      mediaRecorder?.stop();
-      setRecording(false);
-    }
   }
 
   function formatarWhatsApp(texto) {
@@ -121,10 +227,16 @@ export default function Chat({ messages, setMessages }) {
       .replace(/\n/g, "<br/>");
   }
 
+  const placeholder = transcrevendo
+    ? "Transcrevendo..."
+    : preview
+    ? "Legenda opcional..."
+    : "Como posso ajudar hoje?";
+
   return (
     <div className="flex flex-col h-full">
       {/* Header */}
-      <div className="px-4 md:px-6 py-3 md:py-4 border-b border-[#1e1e2e] flex items-center justify-between">
+      <div className="px-4 md:px-6 py-3 md:py-4 border-b border-[#1e1e2e] flex items-center justify-between shrink-0">
         <div>
           <div className="text-base font-semibold">Chat com JARVIS</div>
           <div className="text-xs text-[#4a4a6a] mt-0.5">Texto, imagem, PDF e áudio</div>
@@ -142,7 +254,7 @@ export default function Chat({ messages, setMessages }) {
             {m.role === "jarvis" && (
               <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-[#6c5fff] to-[#a78bfa] flex items-center justify-center text-sm shrink-0 mt-1">🤖</div>
             )}
-            <div className={`max-w-[70%] px-4 py-2.5 rounded-2xl text-sm leading-relaxed
+            <div className={`max-w-[75%] px-4 py-2.5 rounded-2xl text-sm leading-relaxed
               ${m.role === "user"
                 ? "bg-gradient-to-br from-[#6c5fff] to-[#a78bfa] text-white rounded-br-sm"
                 : "bg-[#1a1a28] text-[#c8c8e0] rounded-bl-sm"}`}>
@@ -153,18 +265,14 @@ export default function Chat({ messages, setMessages }) {
                   alt="imagem"
                 />
               )}
-              {m.attachment?.isAudio && (
-                <audio
-                  controls
-                  className="mb-1 w-full max-w-[220px]"
-                  src={`data:audio/webm;base64,${m.attachment.base64}`}
-                />
-              )}
-              {m.attachment && !m.attachment.mimetype?.startsWith("image/") && !m.attachment.isAudio && (
+              {m.attachment && !m.attachment.mimetype?.startsWith("image/") && (
                 <div className="text-xs opacity-70 mb-1">📎 {m.text}</div>
               )}
-              {(!m.attachment || m.attachment.mimetype?.startsWith("image/") || m.attachment.isAudio) && (
+              {!m.attachment && (
                 <span dangerouslySetInnerHTML={{ __html: formatarWhatsApp(m.text) }} />
+              )}
+              {m.attachment?.mimetype?.startsWith("image/") && m.text && (
+                <div className="mt-1 text-xs opacity-80">{m.text}</div>
               )}
             </div>
           </div>
@@ -183,52 +291,101 @@ export default function Chat({ messages, setMessages }) {
       </div>
 
       {/* Sugestões rápidas */}
-      <div className="px-4 py-2 flex gap-2 overflow-x-auto no-scrollbar border-t border-[#1e1e2e]">
+      <div className="px-3 pt-2 pb-1 flex gap-2 overflow-x-auto no-scrollbar shrink-0">
         {["Tarefas de hoje", "Tarefas pendentes", "Gastos do mês"].map(s => (
           <button key={s} onClick={() => setInput(s)}
-            className="text-xs px-3 py-1 rounded-full border border-[#2a2a3e] text-[#6a6a8a] hover:border-[#6c5fff] hover:text-[#a78bfa] transition-all whitespace-nowrap">
+            className="text-xs px-3 py-1 rounded-full border border-[#2a2a3e] text-[#6a6a8a] hover:border-[#6c5fff] hover:text-[#a78bfa] transition-all whitespace-nowrap shrink-0">
             {s}
           </button>
         ))}
       </div>
 
-      {/* Preview de arquivo/áudio */}
-      {preview && (
-        <div className="px-4 py-2 border-t border-[#1e1e2e] flex items-center gap-3 bg-[#1a1a28]">
-          {preview.isAudio
-            ? <span className="text-xs text-[#a78bfa] flex-1">🎙️ Áudio gravado — pronto para enviar</span>
-            : <span className="text-xs text-[#a78bfa] flex-1 truncate">📎 {preview.name}</span>}
-          <button onClick={() => setPreview(null)} className="text-[#6a6a8a] hover:text-white text-xs shrink-0">✕</button>
-        </div>
-      )}
+      {/* Input flutuante */}
+      <div className="px-3 pt-1 shrink-0" style={{ paddingBottom: "max(12px, env(safe-area-inset-bottom))" }}>
+        <input ref={fileRef} type="file" hidden onChange={onFileChange} />
 
-      {/* Input */}
-      <div className="px-4 py-3 flex gap-2 items-end"
-           style={{ paddingBottom: "max(12px, env(safe-area-inset-bottom))" }}>
-        {/* Anexar arquivo */}
-        <input ref={fileRef} type="file" accept="image/*,.pdf,.doc,.docx" hidden onChange={onFileChange} />
-        <button onClick={() => fileRef.current?.click()} title="Anexar arquivo"
-          className="text-[#6a6a8a] hover:text-[#a78bfa] shrink-0 p-2 transition-colors">
-          📎
-        </button>
-        {/* Gravar áudio */}
-        <button onClick={toggleGravacao} title={recording ? "Parar gravação" : "Gravar áudio"}
-          className={`shrink-0 p-2 transition-colors ${recording ? "text-red-400 animate-pulse" : "text-[#6a6a8a] hover:text-[#a78bfa]"}`}>
-          🎙️
-        </button>
-        <textarea
-          ref={textareaRef}
-          value={input}
-          onChange={e => { setInput(e.target.value); autoResize(); }}
-          onKeyDown={e => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); enviar(); } }}
-          placeholder={preview ? (preview.isAudio ? "Legenda opcional..." : "Legenda opcional...") : "Como posso ajudar hoje?"}
-          rows={1}
-          style={{ maxHeight: "150px" }}
-          className="flex-1 bg-[#1a1a28] border border-[#2a2a3e] rounded-xl px-4 py-2.5 text-[16px] text-[#e8e8f0] placeholder-[#4a4a6a] focus:outline-none focus:border-[#6c5fff] transition-colors resize-none overflow-y-auto leading-relaxed" />
-        <button onClick={enviar} disabled={loading}
-          className="px-4 py-2.5 bg-[#6c5fff] hover:bg-[#7c6fff] disabled:opacity-50 rounded-xl text-sm font-semibold text-white transition-colors shrink-0">
-          {preview ? "Enviar" : "Enviar"}
-        </button>
+        {/* Card */}
+        <div className="bg-[#1a1a28] border border-[#2a2a3e] rounded-3xl shadow-lg">
+
+          {/* Preview de arquivo */}
+          {preview && (
+            <div className="flex items-center gap-2 px-4 pt-3 pb-2 border-b border-[#2a2a3e]">
+              <span className="text-xs text-[#a78bfa] flex-1 truncate">📎 {preview.name}</span>
+              <button onClick={() => setPreview(null)} className="text-[#6a6a8a] hover:text-white text-xs shrink-0">✕</button>
+            </div>
+          )}
+
+          {/* Textarea */}
+          <textarea
+            ref={textareaRef}
+            value={input}
+            onChange={e => setInput(e.target.value)}
+            onKeyDown={e => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); enviar(); } }}
+            placeholder={placeholder}
+            disabled={loading}
+            rows={1}
+            style={{ maxHeight: "150px" }}
+            className="w-full bg-transparent px-4 pt-3 pb-2 text-[16px] text-[#e8e8f0] placeholder-[#4a4a6a] focus:outline-none resize-none overflow-y-auto leading-relaxed disabled:opacity-50"
+          />
+
+          {/* Barra de botões */}
+          <div className="flex items-center gap-1 px-2 pb-2 pt-1">
+            {/* Botão "+" com menu */}
+            <div ref={menuRef} className="relative">
+              <button
+                onClick={() => setShowMenu(v => !v)}
+                className="w-9 h-9 flex items-center justify-center rounded-full text-[#6a6a8a] hover:bg-[#2a2a3e] hover:text-[#a78bfa] transition-colors text-2xl font-light leading-none select-none">
+                +
+              </button>
+              {showMenu && (
+                <div className="absolute bottom-full left-0 mb-2 bg-[#1e1e2e] border border-[#2a2a3e] rounded-2xl overflow-hidden shadow-xl z-50 min-w-[160px]">
+                  <button onClick={() => abrirArquivo("image/*")}
+                    className="flex items-center gap-3 px-4 py-3 hover:bg-[#2a2a3e] w-full text-sm text-[#e8e8f0] transition-colors text-left">
+                    <span className="text-[#a78bfa]"><ImageIcon /></span> Imagem
+                  </button>
+                  <button onClick={() => abrirArquivo("application/pdf")}
+                    className="flex items-center gap-3 px-4 py-3 hover:bg-[#2a2a3e] w-full text-sm text-[#e8e8f0] transition-colors text-left">
+                    <span className="text-[#a78bfa]"><PDFIcon /></span> PDF
+                  </button>
+                  <button onClick={() => abrirArquivo(".doc,.docx")}
+                    className="flex items-center gap-3 px-4 py-3 hover:bg-[#2a2a3e] w-full text-sm text-[#e8e8f0] transition-colors text-left">
+                    <span className="text-[#a78bfa]"><DocIcon /></span> Documento
+                  </button>
+                </div>
+              )}
+            </div>
+
+            <div className="flex-1" />
+
+            {/* Botão microfone */}
+            <button
+              onClick={handleMicClick}
+              onTouchStart={handleTouchStart}
+              onTouchEnd={handleTouchEnd}
+              className={`relative w-10 h-10 flex items-center justify-center rounded-full transition-all select-none
+                ${recording ? "" : "text-[#6a6a8a] hover:bg-[#2a2a3e] hover:text-[#a78bfa]"}`}>
+              {recording ? (
+                <>
+                  <div className="absolute inset-0 rounded-full bg-red-500 animate-ping opacity-40" />
+                  <div className="absolute inset-0 rounded-full bg-red-500" />
+                  <span className="relative z-10 text-white"><MicIcon size={18} /></span>
+                </>
+              ) : transcrevendo ? (
+                <span className="text-[#a78bfa] animate-pulse"><MicIcon size={20} /></span>
+              ) : (
+                <MicIcon size={20} />
+              )}
+            </button>
+
+            {/* Botão Enviar */}
+            <button
+              onClick={enviar}
+              disabled={loading || transcrevendo}
+              className="px-4 py-2 bg-[#6c5fff] hover:bg-[#7c6fff] disabled:opacity-50 rounded-2xl text-sm font-semibold text-white transition-colors ml-1">
+              Enviar
+            </button>
+          </div>
+        </div>
       </div>
     </div>
   );
