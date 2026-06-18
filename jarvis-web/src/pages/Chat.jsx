@@ -11,29 +11,6 @@ function MicIcon({ size = 20 }) {
   );
 }
 
-function ImageIcon() {
-  return (
-    <svg viewBox="0 0 24 24" width={18} height={18} fill="currentColor">
-      <path d="M21 19V5c0-1.1-.9-2-2-2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2zM8.5 13.5l2.5 3.01L14.5 12l4.5 6H5l3.5-4.5z" />
-    </svg>
-  );
-}
-
-function PDFIcon() {
-  return (
-    <svg viewBox="0 0 24 24" width={18} height={18} fill="currentColor">
-      <path d="M14 2H6c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V8l-6-6zm2 16H8v-2h8v2zm0-4H8v-2h8v2zm-3-5V3.5L18.5 9H13z" />
-    </svg>
-  );
-}
-
-function DocIcon() {
-  return (
-    <svg viewBox="0 0 24 24" width={18} height={18} fill="currentColor">
-      <path d="M14 2H6c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V8l-6-6zm-1 7V3.5L18.5 9H13zm-5 4h8v2H8v-2zm0 4h5v2H8v-2z" />
-    </svg>
-  );
-}
 
 export default function Chat({ messages, setMessages }) {
   const [input, setInput] = useState("");
@@ -41,12 +18,9 @@ export default function Chat({ messages, setMessages }) {
   const [recording, setRecording] = useState(false);
   const [transcrevendo, setTranscrevendo] = useState(false);
   const [preview, setPreview] = useState(null); // { base64, mimetype, name }
-  const [showMenu, setShowMenu] = useState(false);
-
   const chatRef = useRef(null);
   const textareaRef = useRef(null);
   const fileRef = useRef(null);
-  const menuRef = useRef(null);
   const mediaRecorderRef = useRef(null);
   const streamRef = useRef(null);
   const pressStartRef = useRef(null);
@@ -64,16 +38,6 @@ export default function Chat({ messages, setMessages }) {
     el.style.height = "auto";
     el.style.height = Math.min(el.scrollHeight, 150) + "px";
   }, [input]);
-
-  // Fechar menu ao clicar fora
-  useEffect(() => {
-    if (!showMenu) return;
-    function handleOutside(e) {
-      if (menuRef.current && !menuRef.current.contains(e.target)) setShowMenu(false);
-    }
-    document.addEventListener("mousedown", handleOutside);
-    return () => document.removeEventListener("mousedown", handleOutside);
-  }, [showMenu]);
 
   async function enviar() {
     if (preview) { enviarArquivo(); return; }
@@ -171,9 +135,8 @@ export default function Chat({ messages, setMessages }) {
     setRecording(false);
   }
 
-  // Desktop: clique para toggle
   function handleMicClick() {
-    if (recording) pararGravacao();
+    if (recordingRef.current) pararGravacao();
     else iniciarGravacao();
   }
 
@@ -195,15 +158,6 @@ export default function Chat({ messages, setMessages }) {
       pararGravacao();
     } else {
       handleMicClick();
-    }
-  }
-
-  function abrirArquivo(accept) {
-    setShowMenu(false);
-    if (fileRef.current) {
-      fileRef.current.accept = accept;
-      fileRef.current.value = "";
-      fileRef.current.click();
     }
   }
 
@@ -302,7 +256,7 @@ export default function Chat({ messages, setMessages }) {
 
       {/* Input flutuante */}
       <div className="px-3 pt-1 shrink-0" style={{ paddingBottom: "max(12px, env(safe-area-inset-bottom))" }}>
-        <input ref={fileRef} type="file" hidden onChange={onFileChange} />
+        <input ref={fileRef} type="file" accept="image/*,application/pdf,.doc,.docx" hidden onChange={onFileChange} />
 
         {/* Card */}
         <div className="bg-[#1a1a28] border border-[#2a2a3e] rounded-3xl shadow-lg">
@@ -330,30 +284,12 @@ export default function Chat({ messages, setMessages }) {
 
           {/* Barra de botões */}
           <div className="flex items-center gap-1 px-2 pb-2 pt-1">
-            {/* Botão "+" com menu */}
-            <div ref={menuRef} className="relative">
-              <button
-                onClick={() => setShowMenu(v => !v)}
-                className="w-9 h-9 flex items-center justify-center rounded-full text-[#6a6a8a] hover:bg-[#2a2a3e] hover:text-[#a78bfa] transition-colors text-2xl font-light leading-none select-none">
-                +
-              </button>
-              {showMenu && (
-                <div className="absolute bottom-full left-0 mb-2 bg-[#1e1e2e] border border-[#2a2a3e] rounded-2xl overflow-hidden shadow-xl z-50 min-w-[160px]">
-                  <button onClick={() => abrirArquivo("image/*")}
-                    className="flex items-center gap-3 px-4 py-3 hover:bg-[#2a2a3e] w-full text-sm text-[#e8e8f0] transition-colors text-left">
-                    <span className="text-[#a78bfa]"><ImageIcon /></span> Imagem
-                  </button>
-                  <button onClick={() => abrirArquivo("application/pdf")}
-                    className="flex items-center gap-3 px-4 py-3 hover:bg-[#2a2a3e] w-full text-sm text-[#e8e8f0] transition-colors text-left">
-                    <span className="text-[#a78bfa]"><PDFIcon /></span> PDF
-                  </button>
-                  <button onClick={() => abrirArquivo(".doc,.docx")}
-                    className="flex items-center gap-3 px-4 py-3 hover:bg-[#2a2a3e] w-full text-sm text-[#e8e8f0] transition-colors text-left">
-                    <span className="text-[#a78bfa]"><DocIcon /></span> Documento
-                  </button>
-                </div>
-              )}
-            </div>
+            {/* Botão "+" — abre seletor nativo */}
+            <button
+              onClick={() => { fileRef.current.value = ""; fileRef.current.click(); }}
+              className="w-9 h-9 flex items-center justify-center rounded-full text-[#6a6a8a] hover:bg-[#2a2a3e] hover:text-[#a78bfa] transition-colors text-2xl font-light leading-none select-none">
+              +
+            </button>
 
             <div className="flex-1" />
 
