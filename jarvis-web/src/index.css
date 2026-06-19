@@ -10,6 +10,7 @@ html, body {
   inset: 0;
   overflow: hidden;
   overscroll-behavior: none;
+  background-color: #0f0f13;
 }
 #root { height: 100%; width: 100%; }
 

@@ -256,7 +256,7 @@ export default function Chat({ messages, setMessages }) {
       </div>
 
       {/* Input flutuante */}
-      <div className="px-3 pt-1 shrink-0" style={{ paddingBottom: "max(12px, env(safe-area-inset-bottom))" }}>
+      <div className="px-3 shrink-0" style={{ paddingBottom: "max(8px, calc(env(safe-area-inset-bottom) * 0.5))" }}>
         <input ref={fileRef} type="file" accept="image/*,application/pdf,.doc,.docx" hidden onChange={onFileChange} />
 
         {/* Card */}
