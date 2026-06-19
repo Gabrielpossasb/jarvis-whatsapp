@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { supabase } from "../lib/supabase";
+import MenuButton from "../components/MenuButton";
 
 const MESES_ORDEM = ["Janeiro","Fevereiro","Março","Abril","Maio","Junho","Julho","Agosto","Setembro","Outubro","Novembro","Dezembro"];
 const JARVIS_URL = import.meta.env.VITE_JARVIS_URL || "https://web-production-f30e8.up.railway.app";
@@ -109,7 +110,7 @@ function TipoCell({ gasto, onUpdate }) {
   );
 }
 
-export default function Gastos() {
+export default function Gastos({ onMenuClick }) {
   const [gastos, setGastos] = useState([]);
   const [loading, setLoading] = useState(true);
   const [tipoFiltro, setTipoFiltro] = useState("Todos");
@@ -274,11 +275,14 @@ export default function Gastos() {
   return (
     <div className="flex flex-col h-full">
       {/* Header */}
-      <div className="px-6 py-3 border-b border-[#1e1e2e]">
+      <div className="px-4 md:px-6 py-3 border-b border-[#1e1e2e]">
         <div className="flex items-center justify-between gap-3">
-          <div>
-            <div className="text-base font-semibold">Lançamentos</div>
-            <div className="text-xs text-[#4a4a6a] mt-0.5">{filtrados.length} lançamentos · {mesSel}</div>
+          <div className="flex items-center gap-3">
+            <MenuButton onClick={onMenuClick} />
+            <div>
+              <div className="text-base font-semibold">Lançamentos</div>
+              <div className="text-xs text-[#4a4a6a] mt-0.5">{filtrados.length} lançamentos · {mesSel}</div>
+            </div>
           </div>
           <button onClick={() => setModalExtrato(true)}
             className="flex items-center gap-2 px-4 py-1.5 bg-[#6c5fff] hover:bg-[#7c6fff] rounded-lg text-xs font-semibold text-white transition-colors shrink-0">

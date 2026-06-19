@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { supabase } from "../lib/supabase";
+import MenuButton from "../components/MenuButton";
 
 const MESES_ORDEM = ["Janeiro","Fevereiro","Março","Abril","Maio","Junho","Julho","Agosto","Setembro","Outubro","Novembro","Dezembro"];
 
@@ -302,7 +303,7 @@ function RelatorioMensal({ gastos, mes }) {
 }
 
 // ── Página principal ─────────────────────────────────────────────
-export default function Financeiro() {
+export default function Financeiro({ onMenuClick }) {
   const [visao, setVisao] = useState("mes"); // "mes" | "ano"
   const [mesSel, setMesSel] = useState("");
   const [gastosMes, setGastosMes] = useState([]);
@@ -338,12 +339,15 @@ export default function Financeiro() {
   return (
     <div className="flex flex-col h-full">
       {/* Header */}
-      <div className="px-6 py-3 border-b border-[#1e1e2e]">
+      <div className="px-4 md:px-6 py-3 border-b border-[#1e1e2e]">
         <div className="flex items-center justify-between gap-3">
-          <div>
-            <div className="text-base font-semibold">Financeiro</div>
-            <div className="text-xs text-[#4a4a6a] mt-0.5">
-              {visao === "ano" ? "Relatório anual 2026" : `${gastosMes.length} lançamentos · ${mesSel}`}
+          <div className="flex items-center gap-3">
+            <MenuButton onClick={onMenuClick} />
+            <div>
+              <div className="text-base font-semibold">Financeiro</div>
+              <div className="text-xs text-[#4a4a6a] mt-0.5">
+                {visao === "ano" ? "Relatório anual 2026" : `${gastosMes.length} lançamentos · ${mesSel}`}
+              </div>
             </div>
           </div>
           <div className="flex rounded-lg border border-[#2a2a3e] overflow-hidden shrink-0">

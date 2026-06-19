@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { supabase } from "../lib/supabase";
+import MenuButton from "../components/MenuButton";
 
 const EMOJI = { Casa:"🏠", Elétrica:"⚡", Chácara:"🌿", Faculdade:"🎓", Trabalho:"💼", Pessoal:"👤", Saúde:"🏥", Financeiro:"💰", Outros:"📌" };
 
@@ -56,7 +57,7 @@ function EditCell({ valor, tipo = "text", opcoes = [], onSave, placeholder = "" 
   );
 }
 
-export default function Tarefas() {
+export default function Tarefas({ onMenuClick }) {
   const [tarefas, setTarefas] = useState([]);
   const [categorias, setCategorias] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -137,9 +138,12 @@ export default function Tarefas() {
   return (
     <div className="flex flex-col h-full">
       {/* Header */}
-      <div className="px-6 py-4 border-b border-[#1e1e2e]">
-        <div className="text-base font-semibold">Tarefas</div>
-        <div className="text-xs text-[#4a4a6a] mt-0.5">{pendentes} pendentes · {hojeCount} para hoje</div>
+      <div className="px-4 md:px-6 py-4 border-b border-[#1e1e2e] flex items-center gap-3">
+        <MenuButton onClick={onMenuClick} />
+        <div>
+          <div className="text-base font-semibold">Tarefas</div>
+          <div className="text-xs text-[#4a4a6a] mt-0.5">{pendentes} pendentes · {hojeCount} para hoje</div>
+        </div>
       </div>
 
       <div className="flex-1 overflow-y-auto px-6 py-5">

@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect } from "react";
 import logo from "../assets/logo-transparent.png";
+import MenuButton from "../components/MenuButton";
 
 const JARVIS_URL = import.meta.env.VITE_JARVIS_URL || "https://web-production-f30e8.up.railway.app";
 
@@ -13,7 +14,7 @@ function MicIcon({ size = 20 }) {
 }
 
 
-export default function Chat({ messages, setMessages }) {
+export default function Chat({ messages, setMessages, onMenuClick }) {
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
   const [recording, setRecording] = useState(false);
@@ -28,10 +29,30 @@ export default function Chat({ messages, setMessages }) {
   const holdTimerRef = useRef(null);
   const isHoldModeRef = useRef(false);
   const recordingRef = useRef(false);
+  const [keyboardOffset, setKeyboardOffset] = useState(0);
 
   useEffect(() => {
     if (chatRef.current) chatRef.current.scrollTop = chatRef.current.scrollHeight;
   }, [messages]);
+
+  // No iOS, focar um input com html/body fixos desloca a página inteira pela
+  // altura do teclado. A Visual Viewport API reporta a área realmente visível;
+  // usamos isso para só mover a barra de input, mantendo header e mensagens fixos.
+  useEffect(() => {
+    const vv = window.visualViewport;
+    if (!vv) return;
+    function handleResize() {
+      const offset = window.innerHeight - vv.height - vv.offsetTop;
+      setKeyboardOffset(Math.max(0, Math.round(offset)));
+    }
+    vv.addEventListener("resize", handleResize);
+    vv.addEventListener("scroll", handleResize);
+    handleResize();
+    return () => {
+      vv.removeEventListener("resize", handleResize);
+      vv.removeEventListener("scroll", handleResize);
+    };
+  }, []);
 
   useEffect(() => {
     const el = textareaRef.current;
@@ -192,9 +213,12 @@ export default function Chat({ messages, setMessages }) {
     <div className="flex flex-col h-full">
       {/* Header */}
       <div className="px-4 md:px-6 py-3 md:py-4 border-b border-[#1e1e2e] flex items-center justify-between shrink-0">
-        <div>
-          <div className="text-base font-semibold">Chat com JARVIS</div>
-          <div className="text-xs text-[#4a4a6a] mt-0.5">Texto, imagem, PDF e áudio</div>
+        <div className="flex items-center gap-3">
+          <MenuButton onClick={onMenuClick} />
+          <div>
+            <div className="text-base font-semibold">Chat com JARVIS</div>
+            <div className="text-xs text-[#4a4a6a] mt-0.5">Texto, imagem, PDF e áudio</div>
+          </div>
         </div>
         <div className="flex items-center gap-2">
           <div className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
@@ -203,7 +227,7 @@ export default function Chat({ messages, setMessages }) {
       </div>
 
       {/* Mensagens */}
-      <div ref={chatRef} className="flex-1 overflow-y-auto px-4 md:px-6 py-4 flex flex-col gap-4">
+      <div ref={chatRef} className="flex-1 overflow-y-auto px-4 md:px-6 pt-4 pb-36 md:pb-4 flex flex-col gap-4">
         {messages.map((m, i) => (
           <div key={i} className={`flex items-center gap-3 ${m.role === "user" ? "justify-end" : "justify-start"}`}>
             {m.role === "jarvis" && (
@@ -244,6 +268,11 @@ export default function Chat({ messages, setMessages }) {
           </div>
         )}
       </div>
+
+      {/* Barra inferior: fixa no mobile (acompanha o teclado via Visual Viewport),
+          em fluxo normal no desktop */}
+      <div className="fixed inset-x-0 bottom-0 md:static md:inset-auto shrink-0 bg-[#0f0f13]"
+        style={{ transform: `translateY(-${keyboardOffset}px)` }}>
 
       {/* Sugestões rápidas */}
       <div className="px-3 pt-2 pb-1 flex gap-2 overflow-x-auto no-scrollbar shrink-0">
@@ -323,6 +352,7 @@ export default function Chat({ messages, setMessages }) {
             </button>
           </div>
         </div>
+      </div>
       </div>
     </div>
   );
