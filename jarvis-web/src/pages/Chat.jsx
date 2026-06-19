@@ -205,9 +205,9 @@ export default function Chat({ messages, setMessages }) {
       {/* Mensagens */}
       <div ref={chatRef} className="flex-1 overflow-y-auto px-4 md:px-6 py-4 flex flex-col gap-4">
         {messages.map((m, i) => (
-          <div key={i} className={`flex gap-3 ${m.role === "user" ? "justify-end" : "justify-start"}`}>
+          <div key={i} className={`flex items-center gap-3 ${m.role === "user" ? "justify-end" : "justify-start"}`}>
             {m.role === "jarvis" && (
-              <img src={logo} alt="JARVIS" className="w-10 h-10 object-contain shrink-0 -mt-1" />
+              <img src={logo} alt="JARVIS" className="w-10 h-10 object-contain shrink-0" />
             )}
             <div className={`max-w-[75%] px-4 py-2.5 rounded-2xl text-sm leading-relaxed
               ${m.role === "user"
@@ -233,8 +233,8 @@ export default function Chat({ messages, setMessages }) {
           </div>
         ))}
         {loading && (
-          <div className="flex gap-3">
-            <img src={logo} alt="JARVIS" className="w-10 h-10 object-contain" />
+          <div className="flex items-center gap-3">
+            <img src={logo} alt="JARVIS" className="w-10 h-10 object-contain shrink-0" />
             <div className="bg-[#1a1a28] px-4 py-3 rounded-2xl rounded-bl-sm flex gap-1.5 items-center">
               {[0, 1, 2].map(i => (
                 <div key={i} className="w-1.5 h-1.5 rounded-full bg-[#6c5fff] animate-bounce"
