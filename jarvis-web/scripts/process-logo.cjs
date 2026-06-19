@@ -29,11 +29,23 @@ async function makeTransparent() {
     alphaBuf[p] = Math.round(factor * 255);
   }
 
+  // Descontamina a cor: pixels semitransparentes ainda guardam parte do
+  // branco do fundo original (ex.: r=235 com alpha=0.3 é uma mistura de
+  // roxo+branco). Sem isso, ao compor sobre fundo escuro aparece um halo
+  // branco na borda. Aqui revertemos a mistura assumindo fundo branco.
   const out = Buffer.alloc(data.length);
   for (let p = 0, i = 0; i < data.length; i += channels, p++) {
-    out[i] = data[i];
-    out[i + 1] = data[i + 1];
-    out[i + 2] = data[i + 2];
+    const alpha = alphaBuf[p] / 255;
+    if (alpha > 0.02) {
+      for (let c = 0; c < 3; c++) {
+        const fg = (data[i + c] - (1 - alpha) * 255) / alpha;
+        out[i + c] = Math.max(0, Math.min(255, Math.round(fg)));
+      }
+    } else {
+      out[i] = data[i];
+      out[i + 1] = data[i + 1];
+      out[i + 2] = data[i + 2];
+    }
     out[i + 3] = alphaBuf[p];
   }
 
