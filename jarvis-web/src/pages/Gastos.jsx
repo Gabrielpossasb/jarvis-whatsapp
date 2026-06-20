@@ -110,7 +110,7 @@ function TipoCell({ gasto, onUpdate }) {
   );
 }
 
-export default function Gastos({ onMenuClick }) {
+export default function Gastos({ sidebarOpen, onMenuClick }) {
   const [gastos, setGastos] = useState([]);
   const [loading, setLoading] = useState(true);
   const [tipoFiltro, setTipoFiltro] = useState("Todos");
@@ -275,10 +275,10 @@ export default function Gastos({ onMenuClick }) {
   return (
     <div className="flex flex-col h-full">
       {/* Header */}
-      <div className="px-4 md:px-6 py-3 border-b border-[#1e1e2e]">
+      <div className="relative z-40 bg-[#0f0f13] px-4 md:px-6 py-3 border-b border-[#1e1e2e]">
         <div className="flex items-center justify-between gap-3">
           <div className="flex items-center gap-3">
-            <MenuButton onClick={onMenuClick} />
+            <MenuButton open={sidebarOpen} onClick={onMenuClick} />
             <div>
               <div className="text-base font-semibold">Lançamentos</div>
               <div className="text-xs text-[#4a4a6a] mt-0.5">{filtrados.length} lançamentos · {mesSel}</div>

@@ -57,7 +57,7 @@ function EditCell({ valor, tipo = "text", opcoes = [], onSave, placeholder = "" 
   );
 }
 
-export default function Tarefas({ onMenuClick }) {
+export default function Tarefas({ sidebarOpen, onMenuClick }) {
   const [tarefas, setTarefas] = useState([]);
   const [categorias, setCategorias] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -138,8 +138,8 @@ export default function Tarefas({ onMenuClick }) {
   return (
     <div className="flex flex-col h-full">
       {/* Header */}
-      <div className="px-4 md:px-6 py-4 border-b border-[#1e1e2e] flex items-center gap-3">
-        <MenuButton onClick={onMenuClick} />
+      <div className="relative z-40 bg-[#0f0f13] px-4 md:px-6 py-4 border-b border-[#1e1e2e] flex items-center gap-3">
+        <MenuButton open={sidebarOpen} onClick={onMenuClick} />
         <div>
           <div className="text-base font-semibold">Tarefas</div>
           <div className="text-xs text-[#4a4a6a] mt-0.5">{pendentes} pendentes · {hojeCount} para hoje</div>

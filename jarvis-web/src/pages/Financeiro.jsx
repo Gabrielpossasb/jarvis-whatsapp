@@ -303,7 +303,7 @@ function RelatorioMensal({ gastos, mes }) {
 }
 
 // ── Página principal ─────────────────────────────────────────────
-export default function Financeiro({ onMenuClick }) {
+export default function Financeiro({ sidebarOpen, onMenuClick }) {
   const [visao, setVisao] = useState("mes"); // "mes" | "ano"
   const [mesSel, setMesSel] = useState("");
   const [gastosMes, setGastosMes] = useState([]);
@@ -339,10 +339,10 @@ export default function Financeiro({ onMenuClick }) {
   return (
     <div className="flex flex-col h-full">
       {/* Header */}
-      <div className="px-4 md:px-6 py-3 border-b border-[#1e1e2e]">
+      <div className="relative z-40 bg-[#0f0f13] px-4 md:px-6 py-3 border-b border-[#1e1e2e]">
         <div className="flex items-center justify-between gap-3">
           <div className="flex items-center gap-3">
-            <MenuButton onClick={onMenuClick} />
+            <MenuButton open={sidebarOpen} onClick={onMenuClick} />
             <div>
               <div className="text-base font-semibold">Financeiro</div>
               <div className="text-xs text-[#4a4a6a] mt-0.5">

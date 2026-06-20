@@ -14,7 +14,7 @@ function MicIcon({ size = 20 }) {
 }
 
 
-export default function Chat({ messages, setMessages, onMenuClick }) {
+export default function Chat({ messages, setMessages, sidebarOpen, onMenuClick }) {
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
   const [recording, setRecording] = useState(false);
@@ -212,9 +212,9 @@ export default function Chat({ messages, setMessages, onMenuClick }) {
   return (
     <div className="flex flex-col h-full">
       {/* Header */}
-      <div className="px-4 md:px-6 py-3 md:py-4 border-b border-[#1e1e2e] flex items-center justify-between shrink-0">
+      <div className="relative z-40 bg-[#0f0f13] px-4 md:px-6 py-3 md:py-4 border-b border-[#1e1e2e] flex items-center justify-between shrink-0">
         <div className="flex items-center gap-3">
-          <MenuButton onClick={onMenuClick} />
+          <MenuButton open={sidebarOpen} onClick={onMenuClick} />
           <div>
             <div className="text-base font-semibold">Chat com JARVIS</div>
             <div className="text-xs text-[#4a4a6a] mt-0.5">Texto, imagem, PDF e áudio</div>
