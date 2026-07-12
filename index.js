@@ -13,7 +13,8 @@ const { limparEstadosAntigos } = require("./services/pending-states");
 const { formatarData, formatarHora } = require("./utils/date");
 
 const app = express();
-app.use(cors());
+app.use(cors({ origin: true }));
+app.options("*", cors({ origin: true }));
 app.use(express.json({ limit: "50mb" }));
 
 app.post("/webhook", handleWebhook);

@@ -1,5 +1,16 @@
+self.addEventListener("install", e => { self.skipWaiting(); });
+self.addEventListener("activate", e => { e.waitUntil(clients.claim()); });
+
 self.addEventListener("push", e => {
-  const { title, body } = e.data.json();
+  let title = "JARVIS";
+  let body = "Nova notificação";
+  try {
+    const data = e.data.json();
+    title = data.title || title;
+    body = data.body || body;
+  } catch {
+    body = e.data?.text() || body;
+  }
   e.waitUntil(
     self.registration.showNotification(title, {
       body,

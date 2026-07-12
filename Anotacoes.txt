@@ -3,4 +3,12 @@
 
 - Ajustar o cron e o horario dos avisos no backend
 
+- Na aba financeiro as trasacoes ocupen 2 linhas, para que apareca todas as infos
 
+No chat quero que o audio seja transcrito e o texto nao seja enviado como arquivo, e sim que apareca o texto da trancricao no input de texto, para que eu saiba se for transcrito certo e que possa fazer alteracoes
+Quero que no celular o campo de digitacao, ocupe a widht toda, como uma celula flutuande como na versao mobile do claude
+E que quando o audio esteja gravando, o icone seja trocado para um icone que mostre que esta gravando e que fique pulsando o preenchimetno em rocho e circular, como uma botao de audio do whats, e que o emoji seja como o icone de microfone do whats app, e que ao apertar ele mude ele comece a gravar e so pare quando apertar denovo, mas que se eu pressionar ele comece a gravar e para quando soltar
+O botao de arquivos seja um clips como o botao + como no claude e de as opcoes do que adicionar, doc, pdf ou imagens.
+
+E quero que a aba lateral fique escondida para a versao mobile, para que cada pagina ocupe a widht da tela toda. O novo design da barra lateral no celular, quero que tenha um botao de menu ma parte de cima, e quando clicar as abas ocupem toda a tela, vou enviar uns prints de como fica no app do chatGPT para ter um exemplo
+Quando abre o teclado todo o site sobe, gostaria que apenas a bolha de digitacao movimentasse, para que continue todo o site aparecendo

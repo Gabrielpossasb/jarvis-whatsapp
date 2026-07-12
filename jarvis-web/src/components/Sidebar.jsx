@@ -1,5 +1,5 @@
-import { useRef } from "react";
-import { NavLink } from "react-router-dom";
+import { useRef, useLayoutEffect } from "react";
+import { NavLink, useLocation } from "react-router-dom";
 import logo from "../assets/logo-transparent.png";
 
 const links = [
@@ -30,6 +30,12 @@ function NavLinks({ onNavigate, big }) {
 
 export default function Sidebar({ open, onClose }) {
   const touchStartRef = useRef(null);
+  const navRef = useRef(null);
+  const location = useLocation();
+
+  useLayoutEffect(() => {
+    if (navRef.current) navRef.current.scrollTop = 0;
+  }, [location]);
 
   function handleTouchStart(e) {
     touchStartRef.current = { x: e.touches[0].clientX, y: e.touches[0].clientY };
@@ -81,7 +87,7 @@ export default function Sidebar({ open, onClose }) {
         onTouchStart={handleTouchStart}
         onTouchMove={handleTouchMove}
         onTouchEnd={handleTouchEnd}>
-        <div className="flex-1 pt-16 overflow-y-auto">
+        <div ref={navRef} className="flex-1 pt-16 overflow-hidden">
           <NavLinks onNavigate={onClose} big />
         </div>
       </div>
