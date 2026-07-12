@@ -33,7 +33,18 @@ async function registrarPush() {
   }
 }
 
-registrarPush();
+// iOS exige que requestPermission seja chamado dentro de gesto do usuário
+function agendarPushNoGesto() {
+  function handler() {
+    document.removeEventListener("click", handler);
+    document.removeEventListener("touchend", handler);
+    registrarPush();
+  }
+  document.addEventListener("click", handler);
+  document.addEventListener("touchend", handler);
+}
+
+agendarPushNoGesto();
 
 createRoot(document.getElementById("root")).render(
   <StrictMode>
