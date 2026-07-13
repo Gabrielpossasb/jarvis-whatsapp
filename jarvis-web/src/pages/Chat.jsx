@@ -3,6 +3,31 @@ import logo from "../assets/logo-transparent.png";
 import MenuButton from "../components/MenuButton";
 
 const JARVIS_URL = import.meta.env.VITE_JARVIS_URL || "https://web-production-f30e8.up.railway.app";
+const VAPID_KEY = import.meta.env.VITE_VAPID_PUBLIC_KEY;
+
+function urlBase64ToUint8Array(base64) {
+  const padding = "=".repeat((4 - base64.length % 4) % 4);
+  const b64 = (base64 + padding).replace(/-/g, "+").replace(/_/g, "/");
+  const raw = atob(b64);
+  return Uint8Array.from(raw, c => c.charCodeAt(0));
+}
+
+async function registrarPush() {
+  if (!("serviceWorker" in navigator) || !("PushManager" in window) || !VAPID_KEY) return false;
+  const reg = await navigator.serviceWorker.register("/sw.js");
+  const perm = await Notification.requestPermission();
+  if (perm !== "granted") return false;
+  const sub = await reg.pushManager.subscribe({
+    userVisibleOnly: true,
+    applicationServerKey: urlBase64ToUint8Array(VAPID_KEY),
+  });
+  await fetch(`${JARVIS_URL}/api/push/subscribe`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(sub),
+  });
+  return true;
+}
 
 function MicIcon({ size = 20 }) {
   return (
@@ -30,6 +55,18 @@ export default function Chat({ messages, setMessages, sidebarOpen, onMenuClick }
   const isHoldModeRef = useRef(false);
   const recordingRef = useRef(false);
   const [keyboardOffset, setKeyboardOffset] = useState(0);
+  const [pushStatus, setPushStatus] = useState(
+    typeof Notification !== "undefined" ? Notification.permission : "granted"
+  );
+
+  async function ativarNotificacoes() {
+    try {
+      await registrarPush();
+    } catch {
+      // silencioso — o prompt pode ter sido negado
+    }
+    if (typeof Notification !== "undefined") setPushStatus(Notification.permission);
+  }
 
   useEffect(() => {
     if (chatRef.current) chatRef.current.scrollTop = chatRef.current.scrollHeight;
@@ -224,9 +261,17 @@ export default function Chat({ messages, setMessages, sidebarOpen, onMenuClick }
             <div className="text-xs text-[#4a4a6a] mt-0.5">Texto, imagem, PDF e áudio</div>
           </div>
         </div>
-        <div className="flex items-center gap-2">
-          <div className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-          <span className="text-xs text-emerald-400">Online</span>
+        <div className="flex items-center gap-3">
+          {pushStatus !== "granted" && (
+            <button onClick={ativarNotificacoes}
+              className="text-xs px-3 py-1 rounded-full bg-[#6c5fff22] border border-[#6c5fff] text-[#a78bfa] hover:bg-[#6c5fff33] transition-colors">
+              🔔 Ativar notificações
+            </button>
+          )}
+          <div className="flex items-center gap-2">
+            <div className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+            <span className="text-xs text-emerald-400">Online</span>
+          </div>
         </div>
       </div>
 
