@@ -260,9 +260,8 @@ export default function Gastos({ sidebarOpen, onMenuClick }) {
 
   const total = filtrados.reduce((s, g) => s + Number(g.valor || 0), 0);
   const totalGanhos = somenteGanhos.reduce((s, g) => s + Number(g.valor || 0), 0);
-  const fixas = somenteGastos.filter(g => g.tipo === "fixa").reduce((s, g) => s + Number(g.valor || 0), 0);
-  const variaveis = somenteGastos.filter(g => g.tipo === "variavel").reduce((s, g) => s + Number(g.valor || 0), 0);
-  const saldo = totalGanhos - (fixas + variaveis);
+  const gastosNubank = somenteGastos.filter(g => g.meio_pagamento === "Nubank").reduce((s, g) => s + Number(g.valor || 0), 0);
+  const gastosMercadoPago = somenteGastos.filter(g => g.meio_pagamento === "Mercado Pago").reduce((s, g) => s + Number(g.valor || 0), 0);
 
   const FiltroBtn = ({ ativo, onClick, children }) => (
     <button onClick={onClick}
@@ -307,16 +306,16 @@ export default function Gastos({ sidebarOpen, onMenuClick }) {
 
       <div className="flex-1 overflow-y-auto px-6 py-5">
         {/* Cards */}
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-5">
+        <div className="grid grid-cols-3 gap-3 mb-5">
           {[
-            { label: "Ganhos", valor: fmt(totalGanhos), cor: "text-emerald-400", icon: "💚" },
-            { label: "Gastos Totais", valor: fmt(fixas + variaveis), cor: "text-red-400", icon: "💸" },
-            { label: "Despesas Fixas", valor: fmt(fixas), cor: "text-orange-400", icon: "📌" },
-            { label: "Saldo", valor: fmt(saldo), cor: saldo >= 0 ? "text-emerald-400" : "text-red-400", icon: saldo >= 0 ? "✅" : "⚠️" },
+            { label: "Ganhos", sub: "Nubank", valor: fmt(totalGanhos), cor: "text-emerald-400", border: "border-emerald-500/20", icon: "💚" },
+            { label: "Gastos", sub: "Nubank", valor: fmt(gastosNubank), cor: "text-violet-400", border: "border-violet-500/20", icon: "💜" },
+            { label: "Fatura", sub: "Mercado Pago", valor: fmt(gastosMercadoPago), cor: "text-yellow-400", border: "border-yellow-500/20", icon: "🟡" },
           ].map((c, i) => (
-            <div key={i} className="bg-[#13131e] border border-[#1e1e2e] rounded-xl p-4">
-              <div className="text-xs text-[#4a4a6a] mb-2">{c.icon} {c.label}</div>
-              <div className={`font-mono text-xl font-medium ${c.cor}`}>{c.valor}</div>
+            <div key={i} className={`bg-[#13131e] border ${c.border} rounded-xl p-3 md:p-4`}>
+              <div className="text-[10px] text-[#4a4a6a] mb-0.5">{c.icon} {c.label}</div>
+              <div className="text-[9px] text-[#3a3a5a] mb-2">{c.sub}</div>
+              <div className={`font-mono text-base md:text-xl font-medium ${c.cor}`}>{c.valor}</div>
             </div>
           ))}
         </div>
