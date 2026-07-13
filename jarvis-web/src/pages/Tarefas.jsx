@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { supabase } from "../lib/supabase";
-import MenuButton from "../components/MenuButton";
+import { useHeader } from "../contexts/HeaderContext";
 
 const EMOJI = { Casa:"🏠", Elétrica:"⚡", Chácara:"🌿", Faculdade:"🎓", Trabalho:"💼", Pessoal:"👤", Saúde:"🏥", Financeiro:"💰", Outros:"📌" };
 
@@ -57,7 +57,8 @@ function EditCell({ valor, tipo = "text", opcoes = [], onSave, placeholder = "" 
   );
 }
 
-export default function Tarefas({ sidebarOpen, onMenuClick }) {
+export default function Tarefas() {
+  const { setCfg } = useHeader();
   const [tarefas, setTarefas] = useState([]);
   const [categorias, setCategorias] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -127,6 +128,15 @@ export default function Tarefas({ sidebarOpen, onMenuClick }) {
   const pendentes = tarefas.filter(t => t.status !== "Concluída").length;
   const hojeCount = tarefas.filter(t => t.data === hoje && t.status !== "Concluída").length;
 
+  useEffect(() => {
+    setCfg({
+      title: "Tarefas",
+      subtitle: `${pendentes} pendentes · ${hojeCount} para hoje`,
+      right: null,
+      secondRow: null,
+    });
+  }, [pendentes, hojeCount]); // eslint-disable-line react-hooks/exhaustive-deps
+
   const FiltroBtn = ({ ativo, onClick, children }) => (
     <button onClick={onClick}
       className={`px-3 py-1 rounded-full text-xs border transition-all whitespace-nowrap
@@ -137,15 +147,6 @@ export default function Tarefas({ sidebarOpen, onMenuClick }) {
 
   return (
     <div className="flex flex-col h-full">
-      {/* Header */}
-      <div className="relative z-40 bg-[#0f0f13] px-4 md:px-6 py-4 border-b border-[#1e1e2e] flex items-center gap-3">
-        <MenuButton open={sidebarOpen} onClick={onMenuClick} />
-        <div>
-          <div className="text-base font-semibold">Tarefas</div>
-          <div className="text-xs text-[#4a4a6a] mt-0.5">{pendentes} pendentes · {hojeCount} para hoje</div>
-        </div>
-      </div>
-
       <div className="flex-1 overflow-y-auto px-6 py-5">
         {/* Filtros */}
         <div className="flex flex-col gap-2 mb-5">

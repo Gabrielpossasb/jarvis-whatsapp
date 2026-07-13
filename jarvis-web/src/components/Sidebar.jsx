@@ -66,37 +66,29 @@ export default function Sidebar({ open, onClose }) {
         <NavLinks />
       </aside>
 
-      {/* Backdrop */}
-      <div className="md:hidden fixed inset-0 z-30 transition-opacity duration-300"
-        style={{ opacity: open ? 1 : 0, pointerEvents: open ? "auto" : "none" }}
+      {/* Backdrop — começa abaixo do header compartilhado */}
+      <div className="md:hidden fixed left-0 right-0 bottom-0 z-30 transition-opacity duration-300"
+        style={{
+          top: "var(--header-h, 56px)",
+          opacity: open ? 1 : 0,
+          pointerEvents: open ? "auto" : "none",
+        }}
         onClick={onClose}>
         <div className="absolute inset-0 bg-black/50" />
       </div>
 
-      {/* Drawer */}
+      {/* Drawer — sem container scrollável, começa exatamente abaixo do header */}
       <div
-        className="md:hidden fixed inset-0 z-30 bg-[#0f0f13] overflow-hidden transition-transform duration-300 ease-out"
+        className="md:hidden fixed left-0 right-0 bottom-0 z-30 bg-[#0f0f13] overflow-hidden transition-transform duration-300 ease-out"
         style={{
+          top: "var(--header-h, 56px)",
           transform: open ? "translateX(0)" : "translateX(-100%)",
-          paddingTop: "env(safe-area-inset-top)",
           pointerEvents: open ? "auto" : "none",
         }}
         onTouchStart={handleTouchStart}
         onTouchMove={handleTouchMove}
         onTouchEnd={handleTouchEnd}>
-        {/*
-          position:absolute + overflow:hidden remove os links do fluxo de scroll.
-          iOS não consegue scrollar elementos posicionados absolutamente dentro
-          de um container fixed+overflow:hidden.
-        */}
-        <div style={{
-          position: "absolute",
-          top: 64,
-          left: 0,
-          right: 0,
-          bottom: 0,
-          overflow: "hidden",
-        }}>
+        <div className="pt-4">
           <NavLinks onNavigate={onClose} big />
         </div>
       </div>

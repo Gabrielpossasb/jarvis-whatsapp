@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { supabase } from "../lib/supabase";
-import MenuButton from "../components/MenuButton";
+import { useHeader } from "../contexts/HeaderContext";
 
 const MESES_ORDEM = ["Janeiro","Fevereiro","Março","Abril","Maio","Junho","Julho","Agosto","Setembro","Outubro","Novembro","Dezembro"];
 
@@ -303,7 +303,8 @@ function RelatorioMensal({ gastos, mes }) {
 }
 
 // ── Página principal ─────────────────────────────────────────────
-export default function Financeiro({ sidebarOpen, onMenuClick }) {
+export default function Financeiro() {
+  const { setCfg } = useHeader();
   const [visao, setVisao] = useState("mes"); // "mes" | "ano"
   const [mesSel, setMesSel] = useState("");
   const [gastosMes, setGastosMes] = useState([]);
@@ -336,43 +337,37 @@ export default function Financeiro({ sidebarOpen, onMenuClick }) {
     if (mesSel) setGastosMes(todosMeses.filter(g => g.mes === mesSel));
   }, [mesSel, todosMeses]);
 
+  useEffect(() => {
+    setCfg({
+      title: "Financeiro",
+      subtitle: visao === "ano" ? "Relatório anual 2026" : `${gastosMes.length} lançamentos · ${mesSel}`,
+      right: (
+        <div className="flex rounded-lg border border-[#2a2a3e] overflow-hidden shrink-0">
+          {[{ id: "mes", label: "Mensal" }, { id: "ano", label: "Anual" }].map(v => (
+            <button key={v.id} onClick={() => setVisao(v.id)}
+              className={`px-4 py-1.5 text-xs font-medium transition-all
+                ${visao === v.id ? "bg-[#6c5fff] text-white" : "text-[#6a6a8a] hover:text-[#9a9ab8]"}`}>
+              {v.label}
+            </button>
+          ))}
+        </div>
+      ),
+      secondRow: visao === "mes" ? (
+        <div className="flex gap-2 overflow-x-auto no-scrollbar">
+          {[mesSel, ...mesesDisponiveis.filter(m => m !== mesSel)].map(m => (
+            <button key={m} onClick={() => setMesSel(m)}
+              className={`px-3 py-1.5 rounded-lg text-xs font-medium border transition-all shrink-0
+                ${mesSel === m ? "border-[#6c5fff] bg-[#6c5fff22] text-[#a78bfa]" : "border-[#2a2a3e] text-[#6a6a8a] hover:border-[#3a3a50]"}`}>
+              {m}
+            </button>
+          ))}
+        </div>
+      ) : null,
+    });
+  }, [visao, mesSel, gastosMes.length, mesesDisponiveis]); // eslint-disable-line react-hooks/exhaustive-deps
+
   return (
     <div className="flex flex-col h-full">
-      {/* Header */}
-      <div className="relative z-40 bg-[#0f0f13] px-4 md:px-6 py-3 border-b border-[#1e1e2e]">
-        <div className="flex items-center justify-between gap-3">
-          <div className="flex items-center gap-3">
-            <MenuButton open={sidebarOpen} onClick={onMenuClick} />
-            <div>
-              <div className="text-base font-semibold">Financeiro</div>
-              <div className="text-xs text-[#4a4a6a] mt-0.5">
-                {visao === "ano" ? "Relatório anual 2026" : `${gastosMes.length} lançamentos · ${mesSel}`}
-              </div>
-            </div>
-          </div>
-          <div className="flex rounded-lg border border-[#2a2a3e] overflow-hidden shrink-0">
-            {[{ id: "mes", label: "Mensal" }, { id: "ano", label: "Anual" }].map(v => (
-              <button key={v.id} onClick={() => setVisao(v.id)}
-                className={`px-4 py-1.5 text-xs font-medium transition-all
-                  ${visao === v.id ? "bg-[#6c5fff] text-white" : "text-[#6a6a8a] hover:text-[#9a9ab8]"}`}>
-                {v.label}
-              </button>
-            ))}
-          </div>
-        </div>
-        {visao === "mes" && (
-          <div className="flex gap-2 overflow-x-auto no-scrollbar mt-2">
-            {[mesSel, ...mesesDisponiveis.filter(m => m !== mesSel)].map(m => (
-              <button key={m} onClick={() => setMesSel(m)}
-                className={`px-3 py-1.5 rounded-lg text-xs font-medium border transition-all shrink-0
-                  ${mesSel === m ? "border-[#6c5fff] bg-[#6c5fff22] text-[#a78bfa]" : "border-[#2a2a3e] text-[#6a6a8a] hover:border-[#3a3a50]"}`}>
-                {m}
-              </button>
-            ))}
-          </div>
-        )}
-      </div>
-
       <div className="flex-1 overflow-y-auto px-6 py-5">
         {loading ? (
           <div className="text-center text-[#4a4a6a] py-10 text-sm">Carregando...</div>

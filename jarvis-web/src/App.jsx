@@ -1,6 +1,8 @@
 import { HashRouter, Routes, Route } from "react-router-dom";
 import { useState, useRef } from "react";
 import Sidebar from "./components/Sidebar";
+import Header from "./components/Header";
+import { HeaderProvider } from "./contexts/HeaderContext";
 import Chat from "./pages/Chat";
 import Tarefas from "./pages/Tarefas";
 import Gastos from "./pages/Gastos";
@@ -40,21 +42,26 @@ export default function App() {
 
   return (
     <HashRouter>
-      <div className="flex h-dvh bg-[#0f0f13] text-[#e8e8f0] overflow-hidden"
-        style={{ fontFamily: "'DM Sans', system-ui, sans-serif", paddingTop: "env(safe-area-inset-top)" }}
-        onTouchStart={handleTouchStart}
-        onTouchMove={handleTouchMove}
-        onTouchEnd={handleTouchEnd}>
-        <Sidebar open={sidebarOpen} onClose={() => setSidebarOpen(false)} />
-        <main className="flex-1 flex flex-col overflow-hidden">
-          <Routes>
-            <Route path="/" element={<Chat messages={chatMessages} setMessages={setChatMessages} sidebarOpen={sidebarOpen} onMenuClick={onMenuClick} />} />
-            <Route path="/tarefas" element={<Tarefas sidebarOpen={sidebarOpen} onMenuClick={onMenuClick} />} />
-            <Route path="/gastos" element={<Gastos sidebarOpen={sidebarOpen} onMenuClick={onMenuClick} />} />
-            <Route path="/financeiro" element={<Financeiro sidebarOpen={sidebarOpen} onMenuClick={onMenuClick} />} />
-          </Routes>
-        </main>
-      </div>
+      <HeaderProvider>
+        <div className="flex h-dvh bg-[#0f0f13] text-[#e8e8f0] overflow-hidden"
+          style={{ fontFamily: "'DM Sans', system-ui, sans-serif", paddingTop: "env(safe-area-inset-top)" }}
+          onTouchStart={handleTouchStart}
+          onTouchMove={handleTouchMove}
+          onTouchEnd={handleTouchEnd}>
+          <Sidebar open={sidebarOpen} onClose={() => setSidebarOpen(false)} />
+          <div className="flex-1 flex flex-col overflow-hidden">
+            <Header sidebarOpen={sidebarOpen} onMenuClick={onMenuClick} />
+            <main className="flex-1 flex flex-col overflow-hidden">
+              <Routes>
+                <Route path="/" element={<Chat messages={chatMessages} setMessages={setChatMessages} />} />
+                <Route path="/tarefas" element={<Tarefas />} />
+                <Route path="/gastos" element={<Gastos />} />
+                <Route path="/financeiro" element={<Financeiro />} />
+              </Routes>
+            </main>
+          </div>
+        </div>
+      </HeaderProvider>
     </HashRouter>
   );
 }

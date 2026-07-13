@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from "react";
 import logo from "../assets/logo-transparent.png";
-import MenuButton from "../components/MenuButton";
+import { useHeader } from "../contexts/HeaderContext";
 
 const JARVIS_URL = import.meta.env.VITE_JARVIS_URL || "https://web-production-f30e8.up.railway.app";
 const VAPID_KEY = import.meta.env.VITE_VAPID_PUBLIC_KEY;
@@ -39,7 +39,8 @@ function MicIcon({ size = 20 }) {
 }
 
 
-export default function Chat({ messages, setMessages, sidebarOpen, onMenuClick }) {
+export default function Chat({ messages, setMessages }) {
+  const { setCfg } = useHeader();
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
   const [recording, setRecording] = useState(false);
@@ -67,6 +68,26 @@ export default function Chat({ messages, setMessages, sidebarOpen, onMenuClick }
     }
     if (typeof Notification !== "undefined") setPushStatus(Notification.permission);
   }
+
+  useEffect(() => {
+    setCfg({
+      title: "Chat com JARVIS",
+      subtitle: "Texto, imagem, PDF e áudio",
+      right: pushStatus !== "granted" ? (
+        <button onClick={ativarNotificacoes}
+          className="text-xs px-3 py-1 rounded-full bg-[#6c5fff22] border border-[#6c5fff] text-[#a78bfa] hover:bg-[#6c5fff33] transition-colors">
+          🔔 Ativar notificações
+        </button>
+      ) : (
+        <div className="flex items-center gap-2">
+          <div className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+          <span className="text-xs text-emerald-400">Online</span>
+        </div>
+      ),
+      secondRow: null,
+    });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pushStatus]);
 
   useEffect(() => {
     if (chatRef.current) chatRef.current.scrollTop = chatRef.current.scrollHeight;
@@ -252,29 +273,6 @@ export default function Chat({ messages, setMessages, sidebarOpen, onMenuClick }
 
   return (
     <div className="flex flex-col h-full">
-      {/* Header */}
-      <div className="relative z-40 bg-[#0f0f13] px-4 md:px-6 py-3 md:py-4 border-b border-[#1e1e2e] flex items-center justify-between shrink-0">
-        <div className="flex items-center gap-3">
-          <MenuButton open={sidebarOpen} onClick={onMenuClick} />
-          <div>
-            <div className="text-base font-semibold">Chat com JARVIS</div>
-            <div className="text-xs text-[#4a4a6a] mt-0.5">Texto, imagem, PDF e áudio</div>
-          </div>
-        </div>
-        <div className="flex items-center gap-3">
-          {pushStatus !== "granted" && (
-            <button onClick={ativarNotificacoes}
-              className="text-xs px-3 py-1 rounded-full bg-[#6c5fff22] border border-[#6c5fff] text-[#a78bfa] hover:bg-[#6c5fff33] transition-colors">
-              🔔 Ativar notificações
-            </button>
-          )}
-          <div className="flex items-center gap-2">
-            <div className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-            <span className="text-xs text-emerald-400">Online</span>
-          </div>
-        </div>
-      </div>
-
       {/* Mensagens */}
       <div ref={chatRef} className="flex-1 overflow-y-auto px-4 md:px-6 pt-4 pb-52 md:pb-4 flex flex-col gap-4">
         {messages.map((m, i) => (

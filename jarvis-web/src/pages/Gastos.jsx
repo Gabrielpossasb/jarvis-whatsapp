@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { supabase } from "../lib/supabase";
-import MenuButton from "../components/MenuButton";
+import { useHeader } from "../contexts/HeaderContext";
 
 const MESES_ORDEM = ["Janeiro","Fevereiro","Março","Abril","Maio","Junho","Julho","Agosto","Setembro","Outubro","Novembro","Dezembro"];
 const JARVIS_URL = import.meta.env.VITE_JARVIS_URL || "https://web-production-f30e8.up.railway.app";
@@ -110,7 +110,8 @@ function TipoCell({ gasto, onUpdate }) {
   );
 }
 
-export default function Gastos({ sidebarOpen, onMenuClick }) {
+export default function Gastos() {
+  const { setCfg } = useHeader();
   const [gastos, setGastos] = useState([]);
   const [loading, setLoading] = useState(true);
   const [tipoFiltro, setTipoFiltro] = useState("Todos");
@@ -263,32 +264,18 @@ export default function Gastos({ sidebarOpen, onMenuClick }) {
   const gastosNubank = somenteGastos.filter(g => g.meio_pagamento === "Nubank").reduce((s, g) => s + Number(g.valor || 0), 0);
   const gastosMercadoPago = somenteGastos.filter(g => g.meio_pagamento === "Mercado Pago").reduce((s, g) => s + Number(g.valor || 0), 0);
 
-  const FiltroBtn = ({ ativo, onClick, children }) => (
-    <button onClick={onClick}
-      className={`px-3 py-1 rounded-full text-xs border transition-all whitespace-nowrap
-        ${ativo ? "border-[#6c5fff] bg-[#6c5fff22] text-[#a78bfa]" : "border-[#2a2a3e] text-[#6a6a8a] hover:border-[#3a3a50]"}`}>
-      {children}
-    </button>
-  );
-
-  return (
-    <div className="flex flex-col h-full">
-      {/* Header */}
-      <div className="relative z-40 bg-[#0f0f13] px-4 md:px-6 py-3 border-b border-[#1e1e2e]">
-        <div className="flex items-center justify-between gap-3">
-          <div className="flex items-center gap-3">
-            <MenuButton open={sidebarOpen} onClick={onMenuClick} />
-            <div>
-              <div className="text-base font-semibold">Lançamentos</div>
-              <div className="text-xs text-[#4a4a6a] mt-0.5">{filtrados.length} lançamentos · {mesSel}</div>
-            </div>
-          </div>
-          <button onClick={() => setModalExtrato(true)}
-            className="flex items-center gap-2 px-4 py-1.5 bg-[#6c5fff] hover:bg-[#7c6fff] rounded-lg text-xs font-semibold text-white transition-colors shrink-0">
-            📤 Importar extrato
-          </button>
-        </div>
-        <div className="flex gap-2 overflow-x-auto no-scrollbar mt-2">
+  useEffect(() => {
+    setCfg({
+      title: "Lançamentos",
+      subtitle: `${filtrados.length} lançamentos · ${mesSel}`,
+      right: (
+        <button onClick={() => setModalExtrato(true)}
+          className="flex items-center gap-2 px-4 py-1.5 bg-[#6c5fff] hover:bg-[#7c6fff] rounded-lg text-xs font-semibold text-white transition-colors shrink-0">
+          📤 Importar extrato
+        </button>
+      ),
+      secondRow: (
+        <div className="flex gap-2 overflow-x-auto no-scrollbar">
           {[mesSel, ...MESES_ORDEM.filter(m => m !== mesSel)].map(m => (
             <button key={m} onClick={() => setMesSel(m)}
               className={`px-2.5 py-1 rounded-lg text-xs font-medium border transition-all shrink-0
@@ -302,8 +289,20 @@ export default function Gastos({ sidebarOpen, onMenuClick }) {
             </button>
           ))}
         </div>
-      </div>
+      ),
+    });
+  }, [filtrados.length, mesSel, mesesComDados]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  const FiltroBtn = ({ ativo, onClick, children }) => (
+    <button onClick={onClick}
+      className={`px-3 py-1 rounded-full text-xs border transition-all whitespace-nowrap
+        ${ativo ? "border-[#6c5fff] bg-[#6c5fff22] text-[#a78bfa]" : "border-[#2a2a3e] text-[#6a6a8a] hover:border-[#3a3a50]"}`}>
+      {children}
+    </button>
+  );
+
+  return (
+    <div className="flex flex-col h-full">
       <div className="flex-1 overflow-y-auto px-6 py-5">
         {/* Cards */}
         {(() => {
