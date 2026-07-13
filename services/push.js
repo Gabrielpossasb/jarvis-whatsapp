@@ -28,10 +28,11 @@ async function enviarPush(titulo, corpo) {
     try {
       await webpush.sendNotification(
         JSON.parse(row.subscription),
-        JSON.stringify({ title: titulo, body: corpo })
+        JSON.stringify({ title: titulo, body: corpo }),
+        { TTL: 60, urgency: "high" }
       );
-    } catch {
-      // subscription expirada ou inválida — ignora
+    } catch (err) {
+      console.error("Push falhou:", row.endpoint?.slice(0, 50), err.statusCode, err.body);
     }
   }
 }
