@@ -13,7 +13,7 @@ const SWIPE_THRESHOLD = 60;
 
 function NavLinks({ onNavigate, big }) {
   return (
-    <nav className="flex flex-col gap-1 px-2 flex-1">
+    <nav className="flex flex-col gap-1 px-2">
       {links.map(({ to, icon, label }) => (
         <NavLink key={to} to={to} end={to === "/"} onClick={onNavigate}
           tabIndex={-1}
@@ -66,14 +66,16 @@ export default function Sidebar({ open, onClose }) {
         <NavLinks />
       </aside>
 
-      {/* Mobile: drawer abaixo do header da página, com animação e gesto de fechar */}
+      {/* Backdrop */}
       <div className="md:hidden fixed inset-0 z-30 transition-opacity duration-300"
         style={{ opacity: open ? 1 : 0, pointerEvents: open ? "auto" : "none" }}
         onClick={onClose}>
         <div className="absolute inset-0 bg-black/50" />
       </div>
+
+      {/* Drawer */}
       <div
-        className="md:hidden fixed inset-0 z-30 bg-[#0f0f13] flex flex-col transition-transform duration-300 ease-out"
+        className="md:hidden fixed inset-0 z-30 bg-[#0f0f13] overflow-hidden transition-transform duration-300 ease-out"
         style={{
           transform: open ? "translateX(0)" : "translateX(-100%)",
           paddingTop: "env(safe-area-inset-top)",
@@ -82,7 +84,19 @@ export default function Sidebar({ open, onClose }) {
         onTouchStart={handleTouchStart}
         onTouchMove={handleTouchMove}
         onTouchEnd={handleTouchEnd}>
-        <div className="flex-1 pt-16">
+        {/*
+          position:absolute + overflow:hidden remove os links do fluxo de scroll.
+          iOS não consegue scrollar elementos posicionados absolutamente dentro
+          de um container fixed+overflow:hidden.
+        */}
+        <div style={{
+          position: "absolute",
+          top: 64,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          overflow: "hidden",
+        }}>
           <NavLinks onNavigate={onClose} big />
         </div>
       </div>
