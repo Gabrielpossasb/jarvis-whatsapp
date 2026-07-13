@@ -47,22 +47,33 @@ function RelatorioAnual({ todosMeses }) {
   const maxTotal = Math.max(...resumo.map(m => Math.max(m.total, m.ganhos)), 1);
   const mesesComDados = resumo.filter(m => m.total > 0);
 
+  const todosGastosFlat = todosMeses.filter(g => (g.natureza || "gasto") === "gasto");
+  const gastosNubankAnual = todosGastosFlat.filter(g => g.meio_pagamento === "Nubank").reduce((s, g) => s + Number(g.valor || 0), 0);
+  const gastosMPAnual = todosGastosFlat.filter(g => g.meio_pagamento === "Mercado Pago").reduce((s, g) => s + Number(g.valor || 0), 0);
+  const saldoNubankAnual = totalGanhosAnual - gastosNubankAnual;
+
   return (
     <div className="flex flex-col gap-6">
       {/* Cards anuais */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-        {[
-          { label: "Ganhos no Ano", valor: fmt(totalGanhosAnual), cor: "text-emerald-400", icon: "💚" },
-          { label: "Gastos no Ano", valor: fmt(totalAnual), cor: "text-red-400", icon: "💸" },
-          { label: "Total Fixas", valor: fmt(totalFixas), cor: "text-orange-400", icon: "📌" },
-          { label: "Saldo Anual", valor: fmt(totalGanhosAnual - totalAnual), cor: (totalGanhosAnual - totalAnual) >= 0 ? "text-emerald-400" : "text-red-400", icon: "📊" },
-        ].map((c, i) => (
-          <div key={i} className="bg-[#13131e] border border-[#1e1e2e] rounded-xl p-4">
-            <div className="text-xs text-[#4a4a6a] mb-2">{c.icon} {c.label}</div>
-            <div className={`font-mono text-xl font-semibold ${c.cor}`}>{c.valor}</div>
+      {(() => {
+        const cards = [
+          { label: "Ganhos", sub: "Nubank", valor: fmt(totalGanhosAnual), cor: "text-emerald-400", border: "border-emerald-500/20", icon: "💚" },
+          { label: "Gastos", sub: "Nubank", valor: fmt(gastosNubankAnual), cor: "text-violet-400", border: "border-violet-500/20", icon: "💜" },
+          { label: "Fatura", sub: "Mercado Pago", valor: fmt(gastosMPAnual), cor: "text-yellow-400", border: "border-yellow-500/20", icon: "🟡" },
+          { label: "Saldo", sub: "Nubank", valor: fmt(saldoNubankAnual), cor: saldoNubankAnual >= 0 ? "text-emerald-400" : "text-red-400", border: saldoNubankAnual >= 0 ? "border-emerald-500/20" : "border-red-500/20", icon: saldoNubankAnual >= 0 ? "✅" : "⚠️" },
+        ];
+        return (
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+            {cards.map((c, i) => (
+              <div key={i} className={`bg-[#13131e] border ${c.border} rounded-xl p-3 md:p-4`}>
+                <div className="text-[10px] text-[#4a4a6a] mb-0.5">{c.icon} {c.label}</div>
+                <div className="text-[9px] text-[#3a3a5a] mb-2">{c.sub}</div>
+                <div className={`font-mono text-base md:text-xl font-medium ${c.cor}`}>{c.valor}</div>
+              </div>
+            ))}
           </div>
-        ))}
-      </div>
+        );
+      })()}
 
       {/* Gráfico de barras anual */}
       <div className="bg-[#13131e] border border-[#1e1e2e] rounded-xl p-5">
@@ -184,23 +195,32 @@ function RelatorioMensal({ gastos, mes }) {
     return <div className="text-center text-[#4a4a6a] py-10 text-sm">Nenhum dado para {mes} ✨</div>;
   }
 
+  const gastosNubank = somenteGastos.filter(g => g.meio_pagamento === "Nubank").reduce((s, g) => s + Number(g.valor || 0), 0);
+  const gastosMercadoPago = somenteGastos.filter(g => g.meio_pagamento === "Mercado Pago").reduce((s, g) => s + Number(g.valor || 0), 0);
+  const saldoNubank = totalGanhos - gastosNubank;
+
   return (
     <div className="flex flex-col gap-6">
       {/* Cards */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-        {[
-          { label: "Ganhos", valor: fmt(totalGanhos), cor: "text-emerald-400", sub: `${somenteGanhos.length} entradas`, icon: "💚" },
-          { label: "Gastos Totais", valor: fmt(totalGeral), cor: "text-red-400", sub: `${somenteGastos.length} lançamentos`, icon: "💸" },
-          { label: "Despesas Fixas", valor: fmt(totalFixas), cor: "text-orange-400", sub: `${fixas.length} itens`, icon: "📌" },
-          { label: "Saldo", valor: fmt(saldo), cor: saldo >= 0 ? "text-emerald-400" : "text-red-400", sub: saldo >= 0 ? "Positivo" : "Negativo", icon: saldo >= 0 ? "✅" : "⚠️" },
-        ].map((c, i) => (
-          <div key={i} className="bg-[#13131e] border border-[#1e1e2e] rounded-xl p-4">
-            <div className="text-xs text-[#4a4a6a] mb-2">{c.icon} {c.label}</div>
-            <div className={`font-mono text-xl font-semibold ${c.cor}`}>{c.valor}</div>
-            <div className="text-xs text-[#4a4a6a] mt-1">{c.sub}</div>
+      {(() => {
+        const cards = [
+          { label: "Ganhos", sub: "Nubank", valor: fmt(totalGanhos), cor: "text-emerald-400", border: "border-emerald-500/20", icon: "💚" },
+          { label: "Gastos", sub: "Nubank", valor: fmt(gastosNubank), cor: "text-violet-400", border: "border-violet-500/20", icon: "💜" },
+          { label: "Fatura", sub: "Mercado Pago", valor: fmt(gastosMercadoPago), cor: "text-yellow-400", border: "border-yellow-500/20", icon: "🟡" },
+          { label: "Saldo", sub: "Nubank", valor: fmt(saldoNubank), cor: saldoNubank >= 0 ? "text-emerald-400" : "text-red-400", border: saldoNubank >= 0 ? "border-emerald-500/20" : "border-red-500/20", icon: saldoNubank >= 0 ? "✅" : "⚠️" },
+        ];
+        return (
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+            {cards.map((c, i) => (
+              <div key={i} className={`bg-[#13131e] border ${c.border} rounded-xl p-3 md:p-4`}>
+                <div className="text-[10px] text-[#4a4a6a] mb-0.5">{c.icon} {c.label}</div>
+                <div className="text-[9px] text-[#3a3a5a] mb-2">{c.sub}</div>
+                <div className={`font-mono text-base md:text-xl font-medium ${c.cor}`}>{c.valor}</div>
+              </div>
+            ))}
           </div>
-        ))}
-      </div>
+        );
+      })()}
 
       {/* Gráficos */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
