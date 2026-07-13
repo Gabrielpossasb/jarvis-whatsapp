@@ -60,6 +60,31 @@ export default function Chat({ messages, setMessages }) {
     typeof Notification !== "undefined" ? Notification.permission : "granted"
   );
 
+  useEffect(() => {
+    async function sincronizarSubscription() {
+      if (!("serviceWorker" in navigator) || !("PushManager" in window) || !VAPID_KEY) return;
+      if (Notification.permission !== "granted") return;
+      try {
+        const reg = await navigator.serviceWorker.ready;
+        let sub = await reg.pushManager.getSubscription();
+        if (!sub) {
+          sub = await reg.pushManager.subscribe({
+            userVisibleOnly: true,
+            applicationServerKey: urlBase64ToUint8Array(VAPID_KEY),
+          });
+        }
+        await fetch(`${JARVIS_URL}/api/push/subscribe`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(sub),
+        });
+      } catch (e) {
+        console.warn("Push sync falhou:", e);
+      }
+    }
+    sincronizarSubscription();
+  }, []);
+
   async function ativarNotificacoes() {
     try {
       await registrarPush();
