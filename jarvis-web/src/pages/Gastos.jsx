@@ -306,19 +306,26 @@ export default function Gastos({ sidebarOpen, onMenuClick }) {
 
       <div className="flex-1 overflow-y-auto px-6 py-5">
         {/* Cards */}
-        <div className="grid grid-cols-3 gap-3 mb-5">
-          {[
+        {(() => {
+          const saldoNubank = totalGanhos - gastosNubank;
+          const cards = [
             { label: "Ganhos", sub: "Nubank", valor: fmt(totalGanhos), cor: "text-emerald-400", border: "border-emerald-500/20", icon: "💚" },
             { label: "Gastos", sub: "Nubank", valor: fmt(gastosNubank), cor: "text-violet-400", border: "border-violet-500/20", icon: "💜" },
             { label: "Fatura", sub: "Mercado Pago", valor: fmt(gastosMercadoPago), cor: "text-yellow-400", border: "border-yellow-500/20", icon: "🟡" },
-          ].map((c, i) => (
-            <div key={i} className={`bg-[#13131e] border ${c.border} rounded-xl p-3 md:p-4`}>
-              <div className="text-[10px] text-[#4a4a6a] mb-0.5">{c.icon} {c.label}</div>
-              <div className="text-[9px] text-[#3a3a5a] mb-2">{c.sub}</div>
-              <div className={`font-mono text-base md:text-xl font-medium ${c.cor}`}>{c.valor}</div>
+            { label: "Saldo", sub: "Nubank", valor: fmt(saldoNubank), cor: saldoNubank >= 0 ? "text-emerald-400" : "text-red-400", border: saldoNubank >= 0 ? "border-emerald-500/20" : "border-red-500/20", icon: saldoNubank >= 0 ? "✅" : "⚠️" },
+          ];
+          return (
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-5">
+              {cards.map((c, i) => (
+                <div key={i} className={`bg-[#13131e] border ${c.border} rounded-xl p-3 md:p-4`}>
+                  <div className="text-[10px] text-[#4a4a6a] mb-0.5">{c.icon} {c.label}</div>
+                  <div className="text-[9px] text-[#3a3a5a] mb-2">{c.sub}</div>
+                  <div className={`font-mono text-base md:text-xl font-medium ${c.cor}`}>{c.valor}</div>
+                </div>
+              ))}
             </div>
-          ))}
-        </div>
+          );
+        })()}
 
         {/* Filtros */}
         <div className="flex flex-col gap-2 mb-4">
