@@ -23,7 +23,7 @@ async function salvarSubscription(subscription) {
 
 async function enviarPush(titulo, corpo) {
   if (!configurarVapid()) return;
-  const { data } = await supabase.from("push_subscriptions").select("subscription");
+  const { data } = await supabase.from("push_subscriptions").select("endpoint, subscription");
   for (const row of data || []) {
     try {
       await webpush.sendNotification(
@@ -33,6 +33,9 @@ async function enviarPush(titulo, corpo) {
       );
     } catch (err) {
       console.error("Push falhou:", row.endpoint?.slice(0, 50), err.statusCode, err.body);
+      if (err.statusCode === 410 || err.statusCode === 404) {
+        await supabase.from("push_subscriptions").delete().eq("endpoint", row.endpoint);
+      }
     }
   }
 }

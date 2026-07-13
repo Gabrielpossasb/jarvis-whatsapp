@@ -65,8 +65,14 @@ export default function Chat({ messages, setMessages }) {
       if (!("serviceWorker" in navigator) || !("PushManager" in window) || !VAPID_KEY) return;
       if (Notification.permission !== "granted") return;
       try {
-        const reg = await navigator.serviceWorker.ready;
+        const reg = await navigator.serviceWorker.register("/sw.js");
         let sub = await reg.pushManager.getSubscription();
+        const PUSH_VER = "push_v3";
+        if (sub && localStorage.getItem("push_ver") !== PUSH_VER) {
+          await sub.unsubscribe();
+          sub = null;
+          localStorage.setItem("push_ver", PUSH_VER);
+        }
         if (!sub) {
           sub = await reg.pushManager.subscribe({
             userVisibleOnly: true,
