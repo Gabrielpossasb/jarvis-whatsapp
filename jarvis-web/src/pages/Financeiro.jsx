@@ -183,7 +183,7 @@ function RelatorioMensal({ gastos, mes }) {
   }, {});
   const catOrdenadas = Object.entries(porCategoria).sort((a, b) => b[1] - a[1]);
 
-  const porMeio = gastos.reduce((acc, g) => {
+  const porMeio = somenteGastos.reduce((acc, g) => {
     const meio = g.meio_pagamento || "Outro";
     acc[meio] = (acc[meio] || 0) + Number(g.valor || 0);
     return acc;
