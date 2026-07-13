@@ -1,43 +1,27 @@
-const webpush = require("web-push");
-const { supabase } = require("./supabase");
-
-function configurarVapid() {
-  const pub = process.env.VAPID_PUBLIC_KEY;
-  const priv = process.env.VAPID_PRIVATE_KEY;
-  const email = process.env.VAPID_EMAIL || "mailto:gabrielpossas2014@gmail.com";
-  if (!pub || !priv) return false;
-  try {
-    webpush.setVapidDetails(email, pub, priv);
-    return true;
-  } catch {
-    return false;
-  }
-}
-
-async function salvarSubscription(subscription) {
-  await supabase.from("push_subscriptions").upsert({
-    endpoint: subscription.endpoint,
-    subscription: JSON.stringify(subscription),
-  });
-}
-
 async function enviarPush(titulo, corpo) {
-  if (!configurarVapid()) return;
-  const { data } = await supabase.from("push_subscriptions").select("endpoint, subscription");
-  for (const row of data || []) {
-    try {
-      await webpush.sendNotification(
-        JSON.parse(row.subscription),
-        JSON.stringify({ title: titulo, body: corpo }),
-        { TTL: 60, urgency: "high" }
-      );
-    } catch (err) {
-      console.error("Push falhou:", row.endpoint?.slice(0, 50), err.statusCode, err.body);
-      if (err.statusCode === 410 || err.statusCode === 404) {
-        await supabase.from("push_subscriptions").delete().eq("endpoint", row.endpoint);
-      }
-    }
+  const appId = process.env.ONESIGNAL_APP_ID;
+  const apiKey = process.env.ONESIGNAL_REST_API_KEY;
+  if (!appId || !apiKey) return;
+
+  try {
+    const res = await fetch("https://onesignal.com/api/v1/notifications", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Basic ${apiKey}`,
+      },
+      body: JSON.stringify({
+        app_id: appId,
+        included_segments: ["All"],
+        headings: { en: titulo },
+        contents: { en: corpo },
+      }),
+    });
+    const data = await res.json();
+    if (!res.ok) console.error("OneSignal push falhou:", data);
+  } catch (err) {
+    console.error("OneSignal push erro:", err.message);
   }
 }
 
-module.exports = { salvarSubscription, enviarPush };
+module.exports = { enviarPush };

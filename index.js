@@ -5,7 +5,7 @@
 const express = require("express");
 const cors = require("cors");
 const { handleWebhook, handleWebChat, handleMensagemArquivo, handleTranscricaoAudio, handleExtratoUpload, handleExtratoConfirmar } = require("./handlers/webhook");
-const { salvarSubscription, enviarPush } = require("./services/push");
+const { enviarPush } = require("./services/push");
 const { iniciarCronJobs } = require("./cron/jobs");
 const { inicializarPlanilhaTarefas } = require("./services/sheets");
 const { inicializarCategorias } = require("./services/categorias");
@@ -23,10 +23,6 @@ app.post("/api/mensagem/arquivo", handleMensagemArquivo);
 app.post("/api/audio/transcrever", handleTranscricaoAudio);
 app.post("/api/extrato/analisar", handleExtratoUpload);
 app.post("/api/extrato/confirmar", handleExtratoConfirmar);
-app.post("/api/push/subscribe", async (req, res) => {
-  try { await salvarSubscription(req.body); res.json({ ok: true }); }
-  catch (err) { res.status(500).json({ erro: err.message }); }
-});
 app.get("/", (req, res) => res.json({ status: "JARVIS online 🤖", hora: formatarHora(), data: formatarData() }));
 
 const PORT = process.env.PORT || 3000;

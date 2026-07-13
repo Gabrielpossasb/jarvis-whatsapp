@@ -3,31 +3,7 @@ import logo from "../assets/logo-transparent.png";
 import { useHeader } from "../contexts/HeaderContext";
 
 const JARVIS_URL = import.meta.env.VITE_JARVIS_URL || "https://web-production-f30e8.up.railway.app";
-const VAPID_KEY = import.meta.env.VITE_VAPID_PUBLIC_KEY;
-
-function urlBase64ToUint8Array(base64) {
-  const padding = "=".repeat((4 - base64.length % 4) % 4);
-  const b64 = (base64 + padding).replace(/-/g, "+").replace(/_/g, "/");
-  const raw = atob(b64);
-  return Uint8Array.from(raw, c => c.charCodeAt(0));
-}
-
-async function registrarPush() {
-  if (!("serviceWorker" in navigator) || !("PushManager" in window) || !VAPID_KEY) return false;
-  const reg = await navigator.serviceWorker.register("/sw.js");
-  const perm = await Notification.requestPermission();
-  if (perm !== "granted") return false;
-  const sub = await reg.pushManager.subscribe({
-    userVisibleOnly: true,
-    applicationServerKey: urlBase64ToUint8Array(VAPID_KEY),
-  });
-  await fetch(`${JARVIS_URL}/api/push/subscribe`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(sub),
-  });
-  return true;
-}
+const ONESIGNAL_APP_ID = import.meta.env.VITE_ONESIGNAL_APP_ID;
 
 function MicIcon({ size = 20 }) {
   return (
@@ -56,55 +32,36 @@ export default function Chat({ messages, setMessages }) {
   const isHoldModeRef = useRef(false);
   const recordingRef = useRef(false);
   const [keyboardOffset, setKeyboardOffset] = useState(0);
-  const [pushStatus, setPushStatus] = useState(
-    typeof Notification !== "undefined" ? Notification.permission : "granted"
-  );
+  const [pushStatus, setPushStatus] = useState(false);
 
   useEffect(() => {
-    async function sincronizarSubscription() {
-      if (!("serviceWorker" in navigator) || !("PushManager" in window) || !VAPID_KEY) return;
-      if (Notification.permission !== "granted") return;
-      try {
-        const reg = await navigator.serviceWorker.register("/sw.js");
-        let sub = await reg.pushManager.getSubscription();
-        const PUSH_VER = "push_v3";
-        if (sub && localStorage.getItem("push_ver") !== PUSH_VER) {
-          await sub.unsubscribe();
-          sub = null;
-          localStorage.setItem("push_ver", PUSH_VER);
-        }
-        if (!sub) {
-          sub = await reg.pushManager.subscribe({
-            userVisibleOnly: true,
-            applicationServerKey: urlBase64ToUint8Array(VAPID_KEY),
-          });
-        }
-        await fetch(`${JARVIS_URL}/api/push/subscribe`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(sub),
-        });
-      } catch (e) {
-        console.warn("Push sync falhou:", e);
-      }
-    }
-    sincronizarSubscription();
+    if (!ONESIGNAL_APP_ID) return;
+    window.OneSignalDeferred = window.OneSignalDeferred || [];
+    window.OneSignalDeferred.push(async (OneSignal) => {
+      await OneSignal.init({
+        appId: ONESIGNAL_APP_ID,
+        serviceWorkerPath: "/OneSignalSDKWorker.js",
+        notifyButton: { enable: false },
+        welcomeNotification: { disable: true },
+      });
+      setPushStatus(OneSignal.Notifications.permission);
+      OneSignal.Notifications.addEventListener("permissionChange", (granted) => {
+        setPushStatus(granted);
+      });
+    });
   }, []);
 
   async function ativarNotificacoes() {
-    try {
-      await registrarPush();
-    } catch {
-      // silencioso — o prompt pode ter sido negado
-    }
-    if (typeof Notification !== "undefined") setPushStatus(Notification.permission);
+    if (!window.OneSignal) return;
+    await window.OneSignal.Notifications.requestPermission();
+    setPushStatus(window.OneSignal.Notifications.permission);
   }
 
   useEffect(() => {
     setCfg({
       title: "Chat com JARVIS",
       subtitle: "Texto, imagem, PDF e áudio",
-      right: pushStatus !== "granted" ? (
+      right: !pushStatus ? (
         <button onClick={ativarNotificacoes}
           className="text-xs px-3 py-1 rounded-full bg-[#6c5fff22] border border-[#6c5fff] text-[#a78bfa] hover:bg-[#6c5fff33] transition-colors">
           🔔 Ativar notificações
