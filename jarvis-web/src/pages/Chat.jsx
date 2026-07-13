@@ -186,10 +186,14 @@ export default function Chat({ messages, setMessages, sidebarOpen, onMenuClick }
   function onFileChange(e) {
     const file = e.target.files[0];
     if (!file) return;
+    // iOS às vezes envia file.type vazio para PDFs — infere pelo nome
+    const ext = file.name.split(".").pop()?.toLowerCase();
+    const EXT_MAP = { pdf: "application/pdf", jpg: "image/jpeg", jpeg: "image/jpeg", png: "image/png", gif: "image/gif", webp: "image/webp" };
+    const mimetype = (file.type && file.type !== "application/octet-stream") ? file.type : (EXT_MAP[ext] || file.type);
     const reader = new FileReader();
     reader.onload = ev => setPreview({
       base64: ev.target.result.split(",")[1],
-      mimetype: file.type,
+      mimetype,
       name: file.name,
     });
     reader.readAsDataURL(file);
@@ -227,7 +231,7 @@ export default function Chat({ messages, setMessages, sidebarOpen, onMenuClick }
       </div>
 
       {/* Mensagens */}
-      <div ref={chatRef} className="flex-1 overflow-y-auto px-4 md:px-6 pt-4 pb-36 md:pb-4 flex flex-col gap-4">
+      <div ref={chatRef} className="flex-1 overflow-y-auto px-4 md:px-6 pt-4 pb-52 md:pb-4 flex flex-col gap-4">
         {messages.map((m, i) => (
           <div key={i} className={`flex items-center gap-3 ${m.role === "user" ? "justify-end" : "justify-start"}`}>
             {m.role === "jarvis" && (

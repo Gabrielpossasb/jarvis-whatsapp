@@ -194,7 +194,7 @@ async function analisarPDF(base64) {
       role: "user",
       content: [
         { type: "text", text: "Analise esse documento e extraia despesas/gastos ou tarefas. Responda em português." },
-        { type: "document", source: { type: "base64", media_type: "application/pdf", data: base64 } }
+        { type: "file", file: { filename: "documento.pdf", file_data: `data:application/pdf;base64,${base64}` } }
       ]
     }],
     max_tokens: 1000,

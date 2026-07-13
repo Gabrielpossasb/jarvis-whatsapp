@@ -1,4 +1,4 @@
-import { useRef, useLayoutEffect } from "react";
+import { useRef, useEffect } from "react";
 import { NavLink, useLocation } from "react-router-dom";
 import logo from "../assets/logo-transparent.png";
 
@@ -33,8 +33,13 @@ export default function Sidebar({ open, onClose }) {
   const navRef = useRef(null);
   const location = useLocation();
 
-  useLayoutEffect(() => {
-    if (navRef.current) navRef.current.scrollTop = 0;
+  // iOS auto-scrolla o container após o NavLink ativo mudar.
+  // useLayoutEffect é muito cedo; useEffect + setTimeout(0) roda DEPOIS do scroll do browser.
+  useEffect(() => {
+    const id = setTimeout(() => {
+      if (navRef.current) navRef.current.scrollTop = 0;
+    }, 0);
+    return () => clearTimeout(id);
   }, [location]);
 
   function handleTouchStart(e) {
@@ -87,7 +92,8 @@ export default function Sidebar({ open, onClose }) {
         onTouchStart={handleTouchStart}
         onTouchMove={handleTouchMove}
         onTouchEnd={handleTouchEnd}>
-        <div ref={navRef} className="flex-1 pt-16 overflow-hidden">
+        <div ref={navRef} className="flex-1 pt-16 overflow-hidden"
+          onScroll={e => { e.currentTarget.scrollTop = 0; }}>
           <NavLinks onNavigate={onClose} big />
         </div>
       </div>
