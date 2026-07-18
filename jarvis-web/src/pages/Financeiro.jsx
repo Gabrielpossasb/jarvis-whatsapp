@@ -374,7 +374,7 @@ export default function Financeiro() {
       ),
       secondRow: visao === "mes" ? (
         <div className="flex gap-2 overflow-x-auto no-scrollbar">
-          {[mesSel, ...mesesDisponiveis.filter(m => m !== mesSel)].map(m => (
+          {mesesDisponiveis.map(m => (
             <button key={m} onClick={() => setMesSel(m)}
               className={`px-3 py-1.5 rounded-lg text-xs font-medium border transition-all shrink-0
                 ${mesSel === m ? "border-[#6c5fff] bg-[#6c5fff22] text-[#a78bfa]" : "border-[#2a2a3e] text-[#6a6a8a] hover:border-[#3a3a50]"}`}>

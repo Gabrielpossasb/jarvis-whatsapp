@@ -15,6 +15,9 @@ async function enviarPush(titulo, corpo) {
         included_segments: ["All"],
         headings: { en: titulo },
         contents: { en: corpo },
+        ...(process.env.JARVIS_WEB_URL && {
+          chrome_web_icon: `${process.env.JARVIS_WEB_URL}/icons/icon-192.png`,
+        }),
       }),
     });
     const data = await res.json();

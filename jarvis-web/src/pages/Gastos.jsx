@@ -276,7 +276,7 @@ export default function Gastos() {
       ),
       secondRow: (
         <div className="flex gap-2 overflow-x-auto no-scrollbar">
-          {[mesSel, ...MESES_ORDEM.filter(m => m !== mesSel)].map(m => (
+          {MESES_ORDEM.map(m => (
             <button key={m} onClick={() => setMesSel(m)}
               className={`px-2.5 py-1 rounded-lg text-xs font-medium border transition-all shrink-0
                 ${mesSel === m

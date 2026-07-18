@@ -6,7 +6,7 @@
   "display": "standalone",
   "orientation": "portrait",
   "background_color": "#0f0f13",
-  "theme_color": "#6c5fff",
+  "theme_color": "#0f0f13",
   "icons": [
     {
       "src": "/icons/apple-touch-icon.png",

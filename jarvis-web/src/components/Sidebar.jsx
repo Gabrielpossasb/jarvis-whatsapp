@@ -1,5 +1,5 @@
 import { useRef } from "react";
-import { NavLink } from "react-router-dom";
+import { Link, useLocation } from "react-router-dom";
 import logo from "../assets/logo-transparent.png";
 
 const links = [
@@ -13,18 +13,23 @@ const links = [
 const SWIPE_THRESHOLD = 60;
 
 function NavLinks({ onNavigate, big }) {
+  const { pathname } = useLocation();
+
+  function isActive(to) {
+    if (to === "/") return pathname === "/";
+    return pathname.startsWith(to);
+  }
+
   return (
     <nav className="flex flex-col gap-1 px-2">
       {links.map(({ to, icon, label }) => (
-        <NavLink key={to} to={to} end={to === "/"} onClick={onNavigate}
+        <Link key={to} to={to} onClick={onNavigate}
           tabIndex={-1}
-          className={({ isActive }) =>
-            `flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-150 ${big ? "text-base" : "text-sm"}
-            ${isActive ? "bg-[#1e1e2e] text-[#a78bfa] font-semibold" : "text-[#6a6a8a] hover:bg-[#1a1a26] hover:text-[#9a9ab8]"}`
-          }>
+          className={`flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-150 ${big ? "text-base" : "text-sm"}
+            ${isActive(to) ? "bg-[#1e1e2e] text-[#a78bfa] font-semibold" : "text-[#6a6a8a] hover:bg-[#1a1a26] hover:text-[#9a9ab8]"}`}>
           <span className={big ? "text-lg" : "text-base"}>{icon}</span>
           <span>{label}</span>
-        </NavLink>
+        </Link>
       ))}
     </nav>
   );
