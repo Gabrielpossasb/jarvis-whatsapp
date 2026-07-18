@@ -53,21 +53,31 @@ export default function Chat({ messages, setMessages }) {
         });
       } catch (err) {
         console.error("OneSignal init falhou:", err);
-        alert("OneSignal init ERRO: " + (err?.message || JSON.stringify(err)));
       }
     });
   }, []);
 
   async function ativarNotificacoes() {
-    const diagnostico = {
-      windowOneSignal: !!window.OneSignal,
-      oneSignalRef: !!oneSignalRef.current,
-      isPWA_standalone: window.matchMedia("(display-mode: standalone)").matches,
-      isPWA_navigator: window.navigator.standalone,
-      notifPermission: typeof Notification !== "undefined" ? Notification.permission : "N/A",
-      appId: ONESIGNAL_APP_ID ? ONESIGNAL_APP_ID.slice(0, 8) + "..." : "VAZIO",
-    };
-    alert("Estado OneSignal:\n" + JSON.stringify(diagnostico, null, 2));
+    if (!oneSignalRef.current) {
+      alert("Notificações ainda carregando, aguarde um momento e tente novamente.");
+      return;
+    }
+    const isPWA = window.matchMedia("(display-mode: standalone)").matches
+      || window.navigator.standalone === true;
+    if (!isPWA) {
+      alert("Para ativar notificações no iPhone, adicione o JARVIS à tela de início:\nSafari → botão Compartilhar → \"Adicionar à Tela de Início\"\nDepois abra o app de lá.");
+      return;
+    }
+    if (Notification.permission === "denied") {
+      alert("Notificações bloqueadas.\n\nPara ativar: Ajustes → JARVIS → Notificações → Ativar");
+      return;
+    }
+    try {
+      await oneSignalRef.current.Notifications.requestPermission();
+      setPushStatus(oneSignalRef.current.Notifications.permission);
+    } catch (err) {
+      console.error("requestPermission falhou:", err);
+    }
   }
 
   useEffect(() => {
