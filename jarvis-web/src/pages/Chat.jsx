@@ -33,42 +33,40 @@ export default function Chat({ messages, setMessages }) {
   const recordingRef = useRef(false);
   const [keyboardOffset, setKeyboardOffset] = useState(0);
   const [pushStatus, setPushStatus] = useState(false);
+  const oneSignalRef = useRef(null);
 
   useEffect(() => {
     if (!ONESIGNAL_APP_ID) return;
     window.OneSignalDeferred = window.OneSignalDeferred || [];
     window.OneSignalDeferred.push(async (OneSignal) => {
-      await OneSignal.init({
-        appId: ONESIGNAL_APP_ID,
-        serviceWorkerPath: "/OneSignalSDKWorker.js",
-        notifyButton: { enable: false },
-        welcomeNotification: { disable: true },
-      });
-      setPushStatus(OneSignal.Notifications.permission);
-      OneSignal.Notifications.addEventListener("permissionChange", (granted) => {
-        setPushStatus(granted);
-      });
+      try {
+        await OneSignal.init({
+          appId: ONESIGNAL_APP_ID,
+          serviceWorkerPath: "/OneSignalSDKWorker.js",
+          notifyButton: { enable: false },
+          welcomeNotification: { disable: true },
+        });
+        oneSignalRef.current = OneSignal;
+        setPushStatus(OneSignal.Notifications.permission);
+        OneSignal.Notifications.addEventListener("permissionChange", (granted) => {
+          setPushStatus(granted);
+        });
+      } catch (err) {
+        console.error("OneSignal init falhou:", err);
+      }
     });
   }, []);
 
   async function ativarNotificacoes() {
-    if (!window.OneSignal) {
-      alert("OneSignal não carregou. Verifique se VITE_ONESIGNAL_APP_ID está no Vercel e redeploye.");
-      return;
-    }
-    const isPWA = window.matchMedia("(display-mode: standalone)").matches
-      || window.navigator.standalone === true;
-    if (!isPWA) {
-      alert("Para ativar notificações no iPhone, adicione o JARVIS à tela de início:\nSafari → botão Compartilhar → \"Adicionar à Tela de Início\"\nDepois abra o app de lá.");
-      return;
-    }
-    try {
-      await window.OneSignal.Notifications.requestPermission();
-      setPushStatus(window.OneSignal.Notifications.permission);
-    } catch (err) {
-      console.error("requestPermission falhou:", err);
-      alert("Erro ao solicitar permissão: " + err.message);
-    }
+    const diagnostico = {
+      windowOneSignal: !!window.OneSignal,
+      oneSignalRef: !!oneSignalRef.current,
+      isPWA_standalone: window.matchMedia("(display-mode: standalone)").matches,
+      isPWA_navigator: window.navigator.standalone,
+      notifPermission: typeof Notification !== "undefined" ? Notification.permission : "N/A",
+      appId: ONESIGNAL_APP_ID ? ONESIGNAL_APP_ID.slice(0, 8) + "..." : "VAZIO",
+    };
+    alert("Estado OneSignal:\n" + JSON.stringify(diagnostico, null, 2));
   }
 
   useEffect(() => {
