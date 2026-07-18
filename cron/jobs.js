@@ -148,7 +148,8 @@ async function limparLogsAntigos() {
   }
 }
 function iniciarCronJobs() {
-  cron.schedule("0 7  * * *", () => executarComLog("resumo-diario", enviarResumoDiario), { timezone: "America/Campo_Grande" });
+  cron.schedule("0 6  * * *", () => executarComLog("resumo-diario", enviarResumoDiario), { timezone: "America/Campo_Grande" });
+  cron.schedule("0 6  * * *", () => executarComLog("lembrete-gastos", () => enviarPush("💰 Lembrete JARVIS", "Não esquece de registrar seus gastos de hoje!")), { timezone: "America/Campo_Grande" });
   cron.schedule("*/15 * * * *", () => executarComLog("lembretes", verificarLembretes), { timezone: "America/Campo_Grande" });
   cron.schedule("0 20 * * *", () => executarComLog("tarefas-vencidas", verificarTarefasVencidas), { timezone: "America/Campo_Grande" });
   cron.schedule("0 9  * * 1", () => executarComLog("tarefas-esquecidas", verificarTarefasEsquecidas), { timezone: "America/Campo_Grande" });
@@ -159,7 +160,7 @@ function iniciarCronJobs() {
   // Limpar logs antigos (>30 dias) todos os dias às 00:05
   cron.schedule("5 0 * * *", () => executarComLog("limpar-logs", limparLogsAntigos), { timezone: "America/Campo_Grande" });
 
-  console.log("✅ Cron jobs: resumo 7h | lembretes 15min | vencidas 20h | esquecidas seg 9h | limpeza 00:01/00:05");
+  console.log("✅ Cron jobs: resumo 6h | gastos 6h | lembretes 15min | vencidas 20h | esquecidas seg 9h | limpeza 00:01/00:05");
 }
 
 module.exports = { iniciarCronJobs };
