@@ -69,6 +69,14 @@ Para GANHOS:
 Para TAREFAS:
 - hora: horário específico da tarefa (HH:MM) ou vazio
 - recorrente: dias separados por vírgula para tarefas recorrentes (ex: "segunda,quarta,sexta") ou "Não"
+  * "toda semana" ou "toda ${diaAtual.split("-")[0]}" → recorrente: "${DIAS_NOMES[agora().getDay()]}"
+  * "uma vez por semana" sem dia específico → use o dia da semana de hoje: "${DIAS_NOMES[agora().getDay()]}"
+  * "todo dia" / "todos os dias" → recorrente: "domingo,segunda,terça,quarta,quinta,sexta,sábado"
+- intervalo_dias: número de dias entre recorrências para intervalos fixos (ex: 14 para "a cada 14 dias"), ou 0 se não aplicável
+  * Quando intervalo_dias > 0, deixe recorrente: "Não"
+  * "a cada 7 dias" → intervalo_dias: 7 (NÃO use recorrente)
+  * "a cada 2 semanas" ou "quinzenalmente" → intervalo_dias: 14
+  * "mensalmente" ou "todo mês" → intervalo_dias: 30
 - dias_lembrete: dias para enviar lembretes independentes (ex: "segunda,quinta") — diferente de recorrente!
 - hora_lembrete: horário do lembrete independente (HH:MM)
 - Se a tarefa tem prazo mas você quer lembretes em outros dias → use dias_lembrete + hora_lembrete
@@ -102,6 +110,7 @@ Responda APENAS com JSON válido, sem markdown:
   "categoria": "categoria",
   "hora": "HH:MM ou vazio",
   "recorrente": "dias ou Não",
+  "intervalo_dias": 0,
   "dias_lembrete": "dias ou vazio",
   "hora_lembrete": "HH:MM ou vazio",
   "periodo": "hoje|amanhã|backlog|DD/mmm",

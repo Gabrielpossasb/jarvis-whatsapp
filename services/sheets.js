@@ -100,6 +100,16 @@ async function adicionarTarefa(descricao, data, hora, recorrente, categoria, dia
 
 function recorreBateDia(recorrente, diaHoje) {
   if (!recorrente || recorrente === "Não") return false;
+  if (recorrente.startsWith("intervalo:")) {
+    const partes = recorrente.split(":");
+    const intervalo = parseInt(partes[1]);
+    const dataInicio = new Date(partes[2]);
+    if (isNaN(intervalo) || isNaN(dataInicio)) return false;
+    const hoje = agora();
+    const hojeZerado = new Date(hoje.getFullYear(), hoje.getMonth(), hoje.getDate());
+    const diff = Math.floor((hojeZerado - dataInicio) / (1000 * 60 * 60 * 24));
+    return diff >= 0 && diff % intervalo === 0;
+  }
   const dias = recorrente.toLowerCase().split(",").map(d => d.trim());
   return dias.some(d => diaHoje.includes(d) || d.includes(diaHoje));
 }

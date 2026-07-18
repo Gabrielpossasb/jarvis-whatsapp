@@ -17,6 +17,14 @@ const {
 } = require("../services/sheets");
 const { formatarData, formatarHora, agora, amanha } = require("../utils/date");
 
+// Serializa intervalo_dias no campo recorrente para evitar mudança de schema
+function resolverRecorrente(dados) {
+  if (dados.intervalo_dias && dados.intervalo_dias > 0) {
+    return `intervalo:${dados.intervalo_dias}:${new Date().toISOString().slice(0, 10)}`;
+  }
+  return dados.recorrente || "Não";
+}
+
 // ── Busca tarefa por nome ─────────────────────────────────────────
 async function encontrarTarefa(descBusca) {
   const todas = await buscarTodasTarefas();
@@ -294,7 +302,7 @@ async function processarMensagem(texto, remoteJid, canal = "whatsapp") {
 
     if (confirmou) {
       await deletarEstado(remoteJid, "tarefa");
-      await adicionarTarefa(dadosPendentes.descricao, dataPendente, dadosPendentes.hora || "", dadosPendentes.recorrente || "Não", dadosPendentes.categoria || "Outros", dadosPendentes.dias_lembrete || "", dadosPendentes.hora_lembrete || "");
+      await adicionarTarefa(dadosPendentes.descricao, dataPendente, dadosPendentes.hora || "", resolverRecorrente(dadosPendentes), dadosPendentes.categoria || "Outros", dadosPendentes.dias_lembrete || "", dadosPendentes.hora_lembrete || "");
       await responder(await respostaTarefa(dadosPendentes, dataPendente));
       return respostas.join("\n\n");
     } else if (cancelou) {
@@ -338,7 +346,7 @@ async function processarMensagem(texto, remoteJid, canal = "whatsapp") {
       return respostas.join("\n\n");
     }
 
-    await adicionarTarefa(dados.descricao, dataRegistro, dados.hora || "", dados.recorrente || "Não", dados.categoria || "Outros", dados.dias_lembrete || "", dados.hora_lembrete || "");
+    await adicionarTarefa(dados.descricao, dataRegistro, dados.hora || "", resolverRecorrente(dados), dados.categoria || "Outros", dados.dias_lembrete || "", dados.hora_lembrete || "");
     await responder(await respostaTarefa(dados, dataRegistro));
 
   // ── CONSULTA ───────────────────────────────────────────────────

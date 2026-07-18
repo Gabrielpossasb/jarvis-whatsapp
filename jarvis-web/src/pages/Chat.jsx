@@ -56,8 +56,19 @@ export default function Chat({ messages, setMessages }) {
       alert("OneSignal não carregou. Verifique se VITE_ONESIGNAL_APP_ID está no Vercel e redeploye.");
       return;
     }
-    await window.OneSignal.Notifications.requestPermission();
-    setPushStatus(window.OneSignal.Notifications.permission);
+    const isPWA = window.matchMedia("(display-mode: standalone)").matches
+      || window.navigator.standalone === true;
+    if (!isPWA) {
+      alert("Para ativar notificações no iPhone, adicione o JARVIS à tela de início:\nSafari → botão Compartilhar → \"Adicionar à Tela de Início\"\nDepois abra o app de lá.");
+      return;
+    }
+    try {
+      await window.OneSignal.Notifications.requestPermission();
+      setPushStatus(window.OneSignal.Notifications.permission);
+    } catch (err) {
+      console.error("requestPermission falhou:", err);
+      alert("Erro ao solicitar permissão: " + err.message);
+    }
   }
 
   useEffect(() => {
@@ -271,7 +282,7 @@ export default function Chat({ messages, setMessages }) {
             {m.role === "jarvis" && (
               <img src={logo} alt="JARVIS" className="w-10 h-10 object-contain shrink-0" />
             )}
-            <div className={`max-w-[75%] px-4 py-2.5 rounded-2xl text-sm leading-relaxed
+            <div className={`max-w-[75%] px-4 py-2.5 rounded-2xl text-sm leading-relaxed break-words overflow-hidden
               ${m.role === "user"
                 ? "bg-gradient-to-br from-[#6c5fff] to-[#a78bfa] text-white rounded-br-sm"
                 : "bg-[#1a1a28] text-[#c8c8e0] rounded-bl-sm"}`}>
