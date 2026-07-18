@@ -53,6 +53,7 @@ export default function Chat({ messages, setMessages }) {
         });
       } catch (err) {
         console.error("OneSignal init falhou:", err);
+        alert("OneSignal init ERRO: " + (err?.message || JSON.stringify(err)));
       }
     });
   }, []);
