@@ -32,8 +32,15 @@ export default function Chat({ messages, setMessages }) {
   const isHoldModeRef = useRef(false);
   const recordingRef = useRef(false);
   const [keyboardOffset, setKeyboardOffset] = useState(0);
-  const [pushStatus, setPushStatus] = useState(false);
+  const [pushStatus, setPushStatus] = useState(
+    () => typeof Notification !== "undefined" && Notification.permission === "granted"
+  );
+  const [modalMsg, setModalMsg] = useState(null);
   const oneSignalRef = useRef(null);
+
+  function showAlert(titulo, corpo) {
+    setModalMsg({ titulo, corpo });
+  }
 
   useEffect(() => {
     if (!ONESIGNAL_APP_ID) return;
@@ -59,17 +66,23 @@ export default function Chat({ messages, setMessages }) {
 
   async function ativarNotificacoes() {
     if (!oneSignalRef.current) {
-      alert("Notificações ainda carregando, aguarde um momento e tente novamente.");
+      showAlert("Aguarde", "Notificações ainda carregando, aguarde um momento e tente novamente.");
       return;
     }
     const isPWA = window.matchMedia("(display-mode: standalone)").matches
       || window.navigator.standalone === true;
     if (!isPWA) {
-      alert("Para ativar notificações no iPhone, adicione o JARVIS à tela de início:\nSafari → botão Compartilhar → \"Adicionar à Tela de Início\"\nDepois abra o app de lá.");
+      showAlert(
+        "Adicione à tela de início",
+        "Para ativar notificações no iPhone, adicione o JARVIS à tela de início:\n\nSafari → botão Compartilhar → \"Adicionar à Tela de Início\"\n\nDepois abra o app de lá."
+      );
       return;
     }
     if (Notification.permission === "denied") {
-      alert("Notificações bloqueadas.\n\nPara ativar: Ajustes → JARVIS → Notificações → Ativar");
+      showAlert(
+        "Notificações bloqueadas",
+        "Para ativar: Ajustes → JARVIS → Notificações → Ativar"
+      );
       return;
     }
     try {
@@ -284,6 +297,25 @@ export default function Chat({ messages, setMessages }) {
 
   return (
     <div className="flex flex-col h-full">
+      {/* Modal de aviso */}
+      {modalMsg && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center px-6"
+          style={{ background: "rgba(0,0,0,0.6)", backdropFilter: "blur(4px)" }}>
+          <div className="w-full max-w-sm bg-[#1a1a28] border border-[#2a2a3e] rounded-2xl shadow-xl overflow-hidden">
+            <div className="px-5 pt-5 pb-4">
+              <p className="text-base font-semibold text-white mb-2">{modalMsg.titulo}</p>
+              <p className="text-sm text-[#c8c8e0] leading-relaxed whitespace-pre-line">{modalMsg.corpo}</p>
+            </div>
+            <div className="border-t border-[#2a2a3e] px-5 py-3 flex justify-end">
+              <button
+                onClick={() => setModalMsg(null)}
+                className="px-5 py-1.5 bg-[#6c5fff] hover:bg-[#7c6fff] rounded-xl text-sm font-semibold text-white transition-colors">
+                OK
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
       {/* Mensagens */}
       <div ref={chatRef} className="flex-1 overflow-y-auto px-4 md:px-6 pt-4 pb-52 md:pb-4 flex flex-col gap-4">
         {messages.map((m, i) => (
