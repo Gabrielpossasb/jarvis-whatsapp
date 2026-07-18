@@ -52,7 +52,10 @@ export default function Chat({ messages, setMessages }) {
   }, []);
 
   async function ativarNotificacoes() {
-    if (!window.OneSignal) return;
+    if (!window.OneSignal) {
+      alert("OneSignal não carregou. Verifique se VITE_ONESIGNAL_APP_ID está no Vercel e redeploye.");
+      return;
+    }
     await window.OneSignal.Notifications.requestPermission();
     setPushStatus(window.OneSignal.Notifications.permission);
   }
