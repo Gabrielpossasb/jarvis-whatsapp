@@ -7,6 +7,7 @@ import Chat from "./pages/Chat";
 import Tarefas from "./pages/Tarefas";
 import Gastos from "./pages/Gastos";
 import Financeiro from "./pages/Financeiro";
+import Configuracoes from "./pages/Configuracoes";
 
 const EDGE_WIDTH = 24;
 const SWIPE_THRESHOLD = 60;
@@ -57,6 +58,7 @@ export default function App() {
                 <Route path="/tarefas" element={<Tarefas />} />
                 <Route path="/gastos" element={<Gastos />} />
                 <Route path="/financeiro" element={<Financeiro />} />
+                <Route path="/configuracoes" element={<Configuracoes />} />
               </Routes>
             </main>
           </div>

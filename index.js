@@ -6,6 +6,7 @@ const express = require("express");
 const cors = require("cors");
 const { handleWebhook, handleWebChat, handleMensagemArquivo, handleTranscricaoAudio, handleExtratoUpload, handleExtratoConfirmar } = require("./handlers/webhook");
 const { enviarPush } = require("./services/push");
+const { buscarUsoOpenAI } = require("./services/usage");
 const { iniciarCronJobs } = require("./cron/jobs");
 const { inicializarPlanilhaTarefas } = require("./services/sheets");
 const { inicializarCategorias } = require("./services/categorias");
@@ -23,6 +24,10 @@ app.post("/api/mensagem/arquivo", handleMensagemArquivo);
 app.post("/api/audio/transcrever", handleTranscricaoAudio);
 app.post("/api/extrato/analisar", handleExtratoUpload);
 app.post("/api/extrato/confirmar", handleExtratoConfirmar);
+app.get("/api/uso", async (req, res) => {
+  const openai = await buscarUsoOpenAI();
+  res.json({ openai });
+});
 app.get("/", (req, res) => res.json({ status: "JARVIS online 🤖", hora: formatarHora(), data: formatarData() }));
 
 const PORT = process.env.PORT || 3000;
