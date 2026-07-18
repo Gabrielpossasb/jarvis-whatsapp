@@ -147,20 +147,30 @@ async function limparLogsAntigos() {
     throw error;
   }
 }
-function iniciarCronJobs() {
-  cron.schedule("0 6  * * *", () => executarComLog("resumo-diario", enviarResumoDiario), { timezone: "America/Campo_Grande" });
-  cron.schedule("0 6  * * *", () => executarComLog("lembrete-gastos", () => enviarPush("💰 Lembrete JARVIS", "Não esquece de registrar seus gastos de hoje!")), { timezone: "America/Campo_Grande" });
-  cron.schedule("*/15 * * * *", () => executarComLog("lembretes", verificarLembretes), { timezone: "America/Campo_Grande" });
-  cron.schedule("0 20 * * *", () => executarComLog("tarefas-vencidas", verificarTarefasVencidas), { timezone: "America/Campo_Grande" });
-  cron.schedule("0 9  * * 1", () => executarComLog("tarefas-esquecidas", verificarTarefasEsquecidas), { timezone: "America/Campo_Grande" });
+const _tarefas = {};
 
-  // Limpar estados antigos todos os dias às 00:01
-  cron.schedule("1 0 * * *", () => executarComLog("limpar-estados", limparEstadosAntigos), { timezone: "America/Campo_Grande" });
-
-  // Limpar logs antigos (>30 dias) todos os dias às 00:05
-  cron.schedule("5 0 * * *", () => executarComLog("limpar-logs", limparLogsAntigos), { timezone: "America/Campo_Grande" });
-
-  console.log("✅ Cron jobs: resumo 6h | gastos 6h | lembretes 15min | vencidas 20h | esquecidas seg 9h | limpeza 00:01/00:05");
+function _reagendar(nome, expressao, fn, tz) {
+  if (_tarefas[nome]) _tarefas[nome].stop();
+  _tarefas[nome] = cron.schedule(expressao, fn, { timezone: tz });
 }
 
-module.exports = { iniciarCronJobs };
+function iniciarCronJobs(config = {}) {
+  const hora = String(parseInt(config.hora_lembrete ?? "6", 10));
+  const tz = config.timezone || "America/Campo_Grande";
+
+  _reagendar("resumo-diario",     `0 ${hora} * * *`,  () => executarComLog("resumo-diario", enviarResumoDiario), tz);
+  _reagendar("lembrete-gastos",   `0 ${hora} * * *`,  () => executarComLog("lembrete-gastos", () => enviarPush("💰 Lembrete JARVIS", "Não esquece de registrar seus gastos de hoje!")), tz);
+  _reagendar("lembretes",         "*/15 * * * *",     () => executarComLog("lembretes", verificarLembretes), tz);
+  _reagendar("tarefas-vencidas",  "0 20 * * *",       () => executarComLog("tarefas-vencidas", verificarTarefasVencidas), tz);
+  _reagendar("tarefas-esquecidas","0 9 * * 1",        () => executarComLog("tarefas-esquecidas", verificarTarefasEsquecidas), tz);
+  _reagendar("limpar-estados",    "1 0 * * *",        () => executarComLog("limpar-estados", limparEstadosAntigos), tz);
+  _reagendar("limpar-logs",       "5 0 * * *",        () => executarComLog("limpar-logs", limparLogsAntigos), tz);
+
+  console.log(`✅ Cron jobs: resumo/gastos ${hora}h | lembretes 15min | vencidas 20h | esquecidas seg 9h | limpeza 00:01/05 [tz: ${tz}]`);
+}
+
+function atualizarCronJobs(config) {
+  iniciarCronJobs(config);
+}
+
+module.exports = { iniciarCronJobs, atualizarCronJobs };

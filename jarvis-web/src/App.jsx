@@ -1,5 +1,5 @@
 import { HashRouter, Routes, Route } from "react-router-dom";
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import Sidebar from "./components/Sidebar";
 import Header from "./components/Header";
 import { HeaderProvider } from "./contexts/HeaderContext";
@@ -13,9 +13,15 @@ const EDGE_WIDTH = 24;
 const SWIPE_THRESHOLD = 60;
 
 export default function App() {
-  const [chatMessages, setChatMessages] = useState([
-    { role: "jarvis", text: "Olá, Gabriel! Como posso ajudar hoje? 🤖" }
-  ]);
+  const MENSAGEM_INICIAL = [{ role: "jarvis", text: "Olá, Gabriel! Como posso ajudar hoje? 🤖" }];
+  const [chatMessages, setChatMessages] = useState(MENSAGEM_INICIAL);
+
+  useEffect(() => {
+    const handler = () => setChatMessages([...MENSAGEM_INICIAL]);
+    window.addEventListener("jarvis:reset-chat", handler);
+    return () => window.removeEventListener("jarvis:reset-chat", handler);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const onMenuClick = () => setSidebarOpen(v => !v);
   const touchStartRef = useRef(null);
