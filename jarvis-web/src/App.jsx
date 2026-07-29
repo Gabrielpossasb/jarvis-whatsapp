@@ -7,6 +7,7 @@ import Chat from "./pages/Chat";
 import Tarefas from "./pages/Tarefas";
 import Gastos from "./pages/Gastos";
 import Financeiro from "./pages/Financeiro";
+import Estoque from "./pages/Estoque";
 import Configuracoes from "./pages/Configuracoes";
 
 const EDGE_WIDTH = 24;
@@ -64,6 +65,7 @@ export default function App() {
                 <Route path="/tarefas" element={<Tarefas />} />
                 <Route path="/gastos" element={<Gastos />} />
                 <Route path="/financeiro" element={<Financeiro />} />
+                <Route path="/estoque" element={<Estoque />} />
                 <Route path="/configuracoes" element={<Configuracoes />} />
               </Routes>
             </main>
