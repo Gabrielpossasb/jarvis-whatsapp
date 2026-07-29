@@ -10,12 +10,13 @@ const fmtMoeda = v =>
 const fmtData = s =>
   new Date(s).toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" });
 
-const TIPO_LABEL = { entrada: "Entrada", venda: "Venda", consumo: "Consumo" };
-const TIPO_SINAL = { entrada: "+", venda: "−", consumo: "−" };
+const TIPO_LABEL = { entrada: "Entrada", venda: "Venda", consumo: "Consumo", contagem: "Contagem" };
+const TIPO_SINAL = { entrada: "+", venda: "−", consumo: "−", contagem: "=" };
 const TIPO_BADGE = {
   entrada: "bg-emerald-500/15 text-emerald-400",
   venda: "bg-red-500/15 text-red-400",
   consumo: "bg-amber-500/15 text-amber-400",
+  contagem: "bg-sky-500/15 text-sky-400",
 };
 
 export default function Estoque() {
@@ -27,6 +28,9 @@ export default function Estoque() {
   const [modal, setModal] = useState(null); // null | { tipo:'mov'|'editar', produto }
   const [filtroMov, setFiltroMov] = useState("todos");
   const [toast, setToast] = useState(null);
+  const [modoContagem, setModoContagem] = useState(false);
+  const [contagens, setContagens] = useState({}); // { [produto_id]: string }
+  const [salvandoContagem, setSalvandoContagem] = useState(false);
 
   // Estado do modal de movimentação
   const [tipoMov, setTipoMov] = useState("entrada");
@@ -81,7 +85,12 @@ export default function Estoque() {
       subtitle: alertas > 0
         ? `${totalKg.toFixed(1)} kg · ⚠️ ${alertas} abaixo do mínimo`
         : `${totalKg.toFixed(1)} kg · tudo ok`,
-      right: null,
+      right: (
+        <button onClick={() => { setContagens({}); setModoContagem(true); }}
+          className="text-xs px-3 py-1 rounded-full bg-[#1a1a28] border border-[#2a2a3e] text-[#6a6a8a] hover:border-[#6c5fff] hover:text-[#a78bfa] transition-colors whitespace-nowrap">
+          📋 Contagem
+        </button>
+      ),
       secondRow: (
         <div className="flex gap-2 overflow-x-auto no-scrollbar">
           {[["estoque", "📦 Estoque"], ["historico", "📋 Histórico"]].map(([a, l]) => (
@@ -172,6 +181,63 @@ export default function Estoque() {
       setModal(null);
     }
     setSalvando(false);
+  }
+
+  async function salvarContagem() {
+    const alterados = produtos.filter(p => {
+      const v = contagens[p.id];
+      if (v === undefined || v === "") return false;
+      return parseFloat(String(v).replace(",", ".")) !== Number(p.estoque_atual);
+    });
+    if (alterados.length === 0) { setModoContagem(false); return; }
+
+    setSalvandoContagem(true);
+    const agora = new Date().toISOString();
+
+    const insertsMovs = alterados.map(p => {
+      const novoVal = parseFloat(String(contagens[p.id]).replace(",", "."));
+      return {
+        produto_id: p.id,
+        tipo: "contagem",
+        quantidade: novoVal,
+        observacao: `era ${fmtQtd(p.estoque_atual, p.unidade)} → agora ${fmtQtd(novoVal, p.unidade)}`,
+        criado_em: agora,
+      };
+    });
+
+    const { error: e1 } = await supabase.from("estoque_movimentacoes").insert(insertsMovs);
+
+    if (!e1) {
+      await Promise.all(alterados.map(p => {
+        const novoVal = parseFloat(String(contagens[p.id]).replace(",", "."));
+        return supabase.from("estoque_produtos").update({ estoque_atual: novoVal }).eq("id", p.id);
+      }));
+
+      setProdutos(prev => prev.map(p => {
+        const v = contagens[p.id];
+        if (v === undefined || v === "") return p;
+        const novoVal = parseFloat(String(v).replace(",", "."));
+        if (novoVal === Number(p.estoque_atual)) return p;
+        return { ...p, estoque_atual: novoVal };
+      }));
+
+      setMovs(prev => [
+        ...insertsMovs.map((m, i) => ({
+          ...m,
+          id: `tmp-cont-${Date.now()}-${i}`,
+          produto: { nome: alterados[i].nome, unidade: alterados[i].unidade },
+        })),
+        ...prev,
+      ]);
+
+      showToast(`${alterados.length} produto${alterados.length > 1 ? "s" : ""} atualizado${alterados.length > 1 ? "s" : ""}`);
+    } else {
+      showToast("Erro ao salvar contagem", false);
+    }
+
+    setSalvandoContagem(false);
+    setModoContagem(false);
+    setContagens({});
   }
 
   const porCategoria = CATEGORIAS.map(cat => ({
@@ -281,7 +347,7 @@ export default function Estoque() {
         <div className="flex flex-col h-full overflow-hidden">
           {/* Filtros */}
           <div className="px-4 md:px-6 pt-3 pb-2 flex gap-2 overflow-x-auto no-scrollbar shrink-0">
-            {["todos", "entrada", "venda", "consumo"].map(t => (
+            {["todos", "entrada", "venda", "consumo", "contagem"].map(t => (
               <button key={t} onClick={() => setFiltroMov(t)}
                 className={`px-3 py-1 rounded-full text-xs border transition-all whitespace-nowrap shrink-0
                   ${filtroMov === t
@@ -317,7 +383,9 @@ export default function Estoque() {
                       )}
                     </div>
                     <div className={`text-xs font-semibold shrink-0
-                      ${m.tipo === "entrada" ? "text-emerald-400" : "text-red-400"}`}>
+                      ${m.tipo === "entrada" ? "text-emerald-400"
+                        : m.tipo === "contagem" ? "text-sky-400"
+                        : "text-red-400"}`}>
                       {TIPO_SINAL[m.tipo]}{fmtQtd(m.quantidade, m.produto?.unidade || "")}
                     </div>
                     <div className="text-[10px] text-[#4a4a6a] shrink-0 hidden sm:block">
@@ -327,6 +395,98 @@ export default function Estoque() {
                 ))}
               </div>
             )}
+          </div>
+        </div>
+      )}
+
+      {/* ── Overlay de Contagem de Estoque ──────────── */}
+      {modoContagem && (
+        <div className="fixed inset-0 bg-[#0f0f13] z-40 flex flex-col">
+          {/* Header */}
+          <div className="flex items-center justify-between px-4 py-3 border-b border-[#1e1e2e] shrink-0">
+            <div>
+              <div className="text-sm font-semibold text-[#e8e8f0]">Contagem de Estoque</div>
+              <div className="text-[10px] text-[#4a4a6a] mt-0.5">
+                Digite a quantidade real de cada produto
+              </div>
+            </div>
+            <div className="flex gap-2">
+              <button onClick={() => { setModoContagem(false); setContagens({}); }}
+                className="px-3 py-1.5 rounded-lg text-xs border border-[#2a2a3e] text-[#6a6a8a] hover:border-[#3a3a50] transition-colors">
+                Cancelar
+              </button>
+              <button onClick={salvarContagem} disabled={salvandoContagem}
+                className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-[#6c5fff] hover:bg-[#7c6fff] disabled:opacity-50 text-white transition-colors">
+                {salvandoContagem ? "Salvando..." : "Salvar Contagem"}
+              </button>
+            </div>
+          </div>
+
+          {/* Resumo de alterações */}
+          {Object.keys(contagens).some(id => {
+            const p = produtos.find(x => x.id === id);
+            if (!p || contagens[id] === "") return false;
+            return parseFloat(String(contagens[id]).replace(",", ".")) !== Number(p.estoque_atual);
+          }) && (
+            <div className="px-4 py-2 bg-sky-500/10 border-b border-sky-500/20 shrink-0">
+              <span className="text-[11px] text-sky-400">
+                {Object.keys(contagens).filter(id => {
+                  const p = produtos.find(x => x.id === id);
+                  if (!p || contagens[id] === "") return false;
+                  return parseFloat(String(contagens[id]).replace(",", ".")) !== Number(p.estoque_atual);
+                }).length} produto(s) com valor diferente do atual
+              </span>
+            </div>
+          )}
+
+          {/* Lista de produtos */}
+          <div className="flex-1 overflow-y-auto px-4 md:px-6 py-3">
+            {porCategoria.map(({ cat, itens }) => (
+              <div key={cat} className="mb-5">
+                <div className="text-[10px] text-[#4a4a6a] tracking-widest font-medium px-1 mb-2 uppercase">
+                  {cat}
+                </div>
+                <div className="bg-[#13131e] border border-[#1e1e2e] rounded-xl overflow-hidden">
+                  {itens.map((p, i) => {
+                    const val = contagens[p.id] ?? "";
+                    const novoVal = val !== "" ? parseFloat(String(val).replace(",", ".")) : null;
+                    const mudou = novoVal !== null && novoVal !== Number(p.estoque_atual);
+                    return (
+                      <div key={p.id}
+                        className={`flex items-center gap-3 px-4 py-2.5 transition-colors
+                          ${mudou ? "bg-sky-500/5" : ""}
+                          ${i < itens.length - 1 ? "border-b border-[#1a1a24]" : ""}`}>
+                        <div className="flex-1 min-w-0">
+                          <div className="text-xs text-[#e8e8f0] truncate">{p.nome}</div>
+                          <div className="text-[10px] text-[#4a4a6a] mt-0.5">
+                            atual: {fmtQtd(p.estoque_atual, p.unidade)}
+                            {mudou && (
+                              <span className={`ml-2 font-medium ${novoVal > Number(p.estoque_atual) ? "text-emerald-400" : "text-red-400"}`}>
+                                → {fmtQtd(novoVal, p.unidade)}
+                                {novoVal > Number(p.estoque_atual)
+                                  ? ` (+${(novoVal - Number(p.estoque_atual)).toLocaleString("pt-BR", { minimumFractionDigits: 1 })})`
+                                  : ` (${(novoVal - Number(p.estoque_atual)).toLocaleString("pt-BR", { minimumFractionDigits: 1 })})`}
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-1 shrink-0">
+                          <input
+                            type="number" inputMode="decimal" min="0" step="0.1"
+                            value={val}
+                            onChange={e => setContagens(prev => ({ ...prev, [p.id]: e.target.value }))}
+                            placeholder={String(Number(p.estoque_atual).toLocaleString("pt-BR", { minimumFractionDigits: 1 }))}
+                            className={`w-20 text-right bg-[#1a1a28] border rounded-lg px-2 py-1.5 text-xs text-[#e8e8f0] placeholder-[#3a3a5a] outline-none transition-colors
+                              ${mudou ? "border-sky-500/60 focus:border-sky-400" : "border-[#2a2a3e] focus:border-[#6c5fff]"}`}
+                          />
+                          <span className="text-[10px] text-[#4a4a6a] w-4">{p.unidade}</span>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            ))}
           </div>
         </div>
       )}
