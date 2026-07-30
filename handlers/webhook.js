@@ -6,7 +6,7 @@ const { CONFIG } = require("../config");
 const { obterEstado, salvarEstado, deletarEstado } = require("../services/pending-states");
 const { encontrarSimilar } = require("../utils/similarity");
 const { enviarMensagem, baixarMidia } = require("../services/evolution");
-const { extrairDados, revisarCategorias, transcreverAudio, analisarImagem, analisarPDF, extrairExtratoTexto, extrairExtrato } = require("../services/openai");
+const { extrairDados, revisarCategorias, transcreverAudio, analisarImagem, analisarPDF, extrairExtratoTexto, extrairExtrato, extrairEventoFaculdadeIA } = require("../services/openai");
 const { getCategorias, getListaCategorias, adicionarCategoria, getEmoji } = require("../services/categorias");
 const {
   adicionarGasto, adicionarTarefa,
@@ -301,84 +301,18 @@ async function processarContagemEstoque(itens) {
 }
 
 // ════════════════════════════════════════════
-//  EVENTOS DE FACULDADE — detecção via chat
+//  EVENTOS DE FACULDADE — detecção via IA
 // ════════════════════════════════════════════
-const DISC_ALIASES_FAC = [
-  ["Banco de Dados",                         ["banco de dados", "bd"]],
-  ["Engenharia de Software",                 ["engenharia de software", "eng software", "eng de software"]],
-  ["Ciências do Ambiente",                   ["ciencias do ambiente", "ciencia do ambiente", "ciencias ambiente"]],
-  ["Introdução a Sistemas Operacionais",     ["sistemas operacionais", "intro so", "intro sistemas operacionais"]],
-  ["Fundamentos Matemáticos p/ Computação", ["fundamentos matematicos", "fund matematicos", "fund mat"]],
-  ["Análise e Projeto de Software",          ["analise e projeto de software", "analise e projeto", "analise projeto", "aps"]],
-  ["Computação e Sociedade",                 ["computacao e sociedade", "comp e sociedade", "comp sociedade"]],
-];
 
-function normFac(s) {
-  return s.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "").trim();
+// Gate rápido: só chama a IA se houver palavras-chave acadêmicas
+function podeSerEventoFaculdade(texto) {
+  const norm = texto.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "");
+  return /\b(prova|atividade|trabalho|ead|aula online|aviso de faculdade|facul)\b/.test(norm);
 }
 
-function resolverDisciplinaFac(norm) {
-  for (const [disciplina, aliases] of DISC_ALIASES_FAC) {
-    for (const alias of aliases) {
-      if (norm.includes(alias)) return disciplina;
-    }
-  }
-  return null;
-}
-
-function resolverDataFac(norm) {
-  const hoje = new Date();
-  if (/\bhoje\b/.test(norm)) return hoje.toISOString().slice(0, 10);
-  if (/\bamanha\b/.test(norm)) {
-    const d = new Date(hoje); d.setDate(d.getDate() + 1);
-    return d.toISOString().slice(0, 10);
-  }
-  const m = norm.match(/\b(\d{1,2})[\/\-](\d{1,2})\b/);
-  if (!m) return null;
-  const dia = parseInt(m[1]), mes = parseInt(m[2]);
-  if (dia < 1 || dia > 31 || mes < 1 || mes > 12) return null;
-  const candidato = new Date(hoje.getFullYear(), mes - 1, dia);
-  const ontem = new Date(hoje); ontem.setDate(ontem.getDate() - 1); ontem.setHours(0, 0, 0, 0);
-  if (candidato < ontem) candidato.setFullYear(candidato.getFullYear() + 1);
-  return candidato.toISOString().slice(0, 10);
-}
-
-function detectarEventoFaculdade(texto) {
-  // Só processa mensagens curtas para evitar falsos positivos
-  if (texto.length > 250) return null;
-  const norm = normFac(texto);
-  const temTipo = /\b(prova|atividade|trabalho|ead|aviso de faculdade)\b/.test(norm);
-  if (!temTipo) return null;
-  const temData = /\bhoje\b|\bamanha\b|\b\d{1,2}[\/\-]\d{1,2}\b/.test(norm);
-  if (!temData) return null;
-
-  const data = resolverDataFac(norm);
-  if (!data) return null;
-
-  let tipo = "aviso";
-  if (/\bprova\b/.test(norm)) tipo = "prova";
-  else if (/\b(atividade|trabalho)\b/.test(norm)) tipo = "atividade";
-  else if (/\bead\b/.test(norm)) tipo = "ead";
-
-  const disciplina = resolverDisciplinaFac(norm);
-
-  // Extrai hora se existir (ex: "9h", "9:30", "09h30")
-  let hora = null;
-  const horaM = texto.match(/\b(\d{1,2})[h:](\d{2})?\b/i);
-  if (horaM) {
-    const h = parseInt(horaM[1]), min = horaM[2] ? parseInt(horaM[2]) : 0;
-    if (h >= 0 && h <= 23) hora = `${String(h).padStart(2, "0")}:${String(min).padStart(2, "0")}:00`;
-  }
-
-  // Título: tenta extrair conteúdo entre o tipo e o indicador de data
-  const TIPOS_PT = { prova: "Prova", atividade: "Atividade", ead: "Aula EAD", aviso: "Aviso" };
-  let titulo = TIPOS_PT[tipo];
-  if (disciplina) titulo += ` — ${disciplina}`;
-  // Captura número (ex: "P1", "1", "2ª") depois do tipo
-  const numM = texto.match(/\b(?:prova|atividade|trabalho|ead)\s+(?:de\s+\S+\s+)?(\d+|p\d+|[12]ª)/i);
-  if (numM && tipo === "prova") titulo = `Prova ${numM[1].toUpperCase()}${disciplina ? ` — ${disciplina}` : ""}`;
-
-  return { tipo, disciplina, titulo, data, hora };
+async function detectarEventoFaculdade(texto) {
+  if (!podeSerEventoFaculdade(texto)) return null;
+  return extrairEventoFaculdadeIA(texto);
 }
 
 async function processarEventoFaculdade(evento) {
@@ -511,7 +445,7 @@ async function processarMensagem(texto, remoteJid, canal = "whatsapp") {
   }
 
   // ── Detecta evento de faculdade (prova/atividade/EAD + data) ───
-  const eventoFac = detectarEventoFaculdade(texto);
+  const eventoFac = await detectarEventoFaculdade(texto);
   if (eventoFac) {
     const resultado = await processarEventoFaculdade(eventoFac);
     await responder(resultado);

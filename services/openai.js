@@ -422,4 +422,53 @@ ${texto}`;
   return parsed.transacoes || [];
 }
 
-module.exports = { extrairDados, revisarCategorias, transcreverAudio, analisarImagem, analisarPDF, extrairExtrato, extrairExtratoTexto };
+async function extrairEventoFaculdadeIA(texto) {
+  const hoje = new Date().toISOString().slice(0, 10);
+  const diaSemana = ["domingo", "segunda-feira", "terça-feira", "quarta-feira", "quinta-feira", "sexta-feira", "sábado"][new Date().getDay()];
+  const prompt = `Você é um extrator de eventos acadêmicos. Analise a mensagem e determine se ela menciona um evento de faculdade para registrar.
+
+Hoje é ${hoje} (${diaSemana}).
+
+Disciplinas disponíveis (use o nome exato):
+- Banco de Dados
+- Engenharia de Software
+- Ciências do Ambiente
+- Introdução a Sistemas Operacionais
+- Fundamentos Matemáticos p/ Computação
+- Análise e Projeto de Software
+- Computação e Sociedade
+
+Se há evento para registrar, retorne JSON:
+{"tipo":"prova"|"atividade"|"ead"|"aviso","disciplina":"nome exato ou null","titulo":"título descritivo","data":"YYYY-MM-DD","hora":"HH:MM:SS ou null"}
+
+Regras:
+- "trabalho" → tipo "atividade"
+- Datas relativas ("semana que vem na quinta", "próxima segunda", "daqui 2 semanas") → converter para data absoluta
+- EAD = a aula será online naquele dia → tipo "ead"
+- Se não há data clara ou a mensagem não é sobre faculdade → retorne null
+- Título deve ser descritivo, ex: "Prova 1 — Banco de Dados", "Entrega do Trabalho", "Aula Online"
+
+Responda APENAS com o JSON ou a palavra null, sem explicações.
+
+Mensagem: "${texto.replace(/"/g, "'")}"`;
+
+  const openai = new OpenAI({ apiKey: CONFIG.OPENAI_API_KEY });
+  const response = await openai.chat.completions.create({
+    model: "gpt-4o-mini",
+    messages: [{ role: "user", content: prompt }],
+    max_tokens: 200,
+    temperature: 0,
+  });
+
+  const content = response.choices[0].message.content.trim();
+  if (content === "null" || !content.startsWith("{")) return null;
+  try {
+    const ev = JSON.parse(content);
+    if (!ev.tipo || !ev.data || !ev.titulo) return null;
+    return ev;
+  } catch {
+    return null;
+  }
+}
+
+module.exports = { extrairDados, revisarCategorias, transcreverAudio, analisarImagem, analisarPDF, extrairExtrato, extrairExtratoTexto, extrairEventoFaculdadeIA };
