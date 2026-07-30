@@ -2,24 +2,7 @@ import { useState, useEffect, useMemo } from "react";
 import { supabase } from "../lib/supabase";
 import { useHeader } from "../contexts/HeaderContext";
 
-// ─── Horário semanal (estático) ───────────────────────────────────────────────
-// dia: 1=Segunda … 6=Sábado  (coincide com Date.getDay() para Seg-Sáb)
-const AULAS = [
-  { id: 1,  disciplina: "Fundamentos Matemáticos p/ Computação", turma: "T01", professor: "Prof.ª Bianca Namie Sakiyama",  dia: 1, inicio: "18:30", fim: "20:30", local: "Bloco 15 · Sala 11",       cor: "#0891b2" },
-  { id: 2,  disciplina: "Engenharia de Software",                 turma: "T01", professor: "Prof.ª Patricia Matsubara",    dia: 2, inicio: "09:35", fim: "11:35", local: "Bloco 15 · Sala 13",       cor: "#2563eb" },
-  { id: 3,  disciplina: "Introdução a Sistemas Operacionais",     turma: "T01", professor: "Prof.ª Valeria Reis",          dia: 2, inicio: "15:35", fim: "17:35", local: "Bloco 15 · Sala 06",       cor: "#0d9488" },
-  { id: 4,  disciplina: "Análise e Projeto de Software",          turma: "T01", professor: "Prof.ª Maria Machado",         dia: 2, inicio: "18:30", fim: "20:30", local: "Bloco 15 · Sala 12",       cor: "#059669" },
-  { id: 5,  disciplina: "Computação e Sociedade",                 turma: "T01", professor: "Prof. Amaury Junior",          dia: 3, inicio: "09:05", fim: "11:05", local: "Bloco 15 · Sala 09",       cor: "#64748b" },
-  { id: 6,  disciplina: "Banco de Dados",                         turma: "T01", professor: "Prof.ª Vanessa Araujo Borges", dia: 3, inicio: "09:35", fim: "11:35", local: "Bloco 14 · Auditório 2",   cor: "#7c3aed", livrePresenca: true },
-  { id: 7,  disciplina: "Fundamentos Matemáticos p/ Computação", turma: "T01", professor: "Prof.ª Bianca Namie Sakiyama",  dia: 3, inicio: "18:30", fim: "20:30", local: "Bloco 15 · Sala 11",       cor: "#0891b2" },
-  { id: 8,  disciplina: "Engenharia de Software",                 turma: "T01", professor: "Prof.ª Patricia Matsubara",    dia: 4, inicio: "09:35", fim: "11:35", local: "Bloco 15 · Sala 13",       cor: "#2563eb" },
-  { id: 9,  disciplina: "Ciências do Ambiente",                   turma: "T01", professor: "Prof.ª Janusa Araujo",         dia: 4, inicio: "13:15", fim: "15:15", local: "Bloco 15 · Sala 20",       cor: "#84cc16" },
-  { id: 10, disciplina: "Análise e Projeto de Software",          turma: "P02", professor: "Prof.ª Maria Machado",         dia: 4, inicio: "18:30", fim: "20:30", local: "Bloco 14 · Laboratório 8",  cor: "#059669" },
-  { id: 11, disciplina: "Banco de Dados",                         turma: "T01", professor: "Prof.ª Vanessa Araujo Borges", dia: 5, inicio: "07:15", fim: "09:15", local: "Bloco 15 · Sala 03",       cor: "#7c3aed" },
-  { id: 12, disciplina: "Introdução a Sistemas Operacionais",     turma: "T01", professor: "Prof.ª Valeria Reis",          dia: 5, inicio: "15:35", fim: "17:35", local: "Bloco 15 · Sala 06",       cor: "#0d9488" },
-];
-
-const DISCIPLINAS = [...new Set(AULAS.map(a => a.disciplina))].sort();
+// aulas carregadas do Supabase (tabela faculdade_aulas)
 
 const DIAS_NOME = ["Domingo", "Segunda", "Terça", "Quarta", "Quinta", "Sexta", "Sábado"];
 
@@ -66,6 +49,7 @@ export default function Faculdade() {
   const [modal, setModal] = useState(null); // null | "add" | { modo:"view", ev }
   const [form, setForm] = useState(FORM_INICIAL);
   const [salvando, setSalvando] = useState(false);
+  const [aulas, setAulas] = useState([]);
   const [loading, setLoading] = useState(true);
   const [toast, setToast] = useState(null);
 
@@ -75,12 +59,12 @@ export default function Faculdade() {
   }
 
   async function carregar() {
-    const { data } = await supabase
-      .from("faculdade_eventos")
-      .select("*")
-      .order("data")
-      .order("hora", { nullsFirst: true });
-    if (data) setEventos(data);
+    const [{ data: evData }, { data: aulasData }] = await Promise.all([
+      supabase.from("faculdade_eventos").select("*").order("data").order("hora", { nullsFirst: true }),
+      supabase.from("faculdade_aulas").select("*").eq("ativo", true).order("dia").order("inicio"),
+    ]);
+    if (evData) setEventos(evData);
+    if (aulasData) setAulas(aulasData);
   }
 
   useEffect(() => {
@@ -88,6 +72,7 @@ export default function Faculdade() {
   }, []);
 
   const dias = useMemo(() => semanaDeOffset(semanaOff), [semanaOff]);
+  const disciplinas = useMemo(() => [...new Set(aulas.map(a => a.disciplina))].sort(), [aulas]);
 
   // ── Header ────────────────────────────────────────────────────────
   useEffect(() => {
@@ -130,7 +115,7 @@ export default function Faculdade() {
   }, [dias]);
 
   function aulasNoDia(d) {
-    return AULAS.filter(a => a.dia === d.getDay()).sort((a, b) => a.inicio.localeCompare(b.inicio));
+    return aulas.filter(a => a.dia === d.getDay()).sort((a, b) => a.inicio.localeCompare(b.inicio));
   }
 
   function eventosNaData(iso) {
@@ -256,14 +241,14 @@ export default function Faculdade() {
                                 <div className="flex-1 min-w-0">
                                   <div className="text-[11px] text-[#5a5a7a] tabular-nums">{a.inicio} – {a.fim}</div>
                                   <div className="text-sm font-medium text-[#e8e8f0] mt-0.5 leading-snug">{a.disciplina}</div>
-                                  <div className="text-[11px] text-[#3a3a56] mt-0.5">{a.local}</div>
-                                  <div className="text-[11px] text-[#2e2e48]">{a.professor}</div>
+                                  <div className="text-[11px] text-[#5a5a7a] mt-0.5">{a.local}</div>
+                                  <div className="text-[11px] text-[#5a5a7a]">{a.professor}</div>
                                 </div>
                                 <div className="flex flex-col items-end gap-1 shrink-0">
                                   {ead && (
                                     <span className="text-[10px] bg-sky-500/15 text-sky-400 px-1.5 py-0.5 rounded-full">💻 EAD</span>
                                   )}
-                                  {a.livrePresenca && (
+                                  {a.livre_presenca && (
                                     <span className="text-[10px] bg-amber-500/10 text-amber-600/60 px-1.5 py-0.5 rounded-full">livre presença</span>
                                   )}
                                 </div>
@@ -287,7 +272,7 @@ export default function Faculdade() {
                           .filter(e => {
                             if (e.tipo === "ead") return false;
                             if (!e.disciplina) return true;
-                            return !AULAS.some(a => a.disciplina === e.disciplina && a.dia === dow);
+                            return !aulas.some(a => a.disciplina === e.disciplina && a.dia === dow);
                           })
                           .map(e => (
                             <button key={e.id} onClick={() => setModal({ modo: "view", ev: e })}
@@ -437,7 +422,7 @@ export default function Faculdade() {
                 onChange={e => setForm(f => ({ ...f, disciplina: e.target.value }))}
                 className="w-full bg-[#0f0f13] border border-[#2a2a3e] rounded-xl px-3 py-2 text-sm text-[#e8e8f0] outline-none focus:border-[#6c5fff] appearance-none">
                 <option value="">— nenhuma —</option>
-                {DISCIPLINAS.map(d => <option key={d} value={d}>{d}</option>)}
+                {disciplinas.map(d => <option key={d} value={d}>{d}</option>)}
               </select>
             </div>
 

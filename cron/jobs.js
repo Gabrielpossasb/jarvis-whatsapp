@@ -15,39 +15,108 @@ const { executarComLog } = require("../services/cron-logs");
 const { limparEstadosAntigos } = require("../services/pending-states");
 const { enviarPush } = require("../services/push");
 
-// ── Resumo diário às 7h ───────────────────────────────────────────
+const DIAS_NOME_PT = ["Domingo", "Segunda-feira", "Terça-feira", "Quarta-feira", "Quinta-feira", "Sexta-feira", "Sábado"];
+const TIPO_EMOJI_FAC = { prova: "📝", atividade: "📋", ead: "💻", aviso: "📢" };
+
+// ── Resumo diário matinal ─────────────────────────────────────────
 async function enviarResumoDiario() {
-  const dataHoje = formatarData();
+  const agr = agora();
+  const dataHoje = formatarData(agr);
+  const isoHoje = `${agr.getFullYear()}-${String(agr.getMonth() + 1).padStart(2, "0")}-${String(agr.getDate()).padStart(2, "0")}`;
+  const nomeDia = DIAS_NOME_PT[agr.getDay()];
+
   const tarefas = await buscarTarefasDoDia(dataHoje);
 
-  if (tarefas.length === 0) {
+  const { supabase } = require("../services/supabase");
+
+  // Aulas de hoje (do banco, dinâmico)
+  let aulasHoje = [];
+  try {
+    const { data } = await supabase
+      .from("faculdade_aulas")
+      .select("disciplina, inicio, fim")
+      .eq("dia", agr.getDay())
+      .eq("ativo", true)
+      .order("inicio");
+    aulasHoje = data || [];
+  } catch (_) { /* tabela ainda não criada */ }
+
+  // Eventos acadêmicos de hoje
+  let eventos = [];
+  try {
+    const { data } = await supabase
+      .from("faculdade_eventos")
+      .select("*")
+      .eq("data", isoHoje)
+      .eq("concluido", false)
+      .order("hora", { ascending: true, nullsFirst: false });
+    eventos = data || [];
+  } catch (_) { /* tabela ainda não criada */ }
+
+  const temAulas = aulasHoje.length > 0;
+  const temTarefas = tarefas.length > 0;
+  const eventosAcad = eventos.filter(e => e.tipo !== "ead");
+  const temEventos = eventosAcad.length > 0;
+
+  if (!temAulas && !temTarefas && !temEventos) {
     await enviarMensagem(CONFIG.NUMERO_AUTORIZADO,
-      `🗓️ *Bom dia, Gabriel!*\nNenhuma tarefa para hoje (${dataHoje}). Dia livre! 🎉`);
+      `🌅 *Bom dia, Gabriel!*\n${nomeDia}, ${dataHoje}\n\nDia livre — sem aulas nem tarefas! 🎉`);
+    await enviarPush("🌅 Bom dia, Gabriel!", "Dia livre! 🎉");
     return;
   }
 
-  // Agrupa por categoria
-  const porCategoria = {};
-  for (const t of tarefas) {
-    const cat = t.categoria || "Outros";
-    if (!porCategoria[cat]) porCategoria[cat] = [];
-    porCategoria[cat].push(t);
+  let msg = `🌅 *Bom dia, Gabriel!*\n*${nomeDia}, ${dataHoje}*\n`;
+
+  // Aulas do dia
+  if (temAulas) {
+    msg += `\n📚 *Aulas de hoje:*\n`;
+    for (const a of aulasHoje) {
+      const isEAD = eventos.some(e =>
+        e.tipo === "ead" && (!e.disciplina || e.disciplina === a.disciplina)
+      );
+      msg += `🎓 ${a.inicio}–${a.fim} — ${a.disciplina}${isEAD ? " 💻 _(EAD)_" : ""}\n`;
+    }
   }
 
-  let msg = `🗓️ *Bom dia, Gabriel!*\n*Tarefas de hoje — ${dataHoje}:*\n`;
-
-  for (const [categoria, itens] of Object.entries(porCategoria)) {
-    const emoji = await getEmoji(categoria);
-    msg += `\n${emoji} *${categoria}*\n`;
-    const semHorario = itens.filter(t => !t.hora);
-    const comHorario = itens.filter(t => t.hora).sort((a, b) => a.hora.localeCompare(b.hora));
-    for (const t of semHorario) msg += `📌 ${t.descricao}\n`;
-    for (const t of comHorario) msg += `⏰ ${t.hora} — ${t.descricao}\n`;
+  // Provas / atividades / avisos do dia
+  if (temEventos) {
+    msg += `\n⚠️ *Compromissos acadêmicos:*\n`;
+    for (const e of eventosAcad) {
+      const emoji = TIPO_EMOJI_FAC[e.tipo] || "📅";
+      const hora = e.hora ? ` às ${e.hora.slice(0, 5)}` : "";
+      const disc = e.disciplina ? ` — ${e.disciplina}` : "";
+      msg += `${emoji} *${e.titulo}*${disc}${hora}\n`;
+    }
   }
 
-  msg += "\nBora! 💪";
+  // Tarefas do dia agrupadas por categoria
+  if (temTarefas) {
+    const porCategoria = {};
+    for (const t of tarefas) {
+      const cat = t.categoria || "Outros";
+      if (!porCategoria[cat]) porCategoria[cat] = [];
+      porCategoria[cat].push(t);
+    }
+    msg += `\n✅ *Tarefas de hoje:*\n`;
+    for (const [categoria, itens] of Object.entries(porCategoria)) {
+      const emoji = await getEmoji(categoria);
+      msg += `\n${emoji} *${categoria}*\n`;
+      const semHorario = itens.filter(t => !t.hora);
+      const comHorario = itens.filter(t => t.hora).sort((a, b) => a.hora.localeCompare(b.hora));
+      for (const t of semHorario) msg += `📌 ${t.descricao}\n`;
+      for (const t of comHorario) msg += `⏰ ${t.hora} — ${t.descricao}\n`;
+    }
+  }
+
+  msg += `\nBora! 💪`;
   await enviarMensagem(CONFIG.NUMERO_AUTORIZADO, msg);
-  await enviarPush("🗓️ Bom dia, Gabriel!", `${tarefas.length} tarefa(s) para hoje`);
+
+  const resumoPush = [
+    temAulas ? `${aulasHoje.length} aula(s)` : null,
+    temEventos ? `${eventosAcad.length} compromisso(s)` : null,
+    temTarefas ? `${tarefas.length} tarefa(s)` : null,
+  ].filter(Boolean).join(" • ");
+  await enviarPush("🌅 Bom dia, Gabriel!", resumoPush);
 }
 
 // ── Lembretes a cada 15min ────────────────────────────────────────
