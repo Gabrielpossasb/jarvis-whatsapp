@@ -101,6 +101,16 @@ export default function Configuracoes() {
   const [modal, setModal] = useState(null);
   const [confirmarReset, setConfirmarReset] = useState(false);
 
+  // ── Categorias ──
+  const [categorias, setCategorias] = useState([]);
+  const [loadingCategorias, setLoadingCategorias] = useState(true);
+  const [tipoFiltro, setTipoFiltro] = useState("tarefa");
+  const [novaCat, setNovaCat] = useState({ nome: "", emoji: "", tipo: "tarefa" });
+  const [criandoCategoria, setCriandoCategoria] = useState(false);
+  const [revisao, setRevisao] = useState(null); // { tipo: "tarefas"|"gastos", sugestoes, selecionadas: Set }
+  const [revisando, setRevisando] = useState(null); // "tarefas" | "gastos" | null
+  const [aplicandoRevisao, setAplicandoRevisao] = useState(false);
+
   useEffect(() => {
     setCfg({ title: "Configurações", subtitle: "Gerenciar app e integrações", right: null, secondRow: null });
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -135,7 +145,93 @@ export default function Configuracoes() {
       .then(r => r.json())
       .then(data => { setConfig(data); setConfigOriginal(data); })
       .catch(() => {});
+    carregarCategorias();
   }, []);
+
+  async function carregarCategorias() {
+    setLoadingCategorias(true);
+    try {
+      const res = await fetch(`${JARVIS_URL}/api/categorias`);
+      setCategorias(await res.json());
+    } catch {
+      setCategorias([]);
+    }
+    setLoadingCategorias(false);
+  }
+
+  async function criarCategoria() {
+    if (!novaCat.nome.trim()) return;
+    setCriandoCategoria(true);
+    try {
+      const res = await fetch(`${JARVIS_URL}/api/categorias`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ nome: novaCat.nome.trim(), emoji: novaCat.emoji.trim() || "📌", tipo: novaCat.tipo }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setModal({ titulo: "Não foi possível criar", corpo: data.error || "Tente novamente." });
+      } else {
+        setNovaCat({ nome: "", emoji: "", tipo: novaCat.tipo });
+        await carregarCategorias();
+      }
+    } catch {
+      setModal({ titulo: "Erro", corpo: "Não foi possível criar a categoria. Tente novamente." });
+    }
+    setCriandoCategoria(false);
+  }
+
+  async function iniciarRevisao(tipo) {
+    setRevisando(tipo);
+    setRevisao(null);
+    try {
+      const url = tipo === "tarefas"
+        ? `${JARVIS_URL}/api/tarefas/revisar-categorias`
+        : `${JARVIS_URL}/api/gastos/revisar-categorias?mes=${encodeURIComponent(mesAtual)}`;
+      const res = await fetch(url, { method: "POST" });
+      const data = await res.json();
+      const sugestoes = data.sugestoes || [];
+      if (sugestoes.length === 0) {
+        setModal({ titulo: "Tudo certo!", corpo: `Nenhuma sugestão de categoria — está tudo bem categorizado.` });
+      } else {
+        setRevisao({ tipo, sugestoes, selecionadas: new Set(sugestoes.map((_, i) => i)) });
+      }
+    } catch {
+      setModal({ titulo: "Erro", corpo: "Não foi possível revisar as categorias. Tente novamente." });
+    }
+    setRevisando(null);
+  }
+
+  function toggleSugestao(i) {
+    setRevisao(r => {
+      const selecionadas = new Set(r.selecionadas);
+      if (selecionadas.has(i)) selecionadas.delete(i); else selecionadas.add(i);
+      return { ...r, selecionadas };
+    });
+  }
+
+  async function aplicarRevisao() {
+    setAplicandoRevisao(true);
+    try {
+      const chaveId = revisao.tipo === "tarefas" ? "linha" : "id";
+      const aplicar = revisao.sugestoes
+        .filter((_, i) => revisao.selecionadas.has(i))
+        .map(s => ({ [chaveId]: s[chaveId], categoriaSugerida: s.categoriaSugerida }));
+      const url = revisao.tipo === "tarefas"
+        ? `${JARVIS_URL}/api/tarefas/aplicar-categorias`
+        : `${JARVIS_URL}/api/gastos/aplicar-categorias`;
+      await fetch(url, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ aplicar }),
+      });
+      setModal({ titulo: "Aplicado!", corpo: `${aplicar.length} categoria(s) atualizada(s).` });
+      setRevisao(null);
+    } catch {
+      setModal({ titulo: "Erro", corpo: "Não foi possível aplicar as mudanças. Tente novamente." });
+    }
+    setAplicandoRevisao(false);
+  }
 
   async function ativarNotificacoes() {
     if (!oneSignalRef.current) {
@@ -336,6 +432,94 @@ export default function Configuracoes() {
               className="shrink-0 px-3 py-1.5 bg-cinza-800 border border-cinza-700 hover:border-roxo-700 disabled:opacity-50 rounded-xl text-xs font-semibold text-cinza-200 transition-colors">
               {exportando ? "…" : "↓ CSV"}
             </button>
+          </div>
+        </Secao>
+
+        {/* ── Categorias ── */}
+        <Secao titulo="Categorias">
+          <div className="bg-cinza-850 border border-cinza-700 rounded-2xl p-4 flex flex-col gap-4">
+            <div className="flex gap-2">
+              {[["tarefa", "Tarefas"], ["gasto", "Gastos"], ["ganho", "Ganhos"]].map(([v, label]) => (
+                <button key={v} onClick={() => setTipoFiltro(v)}
+                  className={`px-3 py-1 rounded-full text-xs font-medium transition-colors ${
+                    tipoFiltro === v ? "bg-roxo-700/13 border border-roxo-700 text-roxo-400" : "border border-cinza-700 text-cinza-200"
+                  }`}>
+                  {label}
+                </button>
+              ))}
+            </div>
+
+            {loadingCategorias ? (
+              <div className="h-6 bg-cinza-700 rounded animate-pulse" />
+            ) : (
+              <div className="flex flex-wrap gap-1.5">
+                {categorias.filter(c => c.tipo === tipoFiltro).map(c => (
+                  <span key={c.id} className="text-xs px-2.5 py-1 rounded-full bg-cinza-900 border border-cinza-700 text-cinza-200">
+                    {c.emoji} {c.nome}
+                  </span>
+                ))}
+                {categorias.filter(c => c.tipo === tipoFiltro).length === 0 && (
+                  <span className="text-xs text-cinza-350">Nenhuma categoria desse tipo ainda.</span>
+                )}
+              </div>
+            )}
+
+            <div className="flex items-center gap-2 pt-1 border-t border-cinza-700">
+              <input value={novaCat.emoji} onChange={e => setNovaCat(n => ({ ...n, emoji: e.target.value }))}
+                placeholder="📌" maxLength={4}
+                className="w-12 bg-cinza-900 border border-cinza-700 rounded-xl px-2 py-1.5 text-sm text-center text-cinza-50 focus:outline-none focus:border-roxo-700 mt-3" />
+              <input value={novaCat.nome} onChange={e => setNovaCat(n => ({ ...n, nome: e.target.value }))}
+                placeholder="Nome da categoria" onKeyDown={e => e.key === "Enter" && criarCategoria()}
+                className="flex-1 min-w-0 bg-cinza-900 border border-cinza-700 rounded-xl px-3 py-1.5 text-sm text-cinza-50 focus:outline-none focus:border-roxo-700 mt-3" />
+              <select value={novaCat.tipo} onChange={e => setNovaCat(n => ({ ...n, tipo: e.target.value }))}
+                className="bg-cinza-900 border border-cinza-700 rounded-xl px-2 py-1.5 text-xs text-cinza-50 focus:outline-none focus:border-roxo-700 mt-3">
+                <option value="tarefa">Tarefa</option>
+                <option value="gasto">Gasto</option>
+                <option value="ganho">Ganho</option>
+              </select>
+              <button onClick={criarCategoria} disabled={criandoCategoria || !novaCat.nome.trim()}
+                className="shrink-0 px-3 py-1.5 bg-roxo-700 hover:bg-roxo-600 disabled:opacity-50 rounded-xl text-xs font-semibold text-white transition-colors mt-3">
+                {criandoCategoria ? "…" : "Adicionar"}
+              </button>
+            </div>
+
+            <div className="flex gap-2 pt-1 border-t border-cinza-700">
+              <button onClick={() => iniciarRevisao("tarefas")} disabled={revisando === "tarefas"}
+                className="flex-1 px-3 py-1.5 bg-cinza-800 border border-cinza-700 hover:border-roxo-700 disabled:opacity-50 rounded-xl text-xs font-semibold text-cinza-200 transition-colors mt-3">
+                {revisando === "tarefas" ? "Analisando…" : "🔍 Revisar categorias de tarefas"}
+              </button>
+              <button onClick={() => iniciarRevisao("gastos")} disabled={revisando === "gastos"}
+                className="flex-1 px-3 py-1.5 bg-cinza-800 border border-cinza-700 hover:border-roxo-700 disabled:opacity-50 rounded-xl text-xs font-semibold text-cinza-200 transition-colors mt-3">
+                {revisando === "gastos" ? "Analisando…" : `🔍 Revisar transações de ${mesAtual}`}
+              </button>
+            </div>
+
+            {revisao && (
+              <div className="pt-1 border-t border-cinza-700 flex flex-col gap-2 mt-1">
+                <p className="text-xs text-cinza-200">{revisao.sugestoes.length} sugestão(ões) — desmarque o que não quer aplicar:</p>
+                <div className="flex flex-col gap-1.5 max-h-64 overflow-y-auto">
+                  {revisao.sugestoes.map((s, i) => (
+                    <label key={i} className="flex items-center gap-2 text-xs bg-cinza-900 border border-cinza-700 rounded-xl px-3 py-2 cursor-pointer">
+                      <input type="checkbox" checked={revisao.selecionadas.has(i)} onChange={() => toggleSugestao(i)}
+                        className="accent-roxo-700 shrink-0" />
+                      <span className="flex-1 min-w-0">
+                        <span className="text-cinza-50 truncate block">{s.descricao}</span>
+                        <span className="text-cinza-350">{s.categoriaAtual} → <span className="text-roxo-400">{s.categoriaSugerida}</span></span>
+                      </span>
+                    </label>
+                  ))}
+                </div>
+                <div className="flex gap-2 justify-end">
+                  <button onClick={() => setRevisao(null)} className="px-4 py-1.5 rounded-xl text-xs font-semibold text-cinza-200 hover:text-white transition-colors">
+                    Cancelar
+                  </button>
+                  <button onClick={aplicarRevisao} disabled={aplicandoRevisao || revisao.selecionadas.size === 0}
+                    className="px-5 py-1.5 bg-roxo-700 hover:bg-roxo-600 disabled:opacity-50 rounded-xl text-xs font-semibold text-white transition-colors">
+                    {aplicandoRevisao ? "Aplicando…" : `Aplicar selecionadas (${revisao.selecionadas.size})`}
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
         </Secao>
 

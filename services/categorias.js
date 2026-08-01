@@ -4,9 +4,8 @@
 
 const { supabase } = require("./supabase");
 
-// Cache local com TTL de 5 minutos
-let cache = null;
-let cacheTimestamp = 0;
+// Cache local com TTL de 5 minutos, uma entrada por tipo
+const cache = {}; // { [tipo]: { dados, timestamp } }
 const CACHE_TTL = 5 * 60 * 1000;
 
 const CATEGORIAS_PADRAO = [
@@ -40,14 +39,16 @@ async function inicializarCategorias() {
   }
 }
 
-// Retorna objeto { Nome: Emoji } — usa cache
-async function getCategorias() {
+// Retorna objeto { Nome: Emoji } — usa cache. tipo: "tarefa" | "gasto" | "ganho"
+async function getCategorias(tipo = "tarefa") {
   const agora = Date.now();
-  if (cache && agora - cacheTimestamp < CACHE_TTL) return cache;
+  const entrada = cache[tipo];
+  if (entrada && agora - entrada.timestamp < CACHE_TTL) return entrada.dados;
 
   const { data, error } = await supabase
     .from("categorias")
     .select("nome, emoji")
+    .eq("tipo", tipo)
     .order("nome");
 
   if (error) throw error;
@@ -57,36 +58,44 @@ async function getCategorias() {
     categorias[row.nome] = row.emoji || "📌";
   }
 
-  cache = categorias;
-  cacheTimestamp = agora;
+  cache[tipo] = { dados: categorias, timestamp: agora };
   return categorias;
 }
 
 // Retorna lista de nomes para uso no prompt
-async function getListaCategorias() {
-  const categorias = await getCategorias();
+async function getListaCategorias(tipo = "tarefa") {
+  const categorias = await getCategorias(tipo);
   return Object.keys(categorias).join(", ");
 }
 
 // Adiciona nova categoria
-async function adicionarCategoria(nome, emoji) {
-  const categorias = await getCategorias();
-  if (categorias[nome]) return false; // já existe
+async function adicionarCategoria(nome, emoji, tipo = "tarefa") {
+  const categorias = await getCategorias(tipo);
+  if (categorias[nome]) return false; // já existe nesse tipo
 
   const { error } = await supabase
     .from("categorias")
-    .insert([{ nome, emoji: emoji || "📌" }]);
+    .insert([{ nome, emoji: emoji || "📌", tipo }]);
 
   if (error) throw error;
 
-  cache = null; // invalida cache
+  delete cache[tipo]; // invalida cache desse tipo
   return true;
 }
 
 // Retorna emoji de uma categoria
-async function getEmoji(categoria) {
-  const categorias = await getCategorias();
+async function getEmoji(categoria, tipo = "tarefa") {
+  const categorias = await getCategorias(tipo);
   return categorias[categoria] || "📌";
 }
 
-module.exports = { inicializarCategorias, getCategorias, getListaCategorias, adicionarCategoria, getEmoji };
+// Lista categorias com id/tipo (pra tela de Configurações) — sem cache, é uma tela de gestão
+async function listarTodas(tipo) {
+  let query = supabase.from("categorias").select("id, nome, emoji, tipo").order("tipo").order("nome");
+  if (tipo) query = query.eq("tipo", tipo);
+  const { data, error } = await query;
+  if (error) throw error;
+  return data || [];
+}
+
+module.exports = { inicializarCategorias, getCategorias, getListaCategorias, adicionarCategoria, getEmoji, listarTodas };
