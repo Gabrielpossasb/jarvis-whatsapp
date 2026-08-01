@@ -14,7 +14,7 @@ const {
   buscarTarefasConcluidasHoje,
   concluirTarefa, concluirTarefaDoDia, excluirTarefa,
   alterarCategoriaTarefa, alterarTarefa,
-} = require("../services/sheets");
+} = require("../services/tarefas");
 const { formatarData, formatarHora, agora, amanha } = require("../utils/date");
 
 // Serializa intervalo_dias no campo recorrente para evitar mudança de schema
@@ -312,10 +312,34 @@ function podeSerEventoFaculdade(texto) {
 
 async function detectarEventoFaculdade(texto) {
   if (!podeSerEventoFaculdade(texto)) return null;
-  return extrairEventoFaculdadeIA(texto);
+  const { supabase } = require("../services/supabase");
+  const { data } = await supabase.from("faculdade_aulas").select("disciplina").eq("ativo", true);
+  const disciplinas = [...new Set((data || []).map(a => a.disciplina))];
+  return extrairEventoFaculdadeIA(texto, disciplinas);
 }
 
-async function processarEventoFaculdade(evento) {
+function ddmm(dataISO) {
+  const [, m, d] = dataISO.split("-");
+  return `${d}/${m}`;
+}
+
+// Enumera datas ISO entre início e fim (inclusive) cujo dia da semana bate com diaSemana (0-6)
+function datasNoIntervalo(dataInicioISO, dataFimISO, diaSemana) {
+  const datas = [];
+  const [yi, mi, di] = dataInicioISO.split("-").map(Number);
+  const [yf, mf, df] = dataFimISO.split("-").map(Number);
+  const cursor = new Date(yi, mi - 1, di);
+  const fim = new Date(yf, mf - 1, df);
+  while (cursor <= fim) {
+    if (cursor.getDay() === diaSemana) {
+      datas.push(`${cursor.getFullYear()}-${String(cursor.getMonth() + 1).padStart(2, "0")}-${String(cursor.getDate()).padStart(2, "0")}`);
+    }
+    cursor.setDate(cursor.getDate() + 1);
+  }
+  return datas;
+}
+
+async function processarEventoFaculdadeUnico(evento) {
   const { supabase } = require("../services/supabase");
   const row = {
     tipo: evento.tipo,
@@ -329,23 +353,89 @@ async function processarEventoFaculdade(evento) {
   if (error) throw error;
 
   const TIPOS_EMOJI = { prova: "📝 Prova", atividade: "📋 Atividade", ead: "💻 EAD", aviso: "📢 Aviso" };
-  const [y, m, d] = evento.data.split("-");
-  return [
+  const texto = [
     `✅ *Evento registrado!*`, ``,
     `${TIPOS_EMOJI[evento.tipo] || "📅"}: *${evento.titulo}*`,
     evento.disciplina ? `📚 ${evento.disciplina}` : "",
-    `📅 ${d}/${m}/${y}${evento.hora ? ` às ${evento.hora.slice(0, 5)}` : ""}`,
+    `📅 ${ddmm(evento.data)}${evento.hora ? ` às ${evento.hora.slice(0, 5)}` : ""}`,
     ``, `_Abra a aba Faculdade para ver todos os eventos._`,
   ].filter(Boolean).join("\n");
+  return { texto };
+}
+
+// Aplica um evento (ex: EAD) a TODAS as ocorrências de uma disciplina num período — pede confirmação antes de gravar
+async function processarEventoFaculdadeIntervalo(evento, remoteJid, texto) {
+  if (!evento.disciplina) {
+    await salvarEstado(remoteJid, "esclarecimento", { tipoOrigem: "evento_faculdade", textoOriginal: texto, contextoParcial: null });
+    return { texto: `🤔 Entendi que é sobre várias aulas, mas não identifiquei de qual disciplina — pode especificar o nome?` };
+  }
+
+  const { supabase } = require("../services/supabase");
+  const { data: aulas } = await supabase
+    .from("faculdade_aulas")
+    .select("dia, inicio")
+    .eq("disciplina", evento.disciplina)
+    .eq("ativo", true);
+
+  if (!aulas || aulas.length === 0) {
+    return { texto: `⚠️ Não encontrei aula de *${evento.disciplina}* na sua grade — não consegui aplicar em lote.` };
+  }
+
+  const dataInicio = evento.data_inicio || new Date().toISOString().slice(0, 10);
+  const eventos = [];
+  for (const aula of aulas) {
+    for (const data of datasNoIntervalo(dataInicio, evento.data_fim, aula.dia)) {
+      eventos.push({
+        tipo: evento.tipo,
+        disciplina: evento.disciplina,
+        titulo: evento.titulo,
+        data,
+        hora: aula.inicio ? `${aula.inicio}:00` : null,
+        concluido: false,
+      });
+    }
+  }
+
+  if (eventos.length === 0) {
+    return { texto: `⚠️ Não há nenhuma aula de *${evento.disciplina}* entre ${ddmm(dataInicio)} e ${ddmm(evento.data_fim)}.` };
+  }
+
+  await salvarEstado(remoteJid, "evento_faculdade_lote", { eventos });
+
+  const TIPOS_EMOJI = { prova: "📝", atividade: "📋", ead: "💻", aviso: "📢" };
+  return {
+    texto: [
+      `${TIPOS_EMOJI[evento.tipo] || "📅"} Vou marcar *${eventos.length} aula(s)* de *${evento.disciplina}* como *${evento.tipo}* entre ${ddmm(dataInicio)} e ${ddmm(evento.data_fim)}:`,
+      ``,
+      eventos.map(e => ddmm(e.data)).join(", "),
+      ``,
+      `✅ _"sim"_ para confirmar`,
+      `❌ _"não"_ para cancelar`,
+    ].join("\n"),
+    opcoes: { botoes: ["✅ Sim", "❌ Não"] },
+  };
+}
+
+// Despacha o resultado de extrairEventoFaculdadeIA pelos 3 modos — usado tanto no fluxo normal quanto no reprocessamento após esclarecimento
+async function despacharEventoFaculdade(eventoFac, remoteJid, texto) {
+  if (eventoFac.modo === "nao_suportado") {
+    await salvarEstado(remoteJid, "esclarecimento", { tipoOrigem: "evento_faculdade", textoOriginal: texto, contextoParcial: null });
+    return { texto: `🤔 Entendi que é sobre faculdade, mas ${eventoFac.motivo}. Pode reformular?` };
+  } else if (eventoFac.modo === "intervalo") {
+    return processarEventoFaculdadeIntervalo(eventoFac, remoteJid, texto);
+  }
+  return processarEventoFaculdadeUnico(eventoFac);
 }
 
 // ════════════════════════════════════════════
 //  PROCESSAMENTO CENTRAL — usado pelo WhatsApp e pelo site
 // ════════════════════════════════════════════
 async function processarMensagem(texto, remoteJid, canal = "whatsapp") {
-  // Função de envio — no WhatsApp manda pelo Evolution, no site retorna texto
+  // Função de envio — no WhatsApp manda pelo Evolution, no site retorna texto + opções de resposta rápida
   const respostas = [];
-  const responder = async (msg) => {
+  let opcoesFinais = null;
+  const responder = async (msg, opcoes) => {
+    if (opcoes !== undefined) opcoesFinais = opcoes;
     if (canal === "web") {
       respostas.push(msg);
     } else {
@@ -362,7 +452,7 @@ async function processarMensagem(texto, remoteJid, canal = "whatsapp") {
       await deletarEstado(remoteJid, "extrato");
       const qtd = await adicionarLoteGastos(novas);
       await responder(`✅ *${qtd} gastos adicionados!*\n💸 Total: R$ ${novas.reduce((s,t) => s + t.valor, 0).toFixed(2)}`);
-      return respostas.join("\n\n");
+      return { texto: respostas.join("\n\n"), opcoes: opcoesFinais };
     }
 
     const matchNumeros = texto_lower.match(/(?:adicionar\s+)?([\d,\s]+)/);
@@ -376,14 +466,14 @@ async function processarMensagem(texto, remoteJid, canal = "whatsapp") {
         await deletarEstado(remoteJid, "extrato");
         const qtd = await adicionarLoteGastos(selecionadas);
         await responder(`✅ *${qtd} gastos adicionados!*\n💸 Total: R$ ${selecionadas.reduce((s,t) => s + t.valor, 0).toFixed(2)}`);
-        return respostas.join("\n\n");
+        return { texto: respostas.join("\n\n"), opcoes: opcoesFinais };
       }
     }
 
     if (["não", "nao", "n", "cancelar", "cancel"].some(p => texto_lower === p || texto_lower.includes(p))) {
       await deletarEstado(remoteJid, "extrato");
       await responder("❌ Importação cancelada.");
-      return respostas.join("\n\n");
+      return { texto: respostas.join("\n\n"), opcoes: opcoesFinais };
     }
 
     // Detecta pedido de mudança de mês ("adicionar no julho", "muda para junho", "é de março")
@@ -406,12 +496,12 @@ async function processarMensagem(texto, remoteJid, canal = "whatsapp") {
         ``,
         `✅ _"sim"_ para confirmar`,
         `❌ _"não"_ para cancelar`,
-      ].join("\n"));
-      return respostas.join("\n\n");
+      ].join("\n"), { botoes: ["✅ Sim", "❌ Não"], dica: "Ou digite os números (ex: 1,3,5)" });
+      return { texto: respostas.join("\n\n"), opcoes: opcoesFinais };
     }
 
-    await responder(`Não entendi. Responda:\n✅ _"sim"_ para adicionar todas as ${novas.length} transações\n✅ _"1,3,5"_ para escolher\n📅 _"julho"_ para mudar o mês\n❌ _"não"_ para cancelar`);
-    return respostas.join("\n\n");
+    await responder(`Não entendi. Responda:\n✅ _"sim"_ para adicionar todas as ${novas.length} transações\n✅ _"1,3,5"_ para escolher\n📅 _"julho"_ para mudar o mês\n❌ _"não"_ para cancelar`, { botoes: ["✅ Sim", "❌ Não"], dica: "Ou digite os números (ex: 1,3,5)" });
+    return { texto: respostas.join("\n\n"), opcoes: opcoesFinais };
   }
   
   // ── Verifica se há tarefa pendente de confirmação ─────────────
@@ -427,13 +517,78 @@ async function processarMensagem(texto, remoteJid, canal = "whatsapp") {
       await deletarEstado(remoteJid, "tarefa");
       await adicionarTarefa(dadosPendentes.descricao, dataPendente, dadosPendentes.hora || "", resolverRecorrente(dadosPendentes), dadosPendentes.categoria || "Outros", dadosPendentes.dias_lembrete || "", dadosPendentes.hora_lembrete || "");
       await responder(await respostaTarefa(dadosPendentes, dataPendente));
-      return respostas.join("\n\n");
+      return { texto: respostas.join("\n\n"), opcoes: opcoesFinais };
     } else if (cancelou) {
       await deletarEstado(remoteJid, "tarefa");
       await responder(`❌ Cancelado! Tarefa não adicionada.`);
-      return respostas.join("\n\n");
+      return { texto: respostas.join("\n\n"), opcoes: opcoesFinais };
     }
     await deletarEstado(remoteJid, "tarefa");
+  }
+
+  // ── Verifica lote de eventos de faculdade pendente de confirmação ──
+  const estadoEventoLote = await obterEstado(remoteJid, "evento_faculdade_lote");
+  if (estadoEventoLote) {
+    const textoBusca = texto.toLowerCase().trim();
+    const { eventos } = estadoEventoLote;
+
+    const confirmou = ["sim", "s", "pode", "confirmar", "yes"].some(p => textoBusca.includes(p));
+    const cancelou  = ["não", "nao", "n", "cancelar", "cancel", "no"].some(p => textoBusca.includes(p));
+
+    if (confirmou) {
+      await deletarEstado(remoteJid, "evento_faculdade_lote");
+      const { supabase } = require("../services/supabase");
+      const { error } = await supabase.from("faculdade_eventos").insert(eventos);
+      if (error) throw error;
+      await responder(`✅ *${eventos.length} evento(s) registrado(s)!*\n\n_Abra a aba Faculdade para ver todos._`);
+      return { texto: respostas.join("\n\n"), opcoes: opcoesFinais };
+    } else if (cancelou) {
+      await deletarEstado(remoteJid, "evento_faculdade_lote");
+      await responder(`❌ Cancelado! Nenhum evento adicionado.`);
+      return { texto: respostas.join("\n\n"), opcoes: opcoesFinais };
+    }
+    await deletarEstado(remoteJid, "evento_faculdade_lote");
+  }
+
+  // ── Verifica esclarecimento pendente (bot fez uma pergunta e espera resposta) ──
+  const estadoEsclarecimento = await obterEstado(remoteJid, "esclarecimento");
+  if (estadoEsclarecimento) {
+    await deletarEstado(remoteJid, "esclarecimento");
+    const { tipoOrigem, textoOriginal, contextoParcial } = estadoEsclarecimento;
+
+    if (tipoOrigem === "evento_faculdade") {
+      const textoCombinado = `${textoOriginal} (${texto})`;
+      const eventoFac2 = await detectarEventoFaculdade(textoCombinado);
+      const falhouDeNovo = !eventoFac2 || eventoFac2.modo === "nao_suportado" || (eventoFac2.modo === "intervalo" && !eventoFac2.disciplina);
+      if (falhouDeNovo) {
+        await responder("🤔 Ainda não consegui entender — manda a mensagem completa de novo?");
+      } else {
+        const r = await despacharEventoFaculdade(eventoFac2, remoteJid, textoCombinado);
+        await responder(r.texto, r.opcoes);
+      }
+      return { texto: respostas.join("\n\n"), opcoes: opcoesFinais };
+    }
+
+    if (tipoOrigem === "dados_gerais") {
+      const textoCombinado = `${textoOriginal} (${texto})`;
+      const dados2 = await extrairDados(textoCombinado);
+      if (dados2.classificacao === "nao_entendi") {
+        await responder("🤔 Ainda não consegui entender — manda a mensagem completa de novo?");
+      } else {
+        await processarClassificacao(dados2, textoCombinado, remoteJid, responder);
+      }
+      return { texto: respostas.join("\n\n"), opcoes: opcoesFinais };
+    }
+
+    if (tipoOrigem === "tarefa_nao_encontrada") {
+      const t = await encontrarTarefa(texto);
+      if (!t) {
+        await responder(`⚠️ Ainda não encontrei _"${texto}"_ — vamos começar de novo?`);
+      } else {
+        await executarAcaoTarefa(contextoParcial.acao, t, contextoParcial.extra, responder);
+      }
+      return { texto: respostas.join("\n\n"), opcoes: opcoesFinais };
+    }
   }
 
   // ── Detecta contagem de estoque (formato "Produto — N kg/un") ──
@@ -441,18 +596,64 @@ async function processarMensagem(texto, remoteJid, canal = "whatsapp") {
   if (itensContagem.length >= 2) {
     const resultado = await processarContagemEstoque(itensContagem);
     await responder(resultado);
-    return respostas.join("\n\n");
+    return { texto: respostas.join("\n\n"), opcoes: opcoesFinais };
   }
 
   // ── Detecta evento de faculdade (prova/atividade/EAD + data) ───
   const eventoFac = await detectarEventoFaculdade(texto);
   if (eventoFac) {
-    const resultado = await processarEventoFaculdade(eventoFac);
-    await responder(resultado);
-    return respostas.join("\n\n");
+    const r = await despacharEventoFaculdade(eventoFac, remoteJid, texto);
+    await responder(r.texto, r.opcoes);
+    return { texto: respostas.join("\n\n"), opcoes: opcoesFinais };
   }
 
   const dados = await extrairDados(texto);
+  await processarClassificacao(dados, texto, remoteJid, responder);
+
+  return { texto: respostas.join("\n\n"), opcoes: opcoesFinais };
+}
+
+// ── Executa a ação (concluir/excluir/mudar_categoria/alterar_tarefa) já com a tarefa resolvida ──
+async function executarAcaoTarefa(acao, t, extra, responder) {
+  if (acao === "concluir") {
+    const ehRecorrente = t.recorrente && t.recorrente !== "Não";
+    if (ehRecorrente) await concluirTarefaDoDia(t.linha); else await concluirTarefa(t.linha);
+    const e = await getEmoji(t.categoria);
+    await responder(`✅ *Concluída!*\n\n${e} ~~${t.descricao}~~\n\n💪 _Boa, Gabriel!_`);
+
+  } else if (acao === "excluir") {
+    await excluirTarefa(t.linha);
+    await responder(`🗑️ *${t.descricao}* excluída!`);
+
+  } else if (acao === "mudar_categoria") {
+    const anterior = t.categoria;
+    await alterarCategoriaTarefa(t.linha, extra.novaCategoria);
+    const eNovo = await getEmoji(extra.novaCategoria);
+    await responder(`✅ *Categoria alterada!*\n\n📋 *${t.descricao}*\n🔄 ${anterior} → ${eNovo} ${extra.novaCategoria}`);
+
+  } else if (acao === "alterar_tarefa") {
+    const alteracoes = extra.alteracoes || {};
+    if (Object.keys(alteracoes).length === 0) {
+      await responder(`⚠️ Não entendi o que alterar. Tente: _"muda a data de X para Y"_`);
+      return;
+    }
+    await alterarTarefa(t.linha, alteracoes);
+    const e = await getEmoji(t.categoria);
+    const mudancas = [];
+    if (alteracoes.data) mudancas.push(`📅 Data: ${alteracoes.data === 'backlog' ? 'sem data definida' : alteracoes.data}`);
+    if (alteracoes.hora) mudancas.push(`⏰ Hora: ${alteracoes.hora}`);
+    if (alteracoes.dias_lembrete) mudancas.push(`📆 Dias lembrete: ${alteracoes.dias_lembrete}`);
+    if (alteracoes.hora_lembrete) mudancas.push(`🔔 Hora lembrete: ${alteracoes.hora_lembrete}`);
+    await responder([
+      `✅ *Tarefa atualizada!*`, ``,
+      `${e} *${t.descricao}*`,
+      ...mudancas,
+    ].join("\n"));
+  }
+}
+
+// ── Despacha dados.classificacao (saída de extrairDados) ──
+async function processarClassificacao(dados, texto, remoteJid, responder) {
   const dataRegistro = dados.data || formatarData();
 
   // ── GASTO ──────────────────────────────────────────────────────
@@ -481,8 +682,8 @@ async function processarMensagem(texto, remoteJid, canal = "whatsapp") {
         ``, `Quer adicionar mesmo assim?`,
         `✅ _"sim"_ para confirmar`,
         `❌ _"não"_ para cancelar`,
-      ].join("\n"));
-      return respostas.join("\n\n");
+      ].join("\n"), { botoes: ["✅ Sim", "❌ Não"] });
+      return;
     }
 
     await adicionarTarefa(dados.descricao, dataRegistro, dados.hora || "", resolverRecorrente(dados), dados.categoria || "Outros", dados.dias_lembrete || "", dados.hora_lembrete || "");
@@ -496,38 +697,30 @@ async function processarMensagem(texto, remoteJid, canal = "whatsapp") {
   } else if (dados.classificacao === "concluir") {
     const t = await encontrarTarefa(dados.descricao);
     if (t) {
-      const ehRecorrente = t.recorrente && t.recorrente !== "Não";
-      if (ehRecorrente) {
-        await concluirTarefaDoDia(t.linha);
-      } else {
-        await concluirTarefa(t.linha);
-      }
-      const e = await getEmoji(t.categoria);
-      await responder(`✅ *Concluída!*\n\n${e} ~~${t.descricao}~~\n\n💪 _Boa, Gabriel!_`);
+      await executarAcaoTarefa("concluir", t, null, responder);
     } else {
-      await responder(`⚠️ Não encontrei _"${dados.descricao}"_ em aberto.`);
+      await salvarEstado(remoteJid, "esclarecimento", { tipoOrigem: "tarefa_nao_encontrada", textoOriginal: texto, contextoParcial: { acao: "concluir", extra: null } });
+      await responder(`⚠️ Não encontrei _"${dados.descricao}"_ em aberto. Responda só com o nome certo da tarefa.`);
     }
 
   // ── EXCLUIR ────────────────────────────────────────────────────
   } else if (dados.classificacao === "excluir") {
     const t = await encontrarTarefa(dados.descricao);
     if (t) {
-      await excluirTarefa(t.linha);
-      await responder(`🗑️ *${t.descricao}* excluída!`);
+      await executarAcaoTarefa("excluir", t, null, responder);
     } else {
-      await responder(`⚠️ Não encontrei _"${dados.descricao}"_.`);
+      await salvarEstado(remoteJid, "esclarecimento", { tipoOrigem: "tarefa_nao_encontrada", textoOriginal: texto, contextoParcial: { acao: "excluir", extra: null } });
+      await responder(`⚠️ Não encontrei _"${dados.descricao}"_. Responda só com o nome certo da tarefa.`);
     }
 
   // ── MUDAR CATEGORIA ────────────────────────────────────────────
   } else if (dados.classificacao === "mudar_categoria") {
     const t = await encontrarTarefa(dados.descricao);
     if (t) {
-      const anterior = t.categoria;
-      await alterarCategoriaTarefa(t.linha, dados.nova_categoria);
-      const eNovo = await getEmoji(dados.nova_categoria);
-      await responder(`✅ *Categoria alterada!*\n\n📋 *${t.descricao}*\n🔄 ${anterior} → ${eNovo} ${dados.nova_categoria}`);
+      await executarAcaoTarefa("mudar_categoria", t, { novaCategoria: dados.nova_categoria }, responder);
     } else {
-      await responder(`⚠️ Não encontrei _"${dados.descricao}"_.`);
+      await salvarEstado(remoteJid, "esclarecimento", { tipoOrigem: "tarefa_nao_encontrada", textoOriginal: texto, contextoParcial: { acao: "mudar_categoria", extra: { novaCategoria: dados.nova_categoria } } });
+      await responder(`⚠️ Não encontrei _"${dados.descricao}"_. Responda só com o nome certo da tarefa.`);
     }
 
   // ── ADICIONAR CATEGORIA ────────────────────────────────────────
@@ -549,7 +742,7 @@ async function processarMensagem(texto, remoteJid, canal = "whatsapp") {
 
     if (pendentes.length === 0) {
       await responder("Nenhuma tarefa pendente para revisar! ✨");
-      return respostas.join("\n\n");
+      return;
     }
 
     const listaCats = await getListaCategorias();
@@ -557,7 +750,7 @@ async function processarMensagem(texto, remoteJid, canal = "whatsapp") {
 
     if (sugestoes.length === 0) {
       await responder("✅ Todas as categorias estão corretas! Nenhuma sugestão.");
-      return respostas.join("\n\n");
+      return;
     }
 
     const sugestoesComLinha = sugestoes.map(s => {
@@ -576,14 +769,14 @@ async function processarMensagem(texto, remoteJid, canal = "whatsapp") {
       msg += `   _${s.motivo}_\n\n`;
     }
     msg += `Responda:\n✅ _"aprovar tudo"_ para aplicar todas\n✅ _"aprovar 1,3"_ para escolher\n❌ _"rejeitar tudo"_ para cancelar`;
-    await responder(msg);
+    await responder(msg, { botoes: ["✅ Aprovar tudo", "❌ Rejeitar tudo"], dica: "Ou digite os números que quer aprovar (ex: 1,3)" });
 
   // ── APROVAR REVISÃO ────────────────────────────────────────────
   } else if (dados.classificacao === "aprovar_revisao") {
     const sugestoes = await obterEstado(remoteJid, "review");
     if (!sugestoes || sugestoes.length === 0) {
       await responder("⚠️ Nenhuma revisão pendente. Peça _\"revisa as categorias\"_ primeiro!");
-      return respostas.join("\n\n");
+      return;
     }
 
     const aprovados = dados.aprovados || "nenhum";
@@ -599,7 +792,7 @@ async function processarMensagem(texto, remoteJid, canal = "whatsapp") {
     if (paraAplicar.length === 0) {
       await deletarEstado(remoteJid, "review");
       await responder("❌ Revisão cancelada. Nenhuma alteração feita.");
-      return respostas.join("\n\n");
+      return;
     }
 
     for (const s of paraAplicar) {
@@ -613,44 +806,25 @@ async function processarMensagem(texto, remoteJid, canal = "whatsapp") {
   } else if (dados.classificacao === "alterar_tarefa") {
     const t = await encontrarTarefa(dados.descricao);
     if (!t) {
-      await responder(`⚠️ Não encontrei _"${dados.descricao}"_.`);
-      return respostas.join("\n\n");
+      await salvarEstado(remoteJid, "esclarecimento", { tipoOrigem: "tarefa_nao_encontrada", textoOriginal: texto, contextoParcial: { acao: "alterar_tarefa", extra: { alteracoes: dados.alteracoes || {} } } });
+      await responder(`⚠️ Não encontrei _"${dados.descricao}"_. Responda só com o nome certo da tarefa.`);
+      return;
     }
 
-    const alteracoes = dados.alteracoes || {};
-    if (Object.keys(alteracoes).length === 0) {
-      await responder(`⚠️ Não entendi o que alterar. Tente: _"muda a data de X para Y"_`);
-      return respostas.join("\n\n");
-    }
+    await executarAcaoTarefa("alterar_tarefa", t, { alteracoes: dados.alteracoes || {} }, responder);
 
-    await alterarTarefa(t.linha, alteracoes);
-
-    const e = await getEmoji(t.categoria);
-    const mudancas = [];
-    if (alteracoes.data) mudancas.push(`📅 Data: ${alteracoes.data === 'backlog' ? 'sem data definida' : alteracoes.data}`);
-    if (alteracoes.hora) mudancas.push(`⏰ Hora: ${alteracoes.hora}`);
-    if (alteracoes.dias_lembrete) mudancas.push(`📆 Dias lembrete: ${alteracoes.dias_lembrete}`);
-    if (alteracoes.hora_lembrete) mudancas.push(`🔔 Hora lembrete: ${alteracoes.hora_lembrete}`);
-
-    await responder([
-      `✅ *Tarefa atualizada!*`, ``,
-      `${e} *${t.descricao}*`,
-      ...mudancas,
-      ``, `🤖 _${dados.entendimento}_`,
-    ].join("\n"));
-
-    } else if (dados.classificacao === "extrato_texto") {
+  } else if (dados.classificacao === "extrato_texto") {
     await responder("📊 Analisando extrato...");
     try {
       const transacoes = await extrairExtratoTexto(texto);
       if (!transacoes || transacoes.length === 0) {
         await responder("⚠️ Não encontrei transações no texto enviado.");
-        return respostas.join("\n\n");
+        return;
       }
       const { novas, duplicatas } = await verificarDuplicatasExtrato(transacoes);
       if (novas.length === 0) {
         await responder(`⚠️ Todas as ${transacoes.length} transações já existem nos seus gastos!`);
-        return respostas.join("\n\n");
+        return;
       }
       await salvarEstado(remoteJid, "extrato", { novas, duplicatas });
       let msg = `📊 *Extrato analisado!*\nEncontrei *${transacoes.length} transações*.\n\n`;
@@ -663,16 +837,15 @@ async function processarMensagem(texto, remoteJid, canal = "whatsapp") {
         msg += `_Use o número para incluir mesmo assim._\n`;
       }
       msg += `\n\nO que deseja?\n✅ _"sim"_ para adicionar todas as novas\n✅ _"1,3,5"_ para escolher (inclua o nº da duplicata se quiser)\n❌ _"não"_ para cancelar`;
-      await responder(msg);
+      await responder(msg, { botoes: ["✅ Sim", "❌ Não"], dica: "Ou digite os números (ex: 1,3,5)" });
     } catch (err) {
       await responder(`❌ Erro ao analisar extrato: ${err.message}`);
     }
 
   } else {
-    await responder(`🤖 *JARVIS:* ${dados.entendimento}`);
+    await salvarEstado(remoteJid, "esclarecimento", { tipoOrigem: "dados_gerais", textoOriginal: texto, contextoParcial: null });
+    await responder(`🤔 *Não tive certeza:* ${dados.entendimento}`);
   }
-
-  return respostas.join("\n\n");
 }
 
 // ════════════════════════════════════════════
@@ -744,9 +917,9 @@ async function handleWebChat(req, res) {
 
     // Usa o número autorizado como ID de sessão para manter estado (pendingTaskAdd etc.)
     const sessionId = CONFIG.NUMERO_AUTORIZADO;
-    const resposta = await processarMensagem(texto, sessionId, "web");
+    const resultado = await processarMensagem(texto, sessionId, "web");
 
-    res.json({ texto: resposta });
+    res.json(resultado);
   } catch (err) {
     console.error("Erro web chat:", err);
     res.status(500).json({ erro: err.message });
@@ -769,8 +942,8 @@ async function handleMensagemArquivo(req, res) {
 
     const mensagem = [texto, conteudo].filter(Boolean).join("\n");
     const sessionId = CONFIG.NUMERO_AUTORIZADO;
-    const resposta = await processarMensagem(mensagem, sessionId, "web");
-    res.json({ texto: resposta });
+    const resultado = await processarMensagem(mensagem, sessionId, "web");
+    res.json(resultado);
   } catch (err) {
     console.error("Erro mensagem arquivo:", err);
     res.status(500).json({ erro: err.message });

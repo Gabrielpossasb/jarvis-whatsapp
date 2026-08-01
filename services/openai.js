@@ -52,6 +52,7 @@ CLASSIFICAÇÕES:
 - "aprovar_revisao": aprova sugestões de revisão (ex: "aprovar tudo", "aprovar 1,3", "rejeitar 2")
 - "alterar_tarefa": mudar data/hora/lembrete de uma tarefa existente (ex: "muda a data de X para Y", "muda o lembrete de X para toda sexta às 10h", "quero o horário de X às Y", "X às Y horas")
 - "extrato_texto": quando o usuário cola um texto de extrato bancário com múltiplas transações (ex: lista de gastos, histórico de pagamentos)
+- "nao_entendi": a mensagem não se encaixa com confiança em nenhuma classificação acima, está incompleta ou ambígua — NÃO force uma classificação só para responder algo; explique em "entendimento" o que faltou entender
 CATEGORIAS DISPONÍVEIS: ${listaCategorias}
 Identifique a categoria automaticamente pelo contexto da tarefa ou gasto.
 
@@ -129,10 +130,11 @@ Mensagem: "${texto}"`;
     model: "gpt-4o-mini",
     messages: [{ role: "user", content: prompt }],
     temperature: 0.1,
+    response_format: { type: "json_object" },
   });
 
   const content = response.choices[0].message.content.trim();
-  return JSON.parse(content.replace(/```json|```/g, "").trim());
+  return JSON.parse(content);
 }
 
 // Revisão de categorias — GPT analisa todas as tarefas e sugere melhorias
@@ -422,33 +424,39 @@ ${texto}`;
   return parsed.transacoes || [];
 }
 
-async function extrairEventoFaculdadeIA(texto) {
+async function extrairEventoFaculdadeIA(texto, disciplinas = []) {
   const hoje = new Date().toISOString().slice(0, 10);
   const diaSemana = ["domingo", "segunda-feira", "terça-feira", "quarta-feira", "quinta-feira", "sexta-feira", "sábado"][new Date().getDay()];
-  const prompt = `Você é um extrator de eventos acadêmicos. Analise a mensagem e determine se ela menciona um evento de faculdade para registrar.
+  const listaDisciplinas = disciplinas.length > 0 ? disciplinas.map(d => `- ${d}`).join("\n") : "(nenhuma disciplina cadastrada na grade)";
+  const prompt = `Você é um extrator de eventos acadêmicos. Analise a mensagem e determine se ela menciona algo de faculdade para registrar.
 
 Hoje é ${hoje} (${diaSemana}).
 
-Disciplinas disponíveis (use o nome exato):
-- Banco de Dados
-- Engenharia de Software
-- Ciências do Ambiente
-- Introdução a Sistemas Operacionais
-- Fundamentos Matemáticos p/ Computação
-- Análise e Projeto de Software
-- Computação e Sociedade
+Disciplinas cadastradas na grade (use o nome exato quando a mensagem se referir a uma delas):
+${listaDisciplinas}
 
-Se há evento para registrar, retorne JSON:
-{"tipo":"prova"|"atividade"|"ead"|"aviso","disciplina":"nome exato ou null","titulo":"título descritivo","data":"YYYY-MM-DD","hora":"HH:MM:SS ou null"}
+Se a mensagem não é sobre faculdade → retorne a palavra null (sem JSON).
+
+Se é sobre faculdade, retorne um JSON com um destes 3 modos:
+
+1) "unico" — um evento pontual em uma única data:
+{"modo":"unico","tipo":"prova"|"atividade"|"ead"|"aviso","disciplina":"nome exato ou null","titulo":"título descritivo","data":"YYYY-MM-DD","hora":"HH:MM:SS ou null"}
+
+2) "intervalo" — o pedido se aplica a TODAS as ocorrências de uma disciplina dentro de um período (ex: "todas as aulas de X até o dia Y serão EAD", "essa semana toda de X é EAD"):
+{"modo":"intervalo","tipo":"prova"|"atividade"|"ead"|"aviso","disciplina":"nome exato","titulo":"título descritivo","data_inicio":"YYYY-MM-DD (hoje se não especificado)","data_fim":"YYYY-MM-DD"}
+
+3) "nao_suportado" — é sobre faculdade mas você não tem confiança de como registrar (disciplina não identificável, pedido ambíguo, ou não é nem evento único nem intervalo):
+{"modo":"nao_suportado","motivo":"frase curta explicando o que faltou entender"}
 
 Regras:
 - "trabalho" → tipo "atividade"
 - Datas relativas ("semana que vem na quinta", "próxima segunda", "daqui 2 semanas") → converter para data absoluta
-- EAD = a aula será online naquele dia → tipo "ead"
-- Se não há data clara ou a mensagem não é sobre faculdade → retorne null
+- EAD = a(s) aula(s) será(ão) online → tipo "ead"
+- NUNCA force o modo "unico" como chute quando o pedido na verdade é sobre um intervalo/várias aulas — use "intervalo" nesse caso
+- NUNCA invente uma disciplina que não está na lista cadastrada — se não conseguir identificar com certeza, use "nao_suportado"
 - Título deve ser descritivo, ex: "Prova 1 — Banco de Dados", "Entrega do Trabalho", "Aula Online"
 
-Responda APENAS com o JSON ou a palavra null, sem explicações.
+Responda APENAS com o JSON ({"resultado": null} se não for sobre faculdade, ou um dos 3 formatos acima dentro de {"resultado": ...}).
 
 Mensagem: "${texto.replace(/"/g, "'")}"`;
 
@@ -456,15 +464,19 @@ Mensagem: "${texto.replace(/"/g, "'")}"`;
   const response = await openai.chat.completions.create({
     model: "gpt-4o-mini",
     messages: [{ role: "user", content: prompt }],
-    max_tokens: 200,
+    max_tokens: 300,
     temperature: 0,
+    response_format: { type: "json_object" },
   });
 
   const content = response.choices[0].message.content.trim();
-  if (content === "null" || !content.startsWith("{")) return null;
   try {
-    const ev = JSON.parse(content);
-    if (!ev.tipo || !ev.data || !ev.titulo) return null;
+    const parsed = JSON.parse(content);
+    const ev = parsed.resultado;
+    if (!ev || !ev.modo) return null;
+    if (ev.modo === "unico" && (!ev.tipo || !ev.data || !ev.titulo)) return null;
+    if (ev.modo === "intervalo" && (!ev.tipo || !ev.disciplina || !ev.data_fim)) return null;
+    if (ev.modo === "nao_suportado" && !ev.motivo) return null;
     return ev;
   } catch {
     return null;
