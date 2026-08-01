@@ -168,6 +168,38 @@ Se todas estiverem corretas, retorne array vazio: []`;
   return JSON.parse(content.replace(/```json|```/g, "").trim());
 }
 
+// Revisão de categorias de gastos/ganhos — mesmo espírito de revisarCategorias, mas pra transações
+async function revisarCategoriasGastos(gastos, listaCategoriasGasto, listaCategoriasGanho) {
+  if (gastos.length === 0) return [];
+
+  const lista = gastos.map((g, i) =>
+    `${i + 1}. "${g.descricao}" (${g.natureza}) → atual: ${g.categoria}`
+  ).join("\n");
+
+  const prompt = `Você é um assistente organizador financeiro. Analise essas transações e verifique se as categorias fazem sentido.
+Categorias de gasto disponíveis: ${listaCategoriasGasto}
+Categorias de ganho disponíveis: ${listaCategoriasGanho}
+
+Transações:
+${lista}
+
+Para cada transação que tiver uma categoria inadequada (errada pro tipo de despesa/ganho, ou claramente não combina com a descrição), sugira uma melhor — sempre da lista certa conforme a natureza (gasto usa categorias de gasto, ganho usa categorias de ganho).
+Responda APENAS com JSON (array), sem markdown:
+[
+  { "numero": 1, "descricao": "nome", "categoriaAtual": "X", "categoriaSugerida": "Y", "motivo": "breve motivo" }
+]
+Se todas estiverem corretas, retorne array vazio: []`;
+
+  const response = await openai.chat.completions.create({
+    model: "gpt-4o-mini",
+    messages: [{ role: "user", content: prompt }],
+    temperature: 0.1,
+  });
+
+  const content = response.choices[0].message.content.trim();
+  return JSON.parse(content.replace(/```json|```/g, "").trim());
+}
+
 async function transcreverAudio(base64, mimetype) {
   const buffer = Buffer.from(base64, "base64");
   const formData = new FormData();
@@ -437,7 +469,7 @@ ${listaDisciplinas}
 
 Se a mensagem não é sobre faculdade → retorne a palavra null (sem JSON).
 
-Se é sobre faculdade, retorne um JSON com um destes 3 modos:
+Se é sobre faculdade, retorne um JSON com um destes 5 modos:
 
 1) "unico" — um evento pontual em uma única data:
 {"modo":"unico","tipo":"prova"|"atividade"|"ead"|"aviso","disciplina":"nome exato ou null","titulo":"título descritivo","data":"YYYY-MM-DD","hora":"HH:MM:SS ou null"}
@@ -445,7 +477,13 @@ Se é sobre faculdade, retorne um JSON com um destes 3 modos:
 2) "intervalo" — o pedido se aplica a TODAS as ocorrências de uma disciplina dentro de um período (ex: "todas as aulas de X até o dia Y serão EAD", "essa semana toda de X é EAD"):
 {"modo":"intervalo","tipo":"prova"|"atividade"|"ead"|"aviso","disciplina":"nome exato","titulo":"título descritivo","data_inicio":"YYYY-MM-DD (hoje se não especificado)","data_fim":"YYYY-MM-DD"}
 
-3) "nao_suportado" — é sobre faculdade mas você não tem confiança de como registrar (disciplina não identificável, pedido ambíguo, ou não é nem evento único nem intervalo):
+3) "nota" — o usuário está informando o resultado/nota que tirou numa prova/atividade já existente (ex: "tirei 8.5 na prova de bd", "fiz 7 no trabalho de cálculo"):
+{"modo":"nota","disciplina":"nome exato","evento_referencia":"trecho que identifica qual prova/atividade é (título ou tipo mencionado)","nota":8.5}
+
+4) "formula" — o usuário está informando/definindo como a média final da disciplina é calculada (ex: "a média de cálculo é a soma das provas dividido por 2, mínimo 6 pra passar direto senão soma o exame final"):
+{"modo":"formula","disciplina":"nome exato","formula_media":"a fórmula descrita, o mais fiel possível ao que foi dito"}
+
+5) "nao_suportado" — é sobre faculdade mas você não tem confiança de como registrar (disciplina não identificável, pedido ambíguo, ou não se encaixa em nenhum modo acima):
 {"modo":"nao_suportado","motivo":"frase curta explicando o que faltou entender"}
 
 Regras:
@@ -456,7 +494,7 @@ Regras:
 - NUNCA invente uma disciplina que não está na lista cadastrada — se não conseguir identificar com certeza, use "nao_suportado"
 - Título deve ser descritivo, ex: "Prova 1 — Banco de Dados", "Entrega do Trabalho", "Aula Online"
 
-Responda APENAS com o JSON ({"resultado": null} se não for sobre faculdade, ou um dos 3 formatos acima dentro de {"resultado": ...}).
+Responda APENAS com o JSON ({"resultado": null} se não for sobre faculdade, ou um dos formatos acima dentro de {"resultado": ...}).
 
 Mensagem: "${texto.replace(/"/g, "'")}"`;
 
@@ -476,6 +514,8 @@ Mensagem: "${texto.replace(/"/g, "'")}"`;
     if (!ev || !ev.modo) return null;
     if (ev.modo === "unico" && (!ev.tipo || !ev.data || !ev.titulo)) return null;
     if (ev.modo === "intervalo" && (!ev.tipo || !ev.disciplina || !ev.data_fim)) return null;
+    if (ev.modo === "nota" && (!ev.disciplina || !ev.evento_referencia || ev.nota === undefined || ev.nota === null)) return null;
+    if (ev.modo === "formula" && (!ev.disciplina || !ev.formula_media)) return null;
     if (ev.modo === "nao_suportado" && !ev.motivo) return null;
     return ev;
   } catch {
@@ -483,4 +523,82 @@ Mensagem: "${texto.replace(/"/g, "'")}"`;
   }
 }
 
-module.exports = { extrairDados, revisarCategorias, transcreverAudio, analisarImagem, analisarPDF, extrairExtrato, extrairExtratoTexto, extrairEventoFaculdadeIA };
+// Extrai múltiplos itens de uma vez (foto/PDF de plano de ensino): eventos (provas/atividades) + fórmula da disciplina
+async function extrairPlanoFaculdadeIA(base64, mimetype, disciplinas = []) {
+  const hoje = new Date().toISOString().slice(0, 10);
+  const listaDisciplinas = disciplinas.length > 0 ? disciplinas.map(d => `- ${d}`).join("\n") : "(nenhuma disciplina cadastrada na grade)";
+  const prompt = `Você é um extrator de informações acadêmicas. Analise essa imagem/documento (pode ser um plano de ensino, cronograma, print de aviso, etc) e extraia TODOS os itens relevantes de uma vez: datas de provas/atividades/trabalhos, e a fórmula de cálculo da média, se estiverem presentes.
+
+Hoje é ${hoje}.
+
+Disciplinas cadastradas na grade (use o nome exato quando identificar uma delas; se não conseguir identificar com certeza, use null nesse item):
+${listaDisciplinas}
+
+Responda APENAS com JSON válido, sem markdown:
+{
+  "eventos": [
+    {"tipo":"prova"|"atividade"|"ead"|"aviso","disciplina":"nome exato ou null","titulo":"título descritivo","data":"YYYY-MM-DD","hora":"HH:MM:SS ou null"}
+  ],
+  "formula": {"disciplina":"nome exato","formula_media":"a fórmula descrita"} ou null
+}
+Regras:
+- "trabalho" e "lista de exercícios" → tipo "atividade"
+- Se não encontrar nenhum evento nem fórmula, retorne {"eventos":[],"formula":null}
+- NUNCA invente datas ou disciplinas que não estão claramente no documento`;
+
+  const isImage = mimetype && (mimetype.includes("image") || mimetype.includes("jpeg") || mimetype.includes("png") || mimetype.includes("webp"));
+  const content = isImage
+    ? [{ type: "image_url", image_url: { url: `data:${mimetype};base64,${base64}` } }, { type: "text", text: prompt }]
+    : [{ type: "text", text: prompt }, { type: "file", file: { filename: "documento.pdf", file_data: `data:application/pdf;base64,${base64}` } }];
+
+  const openai = new OpenAI({ apiKey: CONFIG.OPENAI_API_KEY });
+  const response = await openai.chat.completions.create({
+    model: "gpt-4o",
+    messages: [{ role: "user", content }],
+    max_tokens: 2000,
+    response_format: { type: "json_object" },
+  });
+
+  try {
+    const parsed = JSON.parse(response.choices[0].message.content.trim());
+    return { eventos: parsed.eventos || [], formula: parsed.formula || null };
+  } catch {
+    return { eventos: [], formula: null };
+  }
+}
+
+// Calcula a média/resumo de uma disciplina a partir da fórmula em texto livre + notas já lançadas
+async function calcularMediaFaculdadeIA(disciplina, formulaMedia, eventos) {
+  const lista = eventos.map(e =>
+    `- ${e.tipo} "${e.titulo}": ${e.nota !== null && e.nota !== undefined ? `nota ${e.nota}` : "ainda sem nota"} (peso ${e.peso ?? 1})`
+  ).join("\n");
+
+  const prompt = `Você é um assistente que calcula médias acadêmicas. A nota de corte para passar é 6.0.
+
+Disciplina: ${disciplina}
+Fórmula de cálculo da média: ${formulaMedia}
+
+Avaliações:
+${lista}
+
+Calcule a média atual (considerando só o que já tem nota) e explique, em um resumo curto e direto em português, o que falta pro aluno pra ser aprovado — por exemplo quanto precisa tirar nas avaliações que ainda não têm nota, ou se já está aprovado/reprovado.
+
+Responda APENAS com JSON válido, sem markdown:
+{"media_atual": número ou null se nenhuma nota lançada ainda, "notas_faltando": "frase curta sobre o que falta, ex: precisa de 7.0 na P2 pra passar direto", "resumo": "1-2 frases resumindo a situação"}`;
+
+  const openai = new OpenAI({ apiKey: CONFIG.OPENAI_API_KEY });
+  const response = await openai.chat.completions.create({
+    model: "gpt-4o-mini",
+    messages: [{ role: "user", content: prompt }],
+    temperature: 0.1,
+    response_format: { type: "json_object" },
+  });
+
+  try {
+    return JSON.parse(response.choices[0].message.content.trim());
+  } catch {
+    return { media_atual: null, notas_faltando: "", resumo: "Não consegui calcular a média com a fórmula informada." };
+  }
+}
+
+module.exports = { extrairDados, revisarCategorias, revisarCategoriasGastos, transcreverAudio, analisarImagem, analisarPDF, extrairExtrato, extrairExtratoTexto, extrairEventoFaculdadeIA, extrairPlanoFaculdadeIA, calcularMediaFaculdadeIA };
