@@ -6,7 +6,7 @@ const { CONFIG } = require("../config");
 const { obterEstado, salvarEstado, deletarEstado } = require("../services/pending-states");
 const { encontrarSimilar } = require("../utils/similarity");
 const { enviarMensagem, baixarMidia } = require("../services/evolution");
-const { extrairDados, revisarCategorias, transcreverAudio, analisarImagem, analisarPDF, extrairExtratoTexto, extrairExtrato, extrairEventoFaculdadeIA } = require("../services/openai");
+const { extrairDados, revisarCategorias, transcreverAudio, analisarImagem, analisarPDF, extrairExtratoTexto, extrairExtrato, extrairEventoFaculdadeIA, extrairPlanoFaculdadeIA, calcularMediaFaculdadeIA } = require("../services/openai");
 const { getCategorias, getListaCategorias, adicionarCategoria, getEmoji } = require("../services/categorias");
 const {
   adicionarGasto, adicionarTarefa,
@@ -307,14 +307,18 @@ async function processarContagemEstoque(itens) {
 // Gate rápido: só chama a IA se houver palavras-chave acadêmicas
 function podeSerEventoFaculdade(texto) {
   const norm = texto.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "");
-  return /\b(prova|atividade|trabalho|ead|aula online|aviso de faculdade|facul)\b/.test(norm);
+  return /\b(prova|atividade|trabalho|ead|aula online|aviso de faculdade|facul|nota|media|tirei|passar|resumo da materia|lista de exerc)\b/.test(norm);
+}
+
+async function buscarDisciplinas() {
+  const { supabase } = require("../services/supabase");
+  const { data } = await supabase.from("faculdade_aulas").select("disciplina").eq("ativo", true);
+  return [...new Set((data || []).map(a => a.disciplina))];
 }
 
 async function detectarEventoFaculdade(texto) {
   if (!podeSerEventoFaculdade(texto)) return null;
-  const { supabase } = require("../services/supabase");
-  const { data } = await supabase.from("faculdade_aulas").select("disciplina").eq("ativo", true);
-  const disciplinas = [...new Set((data || []).map(a => a.disciplina))];
+  const disciplinas = await buscarDisciplinas();
   return extrairEventoFaculdadeIA(texto, disciplinas);
 }
 
@@ -416,15 +420,81 @@ async function processarEventoFaculdadeIntervalo(evento, remoteJid, texto) {
   };
 }
 
-// Despacha o resultado de extrairEventoFaculdadeIA pelos 3 modos — usado tanto no fluxo normal quanto no reprocessamento após esclarecimento
+// Registra a nota de uma prova/atividade já cadastrada — casa evento_referencia contra os eventos da disciplina
+async function processarEventoFaculdadeNota(evento, remoteJid, texto) {
+  const { supabase } = require("../services/supabase");
+  const { data: eventosDisc } = await supabase
+    .from("faculdade_eventos")
+    .select("id, tipo, titulo")
+    .eq("disciplina", evento.disciplina);
+
+  if (!eventosDisc || eventosDisc.length === 0) {
+    return { texto: `⚠️ Não encontrei nenhuma prova/atividade cadastrada de *${evento.disciplina}* — cadastre o evento primeiro.` };
+  }
+
+  const candidatos = eventosDisc.map(e => ({ ...e, descricao: `${e.tipo} ${e.titulo}` }));
+  const match = encontrarSimilar(evento.evento_referencia, candidatos, 0.35);
+
+  if (!match) {
+    await salvarEstado(remoteJid, "esclarecimento", { tipoOrigem: "nota_faculdade", textoOriginal: texto, contextoParcial: { disciplina: evento.disciplina, nota: evento.nota } });
+    const lista = eventosDisc.map(e => `- ${e.tipo}: ${e.titulo}`).join("\n");
+    return { texto: `🤔 Não identifiquei qual avaliação de *${evento.disciplina}* é essa nota. Qual delas?\n\n${lista}` };
+  }
+
+  const { error } = await supabase.from("faculdade_eventos").update({ nota: evento.nota }).eq("id", match.id);
+  if (error) throw error;
+
+  return { texto: `✅ *Nota registrada!*\n\n📚 ${evento.disciplina}\n${match.tipo === "prova" ? "📝" : "📋"} ${match.titulo}: *${evento.nota}*` };
+}
+
+// Cadastra/atualiza a fórmula de cálculo da média de uma disciplina
+async function processarEventoFaculdadeFormula(evento) {
+  const { supabase } = require("../services/supabase");
+  const { error } = await supabase
+    .from("faculdade_disciplinas")
+    .upsert({ nome: evento.disciplina, formula_media: evento.formula_media }, { onConflict: "nome" });
+  if (error) throw error;
+  return { texto: `✅ *Fórmula de média salva!*\n\n📚 ${evento.disciplina}\n_${evento.formula_media}_` };
+}
+
+// Despacha o resultado de extrairEventoFaculdadeIA pelos 5 modos — usado tanto no fluxo normal quanto no reprocessamento após esclarecimento
 async function despacharEventoFaculdade(eventoFac, remoteJid, texto) {
   if (eventoFac.modo === "nao_suportado") {
     await salvarEstado(remoteJid, "esclarecimento", { tipoOrigem: "evento_faculdade", textoOriginal: texto, contextoParcial: null });
     return { texto: `🤔 Entendi que é sobre faculdade, mas ${eventoFac.motivo}. Pode reformular?` };
   } else if (eventoFac.modo === "intervalo") {
     return processarEventoFaculdadeIntervalo(eventoFac, remoteJid, texto);
+  } else if (eventoFac.modo === "nota") {
+    return processarEventoFaculdadeNota(eventoFac, remoteJid, texto);
+  } else if (eventoFac.modo === "formula") {
+    return processarEventoFaculdadeFormula(eventoFac);
   }
   return processarEventoFaculdadeUnico(eventoFac);
+}
+
+// Explode o plano extraído de uma foto/PDF (vários eventos + fórmula opcional) e pede confirmação antes de gravar
+async function processarPlanoFaculdade(plano, remoteJid) {
+  const eventos = (plano.eventos || []).map(e => ({
+    tipo: e.tipo, disciplina: e.disciplina || null, titulo: e.titulo, data: e.data, hora: e.hora || null, concluido: false,
+  }));
+
+  if (eventos.length === 0 && !plano.formula) {
+    return null;
+  }
+
+  await salvarEstado(remoteJid, "plano_faculdade", { eventos, formula: plano.formula || null });
+
+  const TIPOS_EMOJI = { prova: "📝", atividade: "📋", ead: "💻", aviso: "📢" };
+  const linhas = [`📄 *Encontrei isso no documento:*`, ``];
+  for (const e of eventos) {
+    linhas.push(`${TIPOS_EMOJI[e.tipo] || "📅"} ${e.titulo}${e.disciplina ? ` — ${e.disciplina}` : ""} (${ddmm(e.data)})`);
+  }
+  if (plano.formula) {
+    linhas.push(``, `📐 Fórmula de ${plano.formula.disciplina}: _${plano.formula.formula_media}_`);
+  }
+  linhas.push(``, `✅ _"sim"_ para confirmar e salvar tudo`, `❌ _"não"_ para cancelar`);
+
+  return { texto: linhas.join("\n"), opcoes: { botoes: ["✅ Sim", "❌ Não"] } };
 }
 
 // ════════════════════════════════════════════
@@ -550,6 +620,36 @@ async function processarMensagem(texto, remoteJid, canal = "whatsapp") {
     await deletarEstado(remoteJid, "evento_faculdade_lote");
   }
 
+  // ── Verifica plano de faculdade pendente (extraído de foto/PDF) de confirmação ──
+  const estadoPlano = await obterEstado(remoteJid, "plano_faculdade");
+  if (estadoPlano) {
+    const textoBusca = texto.toLowerCase().trim();
+    const { eventos, formula } = estadoPlano;
+
+    const confirmou = ["sim", "s", "pode", "confirmar", "yes"].some(p => textoBusca.includes(p));
+    const cancelou  = ["não", "nao", "n", "cancelar", "cancel", "no"].some(p => textoBusca.includes(p));
+
+    if (confirmou) {
+      await deletarEstado(remoteJid, "plano_faculdade");
+      const { supabase } = require("../services/supabase");
+      if (eventos.length > 0) {
+        const { error } = await supabase.from("faculdade_eventos").insert(eventos);
+        if (error) throw error;
+      }
+      if (formula) {
+        const { error } = await supabase.from("faculdade_disciplinas").upsert({ nome: formula.disciplina, formula_media: formula.formula_media }, { onConflict: "nome" });
+        if (error) throw error;
+      }
+      await responder(`✅ *Salvo!* ${eventos.length} evento(s)${formula ? " + fórmula de média" : ""} registrado(s).\n\n_Abra a aba Faculdade para ver tudo._`);
+      return { texto: respostas.join("\n\n"), opcoes: opcoesFinais };
+    } else if (cancelou) {
+      await deletarEstado(remoteJid, "plano_faculdade");
+      await responder(`❌ Cancelado! Nada foi salvo.`);
+      return { texto: respostas.join("\n\n"), opcoes: opcoesFinais };
+    }
+    await deletarEstado(remoteJid, "plano_faculdade");
+  }
+
   // ── Verifica esclarecimento pendente (bot fez uma pergunta e espera resposta) ──
   const estadoEsclarecimento = await obterEstado(remoteJid, "esclarecimento");
   if (estadoEsclarecimento) {
@@ -586,6 +686,24 @@ async function processarMensagem(texto, remoteJid, canal = "whatsapp") {
         await responder(`⚠️ Ainda não encontrei _"${texto}"_ — vamos começar de novo?`);
       } else {
         await executarAcaoTarefa(contextoParcial.acao, t, contextoParcial.extra, responder);
+      }
+      return { texto: respostas.join("\n\n"), opcoes: opcoesFinais };
+    }
+
+    if (tipoOrigem === "nota_faculdade") {
+      const { supabase } = require("../services/supabase");
+      const { data: eventosDisc } = await supabase
+        .from("faculdade_eventos")
+        .select("id, tipo, titulo")
+        .eq("disciplina", contextoParcial.disciplina);
+      const candidatos = (eventosDisc || []).map(e => ({ ...e, descricao: `${e.tipo} ${e.titulo}` }));
+      const match = encontrarSimilar(texto, candidatos, 0.3);
+      if (!match) {
+        await responder(`⚠️ Ainda não identifiquei — vamos começar de novo?`);
+      } else {
+        const { error } = await supabase.from("faculdade_eventos").update({ nota: contextoParcial.nota }).eq("id", match.id);
+        if (error) throw error;
+        await responder(`✅ *Nota registrada!*\n\n📚 ${contextoParcial.disciplina}\n${match.tipo === "prova" ? "📝" : "📋"} ${match.titulo}: *${contextoParcial.nota}*`);
       }
       return { texto: respostas.join("\n\n"), opcoes: opcoesFinais };
     }
@@ -848,6 +966,13 @@ async function processarClassificacao(dados, texto, remoteJid, responder) {
   }
 }
 
+// Tenta extrair um plano de faculdade (provas/atividades/fórmula) de uma foto ou PDF antes do fluxo genérico de gasto/tarefa
+async function detectarPlanoFaculdadeDeArquivo(base64, mimetype, remoteJid) {
+  const disciplinas = await buscarDisciplinas();
+  const plano = await extrairPlanoFaculdadeIA(base64, mimetype, disciplinas);
+  return processarPlanoFaculdade(plano, remoteJid);
+}
+
 // ════════════════════════════════════════════
 //  WEBHOOK — WhatsApp via Evolution API
 // ════════════════════════════════════════════
@@ -880,7 +1005,10 @@ async function handleWebhook(req, res) {
     } else if (message.imageMessage) {
       await enviarMensagem(remoteJid, "📸 Analisando foto...");
       const base64 = await baixarMidia(data);
-      textoParaAnalisar = await analisarImagem(base64, message.imageMessage.mimetype || "image/jpeg");
+      const mimetype = message.imageMessage.mimetype || "image/jpeg";
+      const plano = await detectarPlanoFaculdadeDeArquivo(base64, mimetype, remoteJid);
+      if (plano) { await enviarMensagem(remoteJid, plano.texto); return; }
+      textoParaAnalisar = await analisarImagem(base64, mimetype);
     } else if (message.documentMessage) {
       if (!message.documentMessage.mimetype?.includes("pdf")) {
         await enviarMensagem(remoteJid, "⚠️ Só aceito PDFs!");
@@ -888,6 +1016,8 @@ async function handleWebhook(req, res) {
       }
       await enviarMensagem(remoteJid, "📄 Analisando PDF...");
       const base64 = await baixarMidia(data);
+      const plano = await detectarPlanoFaculdadeDeArquivo(base64, "application/pdf", remoteJid);
+      if (plano) { await enviarMensagem(remoteJid, plano.texto); return; }
       textoParaAnalisar = await analisarPDF(base64);
     } else {
       await enviarMensagem(remoteJid, "⚠️ Mande texto, áudio, foto ou PDF!");
@@ -931,6 +1061,12 @@ async function handleMensagemArquivo(req, res) {
     const { base64, mimetype, texto } = req.body;
     if (!base64 || !mimetype) return res.status(400).json({ erro: "base64 e mimetype obrigatórios" });
 
+    const sessionId = CONFIG.NUMERO_AUTORIZADO;
+    if (mimetype.startsWith("image/") || mimetype === "application/pdf") {
+      const plano = await detectarPlanoFaculdadeDeArquivo(base64, mimetype, sessionId);
+      if (plano) return res.json(plano);
+    }
+
     let conteudo = "";
     if (mimetype.startsWith("audio/")) {
       conteudo = await transcreverAudio(base64, mimetype);
@@ -941,7 +1077,6 @@ async function handleMensagemArquivo(req, res) {
     }
 
     const mensagem = [texto, conteudo].filter(Boolean).join("\n");
-    const sessionId = CONFIG.NUMERO_AUTORIZADO;
     const resultado = await processarMensagem(mensagem, sessionId, "web");
     res.json(resultado);
   } catch (err) {

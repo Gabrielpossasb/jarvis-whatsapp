@@ -2,6 +2,8 @@ import { useState, useEffect, useMemo } from "react";
 import { supabase } from "../lib/supabase";
 import { useHeader } from "../contexts/HeaderContext";
 
+const JARVIS_URL = import.meta.env.VITE_JARVIS_URL || "https://web-production-f30e8.up.railway.app";
+
 // aulas carregadas do Supabase (tabela faculdade_aulas)
 
 const DIAS_NOME = ["Domingo", "Segunda", "Terça", "Quarta", "Quinta", "Sexta", "Sábado"];
@@ -52,6 +54,7 @@ export default function Faculdade() {
   const [aulas, setAulas] = useState([]);
   const [loading, setLoading] = useState(true);
   const [toast, setToast] = useState(null);
+  const [detalheMedia, setDetalheMedia] = useState(null); // { loading, data } — pra aba de detalhe da disciplina
 
   function showToast(msg, ok = true) {
     setToast({ msg, ok });
@@ -70,6 +73,14 @@ export default function Faculdade() {
   useEffect(() => {
     (async () => { setLoading(true); await carregar(); setLoading(false); })();
   }, []);
+
+  useEffect(() => {
+    if (modal?.modo !== "disciplina") return;
+    fetch(`${JARVIS_URL}/api/faculdade/${encodeURIComponent(modal.nome)}/media`)
+      .then(r => r.json())
+      .then(data => setDetalheMedia({ loading: false, data }))
+      .catch(() => setDetalheMedia({ loading: false, data: null }));
+  }, [modal]);
 
   const dias = useMemo(() => semanaDeOffset(semanaOff), [semanaOff]);
   const disciplinas = useMemo(() => [...new Set(aulas.map(a => a.disciplina))].sort(), [aulas]);
@@ -240,7 +251,10 @@ export default function Faculdade() {
                               <div className="flex items-start justify-between gap-2">
                                 <div className="flex-1 min-w-0">
                                   <div className="text-[11px] text-cinza-300 tabular-nums">{a.inicio} – {a.fim}</div>
-                                  <div className="text-sm font-medium text-cinza-50 mt-0.5 leading-snug">{a.disciplina}</div>
+                                  <button onClick={() => { setDetalheMedia({ loading: true, data: null }); setModal({ modo: "disciplina", nome: a.disciplina }); }}
+                                    className="text-sm font-medium text-cinza-50 mt-0.5 leading-snug text-left hover:text-roxo-400 transition-colors">
+                                    {a.disciplina}
+                                  </button>
                                   <div className="text-[11px] text-cinza-300 mt-0.5">{a.local}</div>
                                   <div className="text-[11px] text-cinza-300">{a.professor}</div>
                                 </div>
@@ -366,6 +380,7 @@ export default function Faculdade() {
               <div className="flex gap-4 text-xs text-cinza-200">
                 <span>📅 {fmtDMM(e.data)}</span>
                 {e.hora && <span>⏰ {e.hora.slice(0, 5)}</span>}
+                {e.nota !== null && e.nota !== undefined && <span>🎯 Nota: <span className="text-roxo-400 font-semibold">{e.nota}</span></span>}
               </div>
 
               {e.descricao && (
@@ -386,6 +401,84 @@ export default function Faculdade() {
                   className="px-4 py-2.5 rounded-xl text-sm border border-red-500/20 text-red-400 hover:bg-red-500/10 transition-all">
                   Excluir
                 </button>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
+
+      {/* ═══ MODAL: DETALHE DA DISCIPLINA (notas e média) ═══════════ */}
+      {modal?.modo === "disciplina" && (() => {
+        const nome = modal.nome;
+        const eventosDaMateria = eventos
+          .filter(e => e.disciplina === nome)
+          .sort((a, b) => a.data.localeCompare(b.data));
+        const d = detalheMedia;
+        return (
+          <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-4">
+            <div className="absolute inset-0 bg-black/60" onClick={() => setModal(null)} />
+            <div className="relative z-10 w-full max-w-sm bg-cinza-900 border border-cinza-700 rounded-2xl p-5 flex flex-col gap-4 max-h-[92dvh] overflow-y-auto">
+              <div className="flex items-start justify-between gap-2">
+                <div className="text-base font-semibold text-cinza-50">{nome}</div>
+                <button onClick={() => setModal(null)} className="text-cinza-350 hover:text-cinza-50 text-2xl leading-none shrink-0">×</button>
+              </div>
+
+              {/* Média */}
+              <div className="bg-cinza-950 rounded-xl p-3">
+                {!d || d.loading ? (
+                  <div className="text-xs text-cinza-300">Calculando média…</div>
+                ) : !d.data?.formula_media ? (
+                  <div className="text-xs text-cinza-300">
+                    Nenhuma fórmula de média cadastrada ainda. Manda por chat algo como <span className="text-cinza-200">"a média de {nome} é a soma das provas dividido por 2"</span>.
+                  </div>
+                ) : d.data.media_atual === null ? (
+                  <div className="text-xs text-cinza-300">
+                    <div className="mb-1.5">📐 <span className="text-cinza-200">{d.data.formula_media}</span></div>
+                    Nenhuma nota lançada ainda.
+                  </div>
+                ) : (
+                  <div>
+                    <div className="flex items-center gap-2 mb-1.5">
+                      <span className="text-xl font-bold text-roxo-400">{d.data.media_atual}</span>
+                      <span className={`text-[10px] px-1.5 py-0.5 rounded-full ${
+                        d.data.media_atual >= 6 ? "bg-emerald-500/15 text-emerald-400" : "bg-amber-500/15 text-amber-400"
+                      }`}>
+                        {d.data.media_atual >= 6 ? "Aprovado" : "Em aberto"}
+                      </span>
+                    </div>
+                    {d.data.resumo && <div className="text-xs text-cinza-200 leading-relaxed">{d.data.resumo}</div>}
+                    {d.data.notas_faltando && <div className="text-xs text-cinza-350 mt-1">{d.data.notas_faltando}</div>}
+                    <div className="text-[10px] text-cinza-350 mt-2">📐 {d.data.formula_media}</div>
+                  </div>
+                )}
+              </div>
+
+              {/* Lista de provas/atividades */}
+              <div className="flex flex-col gap-1.5">
+                <div className="text-xs text-cinza-200 mb-0.5">Provas e atividades</div>
+                {eventosDaMateria.length === 0 && (
+                  <div className="text-xs text-cinza-350">Nenhuma cadastrada ainda.</div>
+                )}
+                {eventosDaMateria.map(e => {
+                  const tc = TIPO_CFG[e.tipo] ?? TIPO_CFG.aviso;
+                  return (
+                    <button key={e.id} onClick={() => setModal({ modo: "view", ev: e })}
+                      className="flex items-center justify-between gap-2 bg-cinza-950 hover:bg-cinza-850 rounded-xl px-3 py-2 transition-colors text-left">
+                      <div className="min-w-0">
+                        <div className="flex items-center gap-1.5">
+                          <span className={`text-[10px] px-1.5 py-0.5 rounded-full ${tc.badge}`}>{tc.icon}</span>
+                          <span className="text-sm text-cinza-50 truncate">{e.titulo}</span>
+                        </div>
+                        <div className="text-[10px] text-cinza-350">{fmtDMM(e.data)}</div>
+                      </div>
+                      <div className="text-sm font-semibold shrink-0">
+                        {e.nota !== null && e.nota !== undefined
+                          ? <span className="text-roxo-400">{e.nota}</span>
+                          : <span className="text-cinza-350">—</span>}
+                      </div>
+                    </button>
+                  );
+                })}
               </div>
             </div>
           </div>
