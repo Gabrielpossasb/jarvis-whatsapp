@@ -1,0 +1,67 @@
+# CLAUDE.md
+
+This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+
+## Visão geral
+
+JARVIS é um assistente pessoal via WhatsApp: um servidor Node.js/Express que recebe mensagens (texto, áudio, foto, PDF) via webhook da Evolution API, interpreta com OpenAI (GPT-4o-mini / Whisper / Vision), e gerencia gastos, tarefas, estoque e calendário de faculdade. Tem também um frontend React (`jarvis-web/`) que consome as mesmas rotas da API e o Supabase diretamente.
+
+Dois projetos Node independentes no mesmo repo, cada um com seu próprio `package.json`:
+- raiz (`/`) — backend, hospedado no Railway
+- `jarvis-web/` — frontend Vite/React, hospedado no Vercel
+
+## Comandos
+
+Backend (raiz):
+```
+npm start          # node index.js — não há watch/reload configurado
+```
+
+Frontend (`jarvis-web/`):
+```
+npm run dev         # vite dev server
+npm run build        # vite build
+npm run lint          # eslint .
+npm run preview        # preview do build
+```
+
+Não há suíte de testes automatizados em nenhum dos dois projetos.
+
+## Arquitetura do backend
+
+**Fluxo de mensagem**: `index.js` registra as rotas Express e delega toda a lógica de negócio para `handlers/webhook.js` (822 linhas — é o núcleo do sistema). O mesmo handler atende tanto o webhook do WhatsApp (`POST /webhook`) quanto o chat web (`POST /api/mensagem`), então qualquer funcionalidade nova de conversa passa por ali.
+
+**Extração de dados com IA**: `services/openai.js` concentra todas as chamadas ao GPT — `extrairDados` (gastos/tarefas a partir de texto livre), `revisarCategorias`, `transcreverAudio` (Whisper), `analisarImagem`/`analisarPDF` (comprovantes), `extrairExtrato`/`extrairExtratoTexto` (extratos bancários em lote) e `extrairEventoFaculdadeIA`. O padrão do projeto é: regex/gate rápido primeiro para decidir se vale chamar a IA, e só então IA para extrair o JSON estruturado — ver a detecção de eventos de faculdade em `handlers/webhook.js` como referência desse padrão antes de adicionar novos fluxos de IA. `extrairDados` e `extrairEventoFaculdadeIA` usam `response_format: { type: "json_object" }` da OpenAI (não markdown-fence + `JSON.parse` manual); as demais funções ainda usam o padrão antigo de texto livre.
+
+**A IA deve admitir incerteza, nunca "chutar" uma ação**: `extrairDados` tem uma classificação explícita `"nao_entendi"` para quando a mensagem não se encaixa com confiança em nada — não force um classificação só para responder algo. `extrairEventoFaculdadeIA` retorna um de 3 modos (`unico`, `intervalo`, `nao_suportado`); o modo `nao_suportado` faz o webhook responder e **parar**, sem cair no fluxo genérico de `extrairDados`. Ao criar um novo extrator de IA, siga esse padrão: sempre dar ao modelo uma saída formal de "não sei fazer isso" em vez de deixá-lo forçar a interpretação mais próxima do schema disponível.
+
+**Eventos de faculdade em lote**: `handlers/webhook.js` (`processarEventoFaculdadeIntervalo`) resolve pedidos do tipo "todas as aulas de X até o dia Y" cruzando o `dia` da disciplina em `faculdade_aulas` com o intervalo de datas pedido, e **explode em uma linha por ocorrência** em `faculdade_eventos` (não há campo de intervalo na tabela). Como pode afetar várias linhas de uma vez, esse fluxo sempre pede confirmação antes de gravar — reaproveita `services/pending-states.js` com `state_type: "evento_faculdade_lote"`, no mesmo padrão do fluxo de extrato bancário.
+
+**Estado de conversa em duas camadas**: `state.js` guarda `Map`s em RAM (`pendingReviews`, `pendingTaskAdd`, `pendingExtrato`, `pendingMultiTarefas`) para uso imediato, mas `services/pending-states.js` persiste o mesmo tipo de estado na tabela `pending_states` do Supabase (cache RAM → fallback Supabase em `obterEstado`), porque o Railway reinicia o processo em cada deploy e o RAM sozinho perderia confirmações em andamento. Ao adicionar um novo fluxo de confirmação multi-etapa (ex: "aprovar tudo", edição de lote), prefira o padrão persistido de `pending-states.js` em vez de um `Map` novo em `state.js`. `state_type` é string livre (sem CHECK constraint no banco — removido em `migrations/002_drop_pending_states_type_check.sql` porque travava toda vez que um fluxo novo era adicionado).
+
+**Memória de contexto para perguntas de esclarecimento**: quando o bot pergunta algo e precisa da resposta do usuário pra continuar (disciplina ausente num evento de faculdade, `nao_suportado`, `nao_entendi`, ou "não encontrei essa tarefa" em `concluir`/`excluir`/`mudar_categoria`/`alterar_tarefa`), ele salva `state_type: "esclarecimento"` com `{ tipoOrigem, textoOriginal, contextoParcial }` antes de perguntar. Um bloco dedicado no topo de `processarMensagem` combina a resposta seguinte com o texto original (ou, no caso de tarefa não encontrada, já sabe a ação e só refaz `encontrarTarefa`) e reprocessa — assim o usuário não precisa repetir a mensagem inteira. Ao adicionar um novo ponto onde o bot pergunta algo, salve esse estado em vez de só responder e esquecer o contexto.
+
+**Despacho de classificação separado do fluxo principal**: a lógica que decide o que fazer com `dados.classificacao` (saída de `extrairDados`) vive em `processarClassificacao(dados, texto, remoteJid, responder)`, separada de `processarMensagem`, porque o bloco de reprocessamento de esclarecimento precisa chamá-la de novo depois de recombinar a resposta do usuário — evita duplicar ~200 linhas de dispatch. `executarAcaoTarefa(acao, t, extra, responder)` faz o mesmo para as ações sobre uma tarefa já resolvida (concluir/excluir/mudar_categoria/alterar_tarefa), reaproveitado tanto no fluxo normal quanto no reprocessamento.
+
+**Respostas com botões no chat web**: `responder(msg, opcoes)` aceita um segundo parâmetro opcional `{ botoes: [...], dica: "..." }` — só tem efeito no canal `"web"` (`processarMensagem` retorna `{ texto, opcoes }` em vez de string pura; o WhatsApp ignora `opcoes` e continua só texto, já que a Evolution API não suporta botões interativos no conector Baileys). Todo ponto que pede confirmação sim/não ou lista de números deve passar `opcoes` — é isso que faz o chat web (`jarvis-web/src/pages/Chat.jsx`) renderizar botões clicáveis em vez de exigir o usuário digitar.
+
+**Tudo no Supabase**: tarefas, gastos, estoque, faculdade, configurações e cron_logs vivem todos no Postgres do Supabase (`services/supabase.js`). Tarefas e gastos são manipulados via `services/tarefas.js` (nome legado do arquivo era `sheets.js`, de uma versão anterior que usava Google Sheets — isso não existe mais no projeto; não recriar essa dependência).
+
+**Cron jobs** (`cron/jobs.js`, `node-cron`, timezone fixo `America/Campo_Grande` em `config.js`): todo job é registrado via `executarComLog` (`services/cron-logs.js`), que grava o resultado na tabela `cron_logs` — sempre envolva jobs novos nesse wrapper para manter a observabilidade. `iniciarCronJobs`/`atualizarCronJobs` permitem reconfigurar horário/timezone em runtime a partir da tabela `configuracoes` (editável pelo frontend em `/api/config`), sem precisar reiniciar o processo.
+
+**Categorias dinâmicas**: `services/categorias.js` busca categorias do banco com cache — nunca hardcode uma lista de categorias no código; elas são definidas pelo usuário e podem mudar.
+
+**Matching fuzzy**: `utils/similarity.js` (`encontrarSimilar`) é usado para casar a descrição de uma tarefa mencionada em linguagem natural com a tarefa real no banco, com um threshold de similaridade — usado em `encontrarTarefa` no webhook.
+
+## Arquitetura do frontend (`jarvis-web/`)
+
+React Router com páginas em `src/pages/` (Chat, Tarefas, Gastos, Financeiro, Estoque, Faculdade, Configuracoes), cada uma mapeando a um domínio do backend/Supabase. `src/lib/supabase.js` cria o client Supabase usado para leitura direta de tabelas (estoque, faculdade, gastos) — não tudo passa pela API do backend, só o que envolve lógica de negócio (webhook, cron, config). `HeaderContext` (`src/contexts/`) controla o título/ações do header por página.
+
+**Paleta de cores nomeada**: `tailwind.config.js` define `theme.extend.colors.cinza` (950→50, do fundo mais escuro ao texto mais claro) e `.roxo` (900→400, cor de destaque). Nunca usar hex solto em `className` (`text-[#...]`) — sempre os tokens nomeados (`text-cinza-350`, `border-roxo-700`, etc). Os tons de texto mais escuros que existiam antes (`#4a4a6a`, `#6a6a8a` etc, baixo contraste) foram mapeados para tokens mais claros do que a leitura "literal" do hex sugeriria (ex: um antigo `text-[#4a4a6a]` virou `text-cinza-350`, não um tom escuro correspondente) — isso foi proposital, pra resolver legibilidade; ao adicionar um novo texto secundário, prefira `cinza-300`/`cinza-350`/`cinza-200` a reintroduzir um tom escuro. `CORES_CAT` (cores de categoria financeira em `Financeiro.jsx`/`Gastos.jsx`, hoje duplicado nos dois arquivos) fica fora dessa paleta — é uma paleta semântica separada, não mexida nessa padronização.
+
+## Convenções
+
+- CommonJS no backend (`require`/`module.exports`), ESM no frontend.
+- Sem comentários explicando o óbvio; comentários só para decisões não óbvias (padrão já seguido no código existente).
+- Nunca hardcodar listas que o usuário pode querer mudar (categorias, produtos de estoque, disciplinas) — sempre puxar do Supabase.
+- Português nas mensagens de usuário, logs e nomes de campos de banco.
