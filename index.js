@@ -10,7 +10,7 @@ const { buscarUsoOpenAI } = require("./services/usage");
 const { buscarConfig, salvarConfig } = require("./services/config");
 const { iniciarCronJobs, atualizarCronJobs } = require("./cron/jobs");
 const { supabase } = require("./services/supabase");
-const { inicializarPlanilhaTarefas } = require("./services/sheets");
+const { inicializarTabelaTarefas } = require("./services/tarefas");
 const { inicializarCategorias } = require("./services/categorias");
 const { limparEstadosAntigos } = require("./services/pending-states");
 const { formatarData, formatarHora } = require("./utils/date");
@@ -61,7 +61,7 @@ app.get("/", (req, res) => res.json({ status: "JARVIS online 🤖", hora: format
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, async () => {
   console.log(`JARVIS na porta ${PORT}`);
-  await inicializarPlanilhaTarefas();
+  await inicializarTabelaTarefas();
   await inicializarCategorias();
   await limparEstadosAntigos();
   const config = await buscarConfig();

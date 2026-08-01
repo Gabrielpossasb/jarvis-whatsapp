@@ -18,7 +18,7 @@ Servidor Node.js que recebe mensagens do WhatsApp, processa com IA e gerencia ga
 
 ### 💰 Gastos
 - Registra despesas fixas e variáveis automaticamente
-- Salva na planilha financeira na aba do mês atual
+- Salva no Supabase (tabela `gastos`), agrupado por mês
 - Suporta texto, áudio, foto e PDF
 
 ### ✅ Tarefas
@@ -61,7 +61,7 @@ jarvis/
 ├── services/
 │   ├── evolution.js      ← envio de mensagens WhatsApp
 │   ├── openai.js         ← GPT, Whisper e Vision
-│   ├── sheets.js         ← leitura e escrita no Google Sheets
+│   ├── tarefas.js        ← leitura e escrita de tarefas/gastos no Supabase
 │   └── categorias.js     ← categorias dinâmicas com cache
 ├── handlers/
 │   └── webhook.js        ← lógica principal de cada mensagem

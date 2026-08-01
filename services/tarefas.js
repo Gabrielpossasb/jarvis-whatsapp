@@ -1,5 +1,5 @@
 // ─────────────────────────────────────────────
-//  services/sheets.js — Tarefas e Gastos via Supabase
+//  services/tarefas.js — Tarefas e Gastos via Supabase
 // ─────────────────────────────────────────────
 
 const { supabase } = require("./supabase");
@@ -18,7 +18,7 @@ function invalidarCacheTarefas() {
 // ════════════════════════════════════════════
 //  INICIALIZAÇÃO
 // ════════════════════════════════════════════
-async function inicializarPlanilhaTarefas() {
+async function inicializarTabelaTarefas() {
   // Com Supabase a tabela já existe — só confirma conexão
   try {
     const { error } = await supabase.from("tarefas").select("id").limit(1);
@@ -272,7 +272,7 @@ async function marcarLembreteEnviado(linha, valor) {
 
 module.exports = {
   adicionarGasto,
-  inicializarPlanilhaTarefas,
+  inicializarTabelaTarefas,
   invalidarCacheTarefas,
   adicionarTarefa,
   buscarTodasTarefas,

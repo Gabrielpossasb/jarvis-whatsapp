@@ -9,7 +9,7 @@ const { getEmoji } = require("../services/categorias");
 const {
   buscarTarefasDoDia, buscarTarefasComLembreteHoje,
   marcarLembreteEnviado, buscarTarefasVencidas, buscarTarefasEsquecidas,
-} = require("../services/sheets");
+} = require("../services/tarefas");
 const { agora, formatarData, formatarHora } = require("../utils/date");
 const { executarComLog } = require("../services/cron-logs");
 const { limparEstadosAntigos } = require("../services/pending-states");
