@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { supabase } from "../lib/supabase";
 import { useHeader } from "../contexts/HeaderContext";
+import Modal from "../components/Modal";
 
 const CATEGORIAS = ["Polpas", "Frutas", "Outros", "Açaí em pote"];
 const fmtQtd = (v, u) =>
@@ -26,6 +27,8 @@ export default function Estoque() {
   const [aba, setAba] = useState("estoque");
   const [loading, setLoading] = useState(true);
   const [modal, setModal] = useState(null); // null | { tipo:'mov'|'editar', produto }
+  const [modalConteudo, setModalConteudo] = useState(null); // mantém o conteúdo visível durante a animação de saída
+  if (modal && modal !== modalConteudo) setModalConteudo(modal);
   const [filtroMov, setFiltroMov] = useState("todos");
   const [toast, setToast] = useState(null);
   const [modoContagem, setModoContagem] = useState(false);
@@ -643,14 +646,14 @@ export default function Estoque() {
       })()}
 
       {/* ── Modal de movimentação ─────────────────── */}
-      {modal?.tipo === "mov" && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-end sm:items-center justify-center z-50 p-4">
-          <div className="bg-cinza-900 border border-cinza-700 rounded-2xl w-full max-w-sm flex flex-col">
+      <Modal open={modal?.tipo === "mov"} onClose={() => setModal(null)} align="bottom">
+        {modalConteudo?.tipo === "mov" && (
+          <div className="bg-cinza-900 border border-cinza-700 rounded-2xl w-full max-w-sm mx-auto flex flex-col">
             <div className="flex items-center justify-between px-5 py-4 border-b border-cinza-800">
               <div>
-                <div className="text-sm font-semibold text-cinza-50">{modal.produto.nome}</div>
+                <div className="text-sm font-semibold text-cinza-50">{modalConteudo.produto.nome}</div>
                 <div className="text-[10px] text-cinza-350 mt-0.5">
-                  Estoque atual: {fmtQtd(modal.produto.estoque_atual, modal.produto.unidade)}
+                  Estoque atual: {fmtQtd(modalConteudo.produto.estoque_atual, modalConteudo.produto.unidade)}
                 </div>
               </div>
               <button onClick={() => setModal(null)}
@@ -678,7 +681,7 @@ export default function Estoque() {
               {/* Quantidade */}
               <div>
                 <label className="text-[10px] text-cinza-200 uppercase tracking-wider">
-                  Quantidade ({modal.produto.unidade})
+                  Quantidade ({modalConteudo.produto.unidade})
                 </label>
                 <input
                   type="number" inputMode="decimal" min="0" step="0.1"
@@ -722,13 +725,13 @@ export default function Estoque() {
               </button>
             </div>
           </div>
-        </div>
-      )}
+        )}
+      </Modal>
 
       {/* ── Modal de edição ──────────────────────── */}
-      {modal?.tipo === "editar" && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-end sm:items-center justify-center z-50 p-4">
-          <div className="bg-cinza-900 border border-cinza-700 rounded-2xl w-full max-w-sm flex flex-col">
+      <Modal open={modal?.tipo === "editar"} onClose={() => setModal(null)} align="bottom">
+        {modalConteudo?.tipo === "editar" && (
+          <div className="bg-cinza-900 border border-cinza-700 rounded-2xl w-full max-w-sm mx-auto flex flex-col">
             <div className="flex items-center justify-between px-5 py-4 border-b border-cinza-800">
               <span className="text-sm font-semibold text-cinza-50">Editar produto</span>
               <button onClick={() => setModal(null)}
@@ -745,7 +748,7 @@ export default function Estoque() {
               </div>
               <div>
                 <label className="text-[10px] text-cinza-200 uppercase tracking-wider">
-                  Estoque mínimo ({modal.produto.unidade})
+                  Estoque mínimo ({modalConteudo.produto.unidade})
                 </label>
                 <input type="number" inputMode="decimal" min="0" step="0.5"
                   value={editMin} onChange={e => setEditMin(e.target.value)}
@@ -753,7 +756,7 @@ export default function Estoque() {
               </div>
               <div>
                 <label className="text-[10px] text-cinza-200 uppercase tracking-wider">
-                  Preço de venda (R$/{modal.produto.unidade})
+                  Preço de venda (R$/{modalConteudo.produto.unidade})
                 </label>
                 <input type="number" inputMode="decimal" min="0" step="0.01"
                   value={editPreco} onChange={e => setEditPreco(e.target.value)}
@@ -773,8 +776,8 @@ export default function Estoque() {
               </button>
             </div>
           </div>
-        </div>
-      )}
+        )}
+      </Modal>
     </div>
   );
 }

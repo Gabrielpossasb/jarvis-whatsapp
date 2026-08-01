@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from "react";
 import logo from "../assets/logo-transparent.png";
 import { useHeader } from "../contexts/HeaderContext";
+import Modal from "../components/Modal";
 
 const JARVIS_URL = import.meta.env.VITE_JARVIS_URL || "https://web-production-f30e8.up.railway.app";
 const ONESIGNAL_APP_ID = import.meta.env.VITE_ONESIGNAL_APP_ID;
@@ -36,6 +37,8 @@ export default function Chat({ messages, setMessages }) {
     () => typeof Notification !== "undefined" && Notification.permission === "granted"
   );
   const [modalMsg, setModalMsg] = useState(null);
+  const [modalMsgConteudo, setModalMsgConteudo] = useState(null); // mantém o conteúdo visível durante a animação de saída
+  if (modalMsg && modalMsg !== modalMsgConteudo) setModalMsgConteudo(modalMsg);
   const oneSignalRef = useRef(null);
 
   function showAlert(titulo, corpo) {
@@ -298,13 +301,12 @@ export default function Chat({ messages, setMessages }) {
   return (
     <div className="flex flex-col h-full">
       {/* Modal de aviso */}
-      {modalMsg && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center px-6"
-          style={{ background: "rgba(0,0,0,0.6)", backdropFilter: "blur(4px)" }}>
-          <div className="w-full max-w-sm bg-cinza-850 border border-cinza-700 rounded-2xl shadow-xl overflow-hidden">
+      <Modal open={!!modalMsg} onClose={() => setModalMsg(null)}>
+        {modalMsgConteudo && (
+          <div className="w-full max-w-sm mx-auto bg-cinza-850 border border-cinza-700 rounded-2xl shadow-xl overflow-hidden">
             <div className="px-5 pt-5 pb-4">
-              <p className="text-base font-semibold text-white mb-2">{modalMsg.titulo}</p>
-              <p className="text-sm text-cinza-200 leading-relaxed whitespace-pre-line">{modalMsg.corpo}</p>
+              <p className="text-base font-semibold text-white mb-2">{modalMsgConteudo.titulo}</p>
+              <p className="text-sm text-cinza-200 leading-relaxed whitespace-pre-line">{modalMsgConteudo.corpo}</p>
             </div>
             <div className="border-t border-cinza-700 px-5 py-3 flex justify-end">
               <button
@@ -314,8 +316,8 @@ export default function Chat({ messages, setMessages }) {
               </button>
             </div>
           </div>
-        </div>
-      )}
+        )}
+      </Modal>
       {/* Mensagens */}
       <div ref={chatRef} className="flex-1 overflow-y-auto px-4 md:px-6 pt-4 pb-52 md:pb-4 flex flex-col gap-4">
         {messages.map((m, i) => {

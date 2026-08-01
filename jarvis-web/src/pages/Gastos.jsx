@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { supabase } from "../lib/supabase";
 import { useHeader } from "../contexts/HeaderContext";
+import Modal from "../components/Modal";
 
 const MESES_ORDEM = ["Janeiro","Fevereiro","Março","Abril","Maio","Junho","Julho","Agosto","Setembro","Outubro","Novembro","Dezembro"];
 const JARVIS_URL = import.meta.env.VITE_JARVIS_URL || "https://web-production-f30e8.up.railway.app";
@@ -198,10 +199,13 @@ export default function Gastos() {
 
   function fecharModalExtrato() {
     setModalExtrato(false);
-    setExtratoResultado(null);
-    setExtratoTexto("");
-    setExtratoArquivo(null);
-    setSelecionadasDup({});
+    // Atraso pra não limpar o conteúdo antes da animação de saída do Modal terminar (200ms, ver components/Modal.jsx)
+    setTimeout(() => {
+      setExtratoResultado(null);
+      setExtratoTexto("");
+      setExtratoArquivo(null);
+      setSelecionadasDup({});
+    }, 200);
   }
 
   async function confirmarExtrato() {
@@ -422,9 +426,8 @@ export default function Gastos() {
       )}
 
       {/* Modal extrato */}
-      {modalExtrato && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-cinza-900 border border-cinza-700 rounded-2xl w-full max-w-2xl max-h-[85vh] flex flex-col">
+      <Modal open={modalExtrato} onClose={fecharModalExtrato}>
+        <div className="bg-cinza-900 border border-cinza-700 rounded-2xl w-full max-w-2xl mx-auto max-h-[85vh] flex flex-col">
             <div className="flex items-center justify-between px-6 py-4 border-b border-cinza-800">
               <div>
                 <div className="font-semibold">Importar Extrato</div>
@@ -579,8 +582,7 @@ export default function Gastos() {
               </div>
             )}
           </div>
-        </div>
-      )}
+      </Modal>
     </div>
   );
 }

@@ -469,7 +469,7 @@ ${listaDisciplinas}
 
 Se a mensagem não é sobre faculdade → retorne a palavra null (sem JSON).
 
-Se é sobre faculdade, retorne um JSON com um destes 5 modos:
+Se é sobre faculdade, retorne um JSON com um destes 6 modos:
 
 1) "unico" — um evento pontual em uma única data:
 {"modo":"unico","tipo":"prova"|"atividade"|"ead"|"aviso","disciplina":"nome exato ou null","titulo":"título descritivo","data":"YYYY-MM-DD","hora":"HH:MM:SS ou null"}
@@ -483,7 +483,10 @@ Se é sobre faculdade, retorne um JSON com um destes 5 modos:
 4) "formula" — o usuário está informando/definindo como a média final da disciplina é calculada (ex: "a média de cálculo é a soma das provas dividido por 2, mínimo 6 pra passar direto senão soma o exame final"):
 {"modo":"formula","disciplina":"nome exato","formula_media":"a fórmula descrita, o mais fiel possível ao que foi dito"}
 
-5) "nao_suportado" — é sobre faculdade mas você não tem confiança de como registrar (disciplina não identificável, pedido ambíguo, ou não se encaixa em nenhum modo acima):
+5) "aula" — o usuário quer CADASTRAR uma matéria nova na grade fixa semanal (ex: "tenho banco de dados terça e quinta das 9:35 às 11:35 com a professora Vanessa no bloco 14", "nova matéria: cálculo, segunda 08:00 às 10:00"):
+{"modo":"aula","disciplina":"nome","professor":"nome ou null","turma":"turma ou null","dias":[array de dias da semana 0-6, domingo=0],"inicio":"HH:MM","fim":"HH:MM","local":"local ou null"}
+
+6) "nao_suportado" — é sobre faculdade mas você não tem confiança de como registrar (disciplina não identificável, pedido ambíguo, ou não se encaixa em nenhum modo acima):
 {"modo":"nao_suportado","motivo":"frase curta explicando o que faltou entender"}
 
 Regras:
@@ -491,7 +494,7 @@ Regras:
 - Datas relativas ("semana que vem na quinta", "próxima segunda", "daqui 2 semanas") → converter para data absoluta
 - EAD = a(s) aula(s) será(ão) online → tipo "ead"
 - NUNCA force o modo "unico" como chute quando o pedido na verdade é sobre um intervalo/várias aulas — use "intervalo" nesse caso
-- NUNCA invente uma disciplina que não está na lista cadastrada — se não conseguir identificar com certeza, use "nao_suportado"
+- NUNCA invente uma disciplina que não está na lista cadastrada — se não conseguir identificar com certeza, use "nao_suportado". EXCEÇÃO: no modo "aula" é normal e esperado que a disciplina NÃO esteja na lista — é justamente o modo de cadastrar uma matéria nova
 - Título deve ser descritivo, ex: "Prova 1 — Banco de Dados", "Entrega do Trabalho", "Aula Online"
 
 Responda APENAS com o JSON ({"resultado": null} se não for sobre faculdade, ou um dos formatos acima dentro de {"resultado": ...}).
@@ -516,6 +519,7 @@ Mensagem: "${texto.replace(/"/g, "'")}"`;
     if (ev.modo === "intervalo" && (!ev.tipo || !ev.disciplina || !ev.data_fim)) return null;
     if (ev.modo === "nota" && (!ev.disciplina || !ev.evento_referencia || ev.nota === undefined || ev.nota === null)) return null;
     if (ev.modo === "formula" && (!ev.disciplina || !ev.formula_media)) return null;
+    if (ev.modo === "aula" && (!ev.disciplina || !Array.isArray(ev.dias) || ev.dias.length === 0 || !ev.inicio || !ev.fim)) return null;
     if (ev.modo === "nao_suportado" && !ev.motivo) return null;
     return ev;
   } catch {
@@ -527,7 +531,7 @@ Mensagem: "${texto.replace(/"/g, "'")}"`;
 async function extrairPlanoFaculdadeIA(base64, mimetype, disciplinas = []) {
   const hoje = new Date().toISOString().slice(0, 10);
   const listaDisciplinas = disciplinas.length > 0 ? disciplinas.map(d => `- ${d}`).join("\n") : "(nenhuma disciplina cadastrada na grade)";
-  const prompt = `Você é um extrator de informações acadêmicas. Analise essa imagem/documento (pode ser um plano de ensino, cronograma, print de aviso, etc) e extraia TODOS os itens relevantes de uma vez: datas de provas/atividades/trabalhos, e a fórmula de cálculo da média, se estiverem presentes.
+  const prompt = `Você é um extrator de informações acadêmicas. Analise essa imagem/documento (pode ser um plano de ensino, cronograma, print de aviso, OU um horário/grade de aulas semanal — tabela de dia da semana × matéria, o tipo de imagem que a faculdade disponibiliza pro aluno) e extraia TODOS os itens relevantes de uma vez: datas de provas/atividades/trabalhos, a fórmula de cálculo da média, e/ou as matérias da grade semanal (com dia, horário, local, professor), conforme o que estiver presente.
 
 Hoje é ${hoje}.
 
@@ -539,12 +543,17 @@ Responda APENAS com JSON válido, sem markdown:
   "eventos": [
     {"tipo":"prova"|"atividade"|"ead"|"aviso","disciplina":"nome exato ou null","titulo":"título descritivo","data":"YYYY-MM-DD","hora":"HH:MM:SS ou null"}
   ],
-  "formula": {"disciplina":"nome exato","formula_media":"a fórmula descrita"} ou null
+  "formula": {"disciplina":"nome exato","formula_media":"a fórmula descrita"} ou null,
+  "aulas": [
+    {"disciplina":"nome","professor":"nome ou null","turma":"turma ou null","dia":número de 0 (domingo) a 6 (sábado),"inicio":"HH:MM","fim":"HH:MM","local":"local ou null"}
+  ]
 }
 Regras:
 - "trabalho" e "lista de exercícios" → tipo "atividade"
-- Se não encontrar nenhum evento nem fórmula, retorne {"eventos":[],"formula":null}
-- NUNCA invente datas ou disciplinas que não estão claramente no documento`;
+- Se a imagem for uma grade/horário semanal, uma linha em "aulas" pra cada ocorrência (se a matéria tem 2 horários na semana, são 2 itens em "aulas", um por dia)
+- Pra "aulas", a disciplina NÃO precisa estar na lista já cadastrada — é normal ser uma matéria nova (troca de semestre)
+- Se não encontrar nada, retorne {"eventos":[],"formula":null,"aulas":[]}
+- NUNCA invente datas, horários ou disciplinas que não estão claramente no documento`;
 
   const isImage = mimetype && (mimetype.includes("image") || mimetype.includes("jpeg") || mimetype.includes("png") || mimetype.includes("webp"));
   const content = isImage
@@ -555,15 +564,15 @@ Regras:
   const response = await openai.chat.completions.create({
     model: "gpt-4o",
     messages: [{ role: "user", content }],
-    max_tokens: 2000,
+    max_tokens: 2800,
     response_format: { type: "json_object" },
   });
 
   try {
     const parsed = JSON.parse(response.choices[0].message.content.trim());
-    return { eventos: parsed.eventos || [], formula: parsed.formula || null };
+    return { eventos: parsed.eventos || [], formula: parsed.formula || null, aulas: parsed.aulas || [] };
   } catch {
-    return { eventos: [], formula: null };
+    return { eventos: [], formula: null, aulas: [] };
   }
 }
 

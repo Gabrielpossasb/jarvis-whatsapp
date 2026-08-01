@@ -5,6 +5,7 @@
 const { CONFIG } = require("../config");
 const { obterEstado, salvarEstado, deletarEstado } = require("../services/pending-states");
 const { encontrarSimilar } = require("../utils/similarity");
+const { corParaDisciplina } = require("../utils/coresFaculdade");
 const { enviarMensagem, baixarMidia } = require("../services/evolution");
 const { extrairDados, revisarCategorias, transcreverAudio, analisarImagem, analisarPDF, extrairExtratoTexto, extrairExtrato, extrairEventoFaculdadeIA, extrairPlanoFaculdadeIA, calcularMediaFaculdadeIA } = require("../services/openai");
 const { getCategorias, getListaCategorias, adicionarCategoria, getEmoji } = require("../services/categorias");
@@ -307,8 +308,10 @@ async function processarContagemEstoque(itens) {
 // Gate rápido: só chama a IA se houver palavras-chave acadêmicas
 function podeSerEventoFaculdade(texto) {
   const norm = texto.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "");
-  return /\b(prova|atividade|trabalho|ead|aula online|aviso de faculdade|facul|nota|media|tirei|passar|resumo da materia|lista de exerc)\b/.test(norm);
+  return /\b(prova|atividade|trabalho|ead|aula online|aviso de faculdade|facul|nota|media|tirei|passar|resumo da materia|lista de exerc|materia|disciplina|horario|grade)\b/.test(norm);
 }
+
+const DIAS_SEMANA_NOME = ["domingo", "segunda", "terça", "quarta", "quinta", "sexta", "sábado"];
 
 async function buscarDisciplinas() {
   const { supabase } = require("../services/supabase");
@@ -457,7 +460,33 @@ async function processarEventoFaculdadeFormula(evento) {
   return { texto: `✅ *Fórmula de média salva!*\n\n📚 ${evento.disciplina}\n_${evento.formula_media}_` };
 }
 
-// Despacha o resultado de extrairEventoFaculdadeIA pelos 5 modos — usado tanto no fluxo normal quanto no reprocessamento após esclarecimento
+// Cadastra uma matéria nova na grade fixa (1 linha por dia da semana informado) — sempre pede
+// confirmação antes de gravar, porque é uma mudança estrutural na grade do semestre inteiro
+async function processarEventoFaculdadeAula(evento, remoteJid) {
+  const cor = corParaDisciplina(evento.disciplina);
+  const aulas = evento.dias.map(dia => ({
+    disciplina: evento.disciplina,
+    professor: evento.professor || null,
+    turma: evento.turma || null,
+    dia,
+    inicio: evento.inicio,
+    fim: evento.fim,
+    local: evento.local || null,
+    cor,
+    ativo: true,
+  }));
+
+  await salvarEstado(remoteJid, "aula_faculdade", { aulas });
+
+  const linhas = [
+    `📚 Vou cadastrar *${evento.disciplina}*:`, ``,
+    ...aulas.map(a => `- ${DIAS_SEMANA_NOME[a.dia]}, ${a.inicio}–${a.fim}${a.local ? ` — ${a.local}` : ""}`),
+    ``, `✅ _"sim"_ para confirmar`, `❌ _"não"_ para cancelar`,
+  ];
+  return { texto: linhas.join("\n"), opcoes: { botoes: ["✅ Sim", "❌ Não"] } };
+}
+
+// Despacha o resultado de extrairEventoFaculdadeIA pelos 6 modos — usado tanto no fluxo normal quanto no reprocessamento após esclarecimento
 async function despacharEventoFaculdade(eventoFac, remoteJid, texto) {
   if (eventoFac.modo === "nao_suportado") {
     await salvarEstado(remoteJid, "esclarecimento", { tipoOrigem: "evento_faculdade", textoOriginal: texto, contextoParcial: null });
@@ -468,6 +497,8 @@ async function despacharEventoFaculdade(eventoFac, remoteJid, texto) {
     return processarEventoFaculdadeNota(eventoFac, remoteJid, texto);
   } else if (eventoFac.modo === "formula") {
     return processarEventoFaculdadeFormula(eventoFac);
+  } else if (eventoFac.modo === "aula") {
+    return processarEventoFaculdadeAula(eventoFac, remoteJid);
   }
   return processarEventoFaculdadeUnico(eventoFac);
 }
@@ -477,15 +508,23 @@ async function processarPlanoFaculdade(plano, remoteJid) {
   const eventos = (plano.eventos || []).map(e => ({
     tipo: e.tipo, disciplina: e.disciplina || null, titulo: e.titulo, data: e.data, hora: e.hora || null, concluido: false,
   }));
+  const aulas = (plano.aulas || []).map(a => ({
+    disciplina: a.disciplina, professor: a.professor || null, turma: a.turma || null,
+    dia: a.dia, inicio: a.inicio, fim: a.fim, local: a.local || null,
+    cor: corParaDisciplina(a.disciplina), ativo: true,
+  }));
 
-  if (eventos.length === 0 && !plano.formula) {
+  if (eventos.length === 0 && !plano.formula && aulas.length === 0) {
     return null;
   }
 
-  await salvarEstado(remoteJid, "plano_faculdade", { eventos, formula: plano.formula || null });
+  await salvarEstado(remoteJid, "plano_faculdade", { eventos, formula: plano.formula || null, aulas });
 
   const TIPOS_EMOJI = { prova: "📝", atividade: "📋", ead: "💻", aviso: "📢" };
   const linhas = [`📄 *Encontrei isso no documento:*`, ``];
+  for (const a of aulas) {
+    linhas.push(`📚 ${a.disciplina} — ${DIAS_SEMANA_NOME[a.dia]}, ${a.inicio}–${a.fim}${a.local ? ` — ${a.local}` : ""}`);
+  }
   for (const e of eventos) {
     linhas.push(`${TIPOS_EMOJI[e.tipo] || "📅"} ${e.titulo}${e.disciplina ? ` — ${e.disciplina}` : ""} (${ddmm(e.data)})`);
   }
@@ -624,7 +663,7 @@ async function processarMensagem(texto, remoteJid, canal = "whatsapp") {
   const estadoPlano = await obterEstado(remoteJid, "plano_faculdade");
   if (estadoPlano) {
     const textoBusca = texto.toLowerCase().trim();
-    const { eventos, formula } = estadoPlano;
+    const { eventos, formula, aulas } = estadoPlano;
 
     const confirmou = ["sim", "s", "pode", "confirmar", "yes"].some(p => textoBusca.includes(p));
     const cancelou  = ["não", "nao", "n", "cancelar", "cancel", "no"].some(p => textoBusca.includes(p));
@@ -636,11 +675,19 @@ async function processarMensagem(texto, remoteJid, canal = "whatsapp") {
         const { error } = await supabase.from("faculdade_eventos").insert(eventos);
         if (error) throw error;
       }
+      if (aulas && aulas.length > 0) {
+        const { error } = await supabase.from("faculdade_aulas").insert(aulas);
+        if (error) throw error;
+      }
       if (formula) {
         const { error } = await supabase.from("faculdade_disciplinas").upsert({ nome: formula.disciplina, formula_media: formula.formula_media }, { onConflict: "nome" });
         if (error) throw error;
       }
-      await responder(`✅ *Salvo!* ${eventos.length} evento(s)${formula ? " + fórmula de média" : ""} registrado(s).\n\n_Abra a aba Faculdade para ver tudo._`);
+      const partes = [];
+      if (aulas && aulas.length > 0) partes.push(`${aulas.length} matéria(s)`);
+      if (eventos.length > 0) partes.push(`${eventos.length} evento(s)`);
+      if (formula) partes.push("fórmula de média");
+      await responder(`✅ *Salvo!* ${partes.join(" + ")} registrado(s).\n\n_Abra a aba Faculdade para ver tudo._`);
       return { texto: respostas.join("\n\n"), opcoes: opcoesFinais };
     } else if (cancelou) {
       await deletarEstado(remoteJid, "plano_faculdade");
@@ -648,6 +695,30 @@ async function processarMensagem(texto, remoteJid, canal = "whatsapp") {
       return { texto: respostas.join("\n\n"), opcoes: opcoesFinais };
     }
     await deletarEstado(remoteJid, "plano_faculdade");
+  }
+
+  // ── Verifica cadastro de matéria pendente (via chat) de confirmação ──
+  const estadoAula = await obterEstado(remoteJid, "aula_faculdade");
+  if (estadoAula) {
+    const textoBusca = texto.toLowerCase().trim();
+    const { aulas } = estadoAula;
+
+    const confirmou = ["sim", "s", "pode", "confirmar", "yes"].some(p => textoBusca.includes(p));
+    const cancelou  = ["não", "nao", "n", "cancelar", "cancel", "no"].some(p => textoBusca.includes(p));
+
+    if (confirmou) {
+      await deletarEstado(remoteJid, "aula_faculdade");
+      const { supabase } = require("../services/supabase");
+      const { error } = await supabase.from("faculdade_aulas").insert(aulas);
+      if (error) throw error;
+      await responder(`✅ *${aulas[0].disciplina} cadastrada!*\n\n_Abra a aba Faculdade → Matérias para ver/editar._`);
+      return { texto: respostas.join("\n\n"), opcoes: opcoesFinais };
+    } else if (cancelou) {
+      await deletarEstado(remoteJid, "aula_faculdade");
+      await responder(`❌ Cancelado! Nada foi salvo.`);
+      return { texto: respostas.join("\n\n"), opcoes: opcoesFinais };
+    }
+    await deletarEstado(remoteJid, "aula_faculdade");
   }
 
   // ── Verifica esclarecimento pendente (bot fez uma pergunta e espera resposta) ──

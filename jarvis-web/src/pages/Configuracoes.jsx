@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { useHeader } from "../contexts/HeaderContext";
+import Modal from "../components/Modal";
 
 const JARVIS_URL = import.meta.env.VITE_JARVIS_URL || "https://web-production-f30e8.up.railway.app";
 const ONESIGNAL_APP_ID = import.meta.env.VITE_ONESIGNAL_APP_ID;
@@ -99,6 +100,8 @@ export default function Configuracoes() {
 
   // ── Modal ──
   const [modal, setModal] = useState(null);
+  const [modalConteudo, setModalConteudo] = useState(null); // mantém o conteúdo visível durante a animação de saída
+  if (modal && modal !== modalConteudo) setModalConteudo(modal);
   const [confirmarReset, setConfirmarReset] = useState(false);
 
   // ── Categorias ──
@@ -310,13 +313,12 @@ export default function Configuracoes() {
     <div className="flex flex-col h-full">
 
       {/* Modal genérico */}
-      {modal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center px-6"
-          style={{ background: "rgba(0,0,0,0.6)", backdropFilter: "blur(4px)" }}>
-          <div className="w-full max-w-sm bg-cinza-850 border border-cinza-700 rounded-2xl shadow-xl overflow-hidden">
+      <Modal open={!!modal} onClose={() => setModal(null)}>
+        {modalConteudo && (
+          <div className="w-full max-w-sm mx-auto bg-cinza-850 border border-cinza-700 rounded-2xl shadow-xl overflow-hidden">
             <div className="px-5 pt-5 pb-4">
-              <p className="text-base font-semibold text-white mb-2">{modal.titulo}</p>
-              <p className="text-sm text-cinza-200 leading-relaxed whitespace-pre-line">{modal.corpo}</p>
+              <p className="text-base font-semibold text-white mb-2">{modalConteudo.titulo}</p>
+              <p className="text-sm text-cinza-200 leading-relaxed whitespace-pre-line">{modalConteudo.corpo}</p>
             </div>
             <div className="border-t border-cinza-700 px-5 py-3 flex justify-end">
               <button onClick={() => setModal(null)}
@@ -325,31 +327,28 @@ export default function Configuracoes() {
               </button>
             </div>
           </div>
-        </div>
-      )}
+        )}
+      </Modal>
 
       {/* Modal de confirmação de reset */}
-      {confirmarReset && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center px-6"
-          style={{ background: "rgba(0,0,0,0.6)", backdropFilter: "blur(4px)" }}>
-          <div className="w-full max-w-sm bg-cinza-850 border border-cinza-700 rounded-2xl shadow-xl overflow-hidden">
-            <div className="px-5 pt-5 pb-4">
-              <p className="text-base font-semibold text-white mb-2">Limpar conversa?</p>
-              <p className="text-sm text-cinza-200 leading-relaxed">Isso apaga todo o histórico do chat. A ação não pode ser desfeita.</p>
-            </div>
-            <div className="border-t border-cinza-700 px-5 py-3 flex justify-end gap-2">
-              <button onClick={() => setConfirmarReset(false)}
-                className="px-4 py-1.5 rounded-xl text-sm font-semibold text-cinza-200 hover:text-white transition-colors">
-                Cancelar
-              </button>
-              <button onClick={confirmarLimparChat}
-                className="px-5 py-1.5 bg-red-600 hover:bg-red-500 rounded-xl text-sm font-semibold text-white transition-colors">
-                Limpar
-              </button>
-            </div>
+      <Modal open={confirmarReset} onClose={() => setConfirmarReset(false)}>
+        <div className="w-full max-w-sm mx-auto bg-cinza-850 border border-cinza-700 rounded-2xl shadow-xl overflow-hidden">
+          <div className="px-5 pt-5 pb-4">
+            <p className="text-base font-semibold text-white mb-2">Limpar conversa?</p>
+            <p className="text-sm text-cinza-200 leading-relaxed">Isso apaga todo o histórico do chat. A ação não pode ser desfeita.</p>
+          </div>
+          <div className="border-t border-cinza-700 px-5 py-3 flex justify-end gap-2">
+            <button onClick={() => setConfirmarReset(false)}
+              className="px-4 py-1.5 rounded-xl text-sm font-semibold text-cinza-200 hover:text-white transition-colors">
+              Cancelar
+            </button>
+            <button onClick={confirmarLimparChat}
+              className="px-5 py-1.5 bg-red-600 hover:bg-red-500 rounded-xl text-sm font-semibold text-white transition-colors">
+              Limpar
+            </button>
           </div>
         </div>
-      )}
+      </Modal>
 
       <div className="flex-1 overflow-y-auto px-4 md:px-6 py-5 flex flex-col gap-6">
 
