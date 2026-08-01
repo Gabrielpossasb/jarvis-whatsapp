@@ -52,7 +52,7 @@ export default function App() {
   return (
     <HashRouter>
       <HeaderProvider>
-        <div className="flex h-dvh bg-[#0f0f13] text-[#e8e8f0] overflow-hidden"
+        <div className="flex h-dvh bg-cinza-950 text-cinza-50 overflow-hidden"
           style={{ fontFamily: "'DM Sans', system-ui, sans-serif", paddingTop: "env(safe-area-inset-top)" }}
           onTouchStart={handleTouchStart}
           onTouchMove={handleTouchMove}

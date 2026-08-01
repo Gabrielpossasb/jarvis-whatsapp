@@ -89,7 +89,7 @@ export default function Estoque() {
         : `${totalKg.toFixed(1)} kg · tudo ok`,
       right: (
         <button onClick={() => { setContagens({}); setTextoContagem(""); setAbaContagem("formulario"); setModoContagem(true); }}
-          className="text-xs px-3 py-1 rounded-full bg-[#1a1a28] border border-[#2a2a3e] text-[#6a6a8a] hover:border-[#6c5fff] hover:text-[#a78bfa] transition-colors whitespace-nowrap">
+          className="text-xs px-3 py-1 rounded-full bg-cinza-850 border border-cinza-700 text-cinza-200 hover:border-roxo-700 hover:text-roxo-400 transition-colors whitespace-nowrap">
           📋 Contagem
         </button>
       ),
@@ -99,8 +99,8 @@ export default function Estoque() {
             <button key={a} onClick={() => setAba(a)}
               className={`px-3 py-1 rounded-lg text-xs font-medium border transition-all shrink-0
                 ${aba === a
-                  ? "border-[#6c5fff] bg-[#6c5fff22] text-[#a78bfa]"
-                  : "border-[#2a2a3e] text-[#6a6a8a] hover:border-[#3a3a50]"}`}>
+                  ? "border-roxo-700 bg-roxo-700/13 text-roxo-400"
+                  : "border-cinza-700 text-cinza-200 hover:border-cinza-600"}`}>
               {l}
             </button>
           ))}
@@ -326,7 +326,7 @@ export default function Estoque() {
       )}
 
       {loading ? (
-        <div className="flex-1 flex items-center justify-center text-[#4a4a6a] text-sm">
+        <div className="flex-1 flex items-center justify-center text-cinza-350 text-sm">
           Carregando...
         </div>
       ) : aba === "estoque" ? (
@@ -335,7 +335,7 @@ export default function Estoque() {
         <div className="flex-1 overflow-y-auto px-4 md:px-6 py-4">
           {porCategoria.map(({ cat, itens }) => (
             <div key={cat} className="mb-6">
-              <div className="text-[10px] text-[#4a4a6a] tracking-widest font-medium px-1 mb-2 uppercase">
+              <div className="text-[10px] text-cinza-350 tracking-widest font-medium px-1 mb-2 uppercase">
                 {cat}
               </div>
               <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2">
@@ -346,17 +346,17 @@ export default function Estoque() {
                   const pct = minimo > 0 ? Math.min(100, (atual / minimo) * 100) : 100;
                   return (
                     <div key={p.id}
-                      className={`bg-[#13131e] border rounded-xl p-3 flex flex-col gap-2
-                        ${abaixo ? "border-red-500/40" : "border-[#1e1e2e]"}`}>
+                      className={`bg-cinza-900 border rounded-xl p-3 flex flex-col gap-2
+                        ${abaixo ? "border-red-500/40" : "border-cinza-800"}`}>
 
                       {/* Nome + botão editar */}
                       <div className="flex items-start justify-between gap-1 min-h-[32px]">
-                        <span className="text-[11px] font-medium text-[#e8e8f0] leading-tight">
+                        <span className="text-[11px] font-medium text-cinza-50 leading-tight">
                           {abaixo && <span className="text-red-400 mr-0.5">⚠</span>}
                           {p.nome}
                         </span>
                         <button onClick={() => abrirEditar(p)}
-                          className="text-[#3a3a5a] hover:text-[#a78bfa] transition-colors shrink-0 mt-0.5 leading-none">
+                          className="text-cinza-300 hover:text-roxo-400 transition-colors shrink-0 mt-0.5 leading-none">
                           <svg viewBox="0 0 16 16" width="12" height="12" fill="currentColor">
                             <path d="M11.5 1.5a1.5 1.5 0 0 1 2.12 2.12l-8.5 8.5-2.83.71.71-2.83 8.5-8.5z"/>
                           </svg>
@@ -365,21 +365,21 @@ export default function Estoque() {
 
                       {/* Estoque atual */}
                       <div>
-                        <div className={`text-base font-bold leading-tight ${abaixo ? "text-red-400" : "text-[#a78bfa]"}`}>
+                        <div className={`text-base font-bold leading-tight ${abaixo ? "text-red-400" : "text-roxo-400"}`}>
                           {fmtQtd(atual, p.unidade)}
                         </div>
-                        <div className="text-[10px] text-[#4a4a6a] mt-0.5">mín {fmtQtd(minimo, p.unidade)}</div>
+                        <div className="text-[10px] text-cinza-350 mt-0.5">mín {fmtQtd(minimo, p.unidade)}</div>
                       </div>
 
                       {/* Barra de progresso */}
-                      <div className="w-full h-1 rounded-full bg-[#2a2a3e] overflow-hidden">
-                        <div className={`h-full rounded-full transition-all duration-500 ${abaixo ? "bg-red-500" : "bg-[#6c5fff]"}`}
+                      <div className="w-full h-1 rounded-full bg-cinza-700 overflow-hidden">
+                        <div className={`h-full rounded-full transition-all duration-500 ${abaixo ? "bg-red-500" : "bg-roxo-700"}`}
                           style={{ width: `${pct}%` }} />
                       </div>
 
                       {/* Preço */}
                       {fmtMoeda(p.preco) && (
-                        <div className="text-[10px] text-[#5a5a7a]">{fmtMoeda(p.preco)}/{p.unidade}</div>
+                        <div className="text-[10px] text-cinza-300">{fmtMoeda(p.preco)}/{p.unidade}</div>
                       )}
 
                       {/* Botões de ação */}
@@ -418,8 +418,8 @@ export default function Estoque() {
               <button key={t} onClick={() => setFiltroMov(t)}
                 className={`px-3 py-1 rounded-full text-xs border transition-all whitespace-nowrap shrink-0
                   ${filtroMov === t
-                    ? "border-[#6c5fff] bg-[#6c5fff22] text-[#a78bfa]"
-                    : "border-[#2a2a3e] text-[#6a6a8a] hover:border-[#3a3a50]"}`}>
+                    ? "border-roxo-700 bg-roxo-700/13 text-roxo-400"
+                    : "border-cinza-700 text-cinza-200 hover:border-cinza-600"}`}>
                 {t === "todos" ? "Todos" : TIPO_LABEL[t]}
               </button>
             ))}
@@ -428,25 +428,25 @@ export default function Estoque() {
           {/* Lista */}
           <div className="flex-1 overflow-y-auto px-4 md:px-6 pb-4">
             {movsFiltradas.length === 0 ? (
-              <div className="text-center text-[#4a4a6a] text-sm py-10">Nenhuma movimentação</div>
+              <div className="text-center text-cinza-350 text-sm py-10">Nenhuma movimentação</div>
             ) : (
-              <div className="bg-[#13131e] border border-[#1e1e2e] rounded-xl overflow-hidden">
+              <div className="bg-cinza-900 border border-cinza-800 rounded-xl overflow-hidden">
                 {movsFiltradas.map((m, i) => (
                   <div key={m.id}
-                    className={`flex items-center gap-3 px-4 py-3 hover:bg-[#1a1a28] transition-colors
-                      ${i < movsFiltradas.length - 1 ? "border-b border-[#1a1a24]" : ""}`}>
+                    className={`flex items-center gap-3 px-4 py-3 hover:bg-cinza-850 transition-colors
+                      ${i < movsFiltradas.length - 1 ? "border-b border-cinza-850" : ""}`}>
                     <span className={`text-[10px] px-2 py-0.5 rounded-full font-medium shrink-0 ${TIPO_BADGE[m.tipo]}`}>
                       {TIPO_LABEL[m.tipo]}
                     </span>
                     <div className="flex-1 min-w-0">
-                      <div className="text-xs text-[#e8e8f0] truncate">
+                      <div className="text-xs text-cinza-50 truncate">
                         {m.produto?.nome || "—"}
                         {m.pessoa && (
-                          <span className="text-[#6a6a8a] ml-1.5">· {m.pessoa}</span>
+                          <span className="text-cinza-200 ml-1.5">· {m.pessoa}</span>
                         )}
                       </div>
                       {m.observacao && (
-                        <div className="text-[10px] text-[#4a4a6a] truncate mt-0.5">{m.observacao}</div>
+                        <div className="text-[10px] text-cinza-350 truncate mt-0.5">{m.observacao}</div>
                       )}
                     </div>
                     <div className={`text-xs font-semibold shrink-0
@@ -455,7 +455,7 @@ export default function Estoque() {
                         : "text-red-400"}`}>
                       {TIPO_SINAL[m.tipo]}{fmtQtd(m.quantidade, m.produto?.unidade || "")}
                     </div>
-                    <div className="text-[10px] text-[#4a4a6a] shrink-0 hidden sm:block">
+                    <div className="text-[10px] text-cinza-350 shrink-0 hidden sm:block">
                       {fmtData(m.criado_em)}
                     </div>
                   </div>
@@ -475,18 +475,18 @@ export default function Estoque() {
         const naoEncontradosTxt = resolvidosTxt.filter(i => !i.produto);
 
         return (
-          <div className="fixed inset-0 bg-[#0f0f13] z-40 flex flex-col">
+          <div className="fixed inset-0 bg-cinza-950 z-40 flex flex-col">
             {/* Header */}
-            <div className="flex items-center justify-between px-4 py-3 border-b border-[#1e1e2e] shrink-0">
+            <div className="flex items-center justify-between px-4 py-3 border-b border-cinza-800 shrink-0">
               <div>
-                <div className="text-sm font-semibold text-[#e8e8f0]">Contagem de Estoque</div>
+                <div className="text-sm font-semibold text-cinza-50">Contagem de Estoque</div>
                 <div className="flex gap-1.5 mt-1.5">
                   {["formulario", "texto"].map(a => (
                     <button key={a} onClick={() => setAbaContagem(a)}
                       className={`px-2.5 py-0.5 rounded-md text-[10px] font-medium border transition-all
                         ${abaContagem === a
-                          ? "border-[#6c5fff] bg-[#6c5fff22] text-[#a78bfa]"
-                          : "border-[#2a2a3e] text-[#6a6a8a] hover:border-[#3a3a50]"}`}>
+                          ? "border-roxo-700 bg-roxo-700/13 text-roxo-400"
+                          : "border-cinza-700 text-cinza-200 hover:border-cinza-600"}`}>
                       {a === "formulario" ? "📋 Formulário" : "📝 Texto"}
                     </button>
                   ))}
@@ -494,13 +494,13 @@ export default function Estoque() {
               </div>
               <div className="flex gap-2">
                 <button onClick={() => { setModoContagem(false); setContagens({}); setTextoContagem(""); }}
-                  className="px-3 py-1.5 rounded-lg text-xs border border-[#2a2a3e] text-[#6a6a8a] hover:border-[#3a3a50] transition-colors">
+                  className="px-3 py-1.5 rounded-lg text-xs border border-cinza-700 text-cinza-200 hover:border-cinza-600 transition-colors">
                   Cancelar
                 </button>
                 <button
                   onClick={abaContagem === "formulario" ? salvarContagem : salvarContagemTexto}
                   disabled={salvandoContagem}
-                  className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-[#6c5fff] hover:bg-[#7c6fff] disabled:opacity-50 text-white transition-colors">
+                  className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-roxo-700 hover:bg-roxo-600 disabled:opacity-50 text-white transition-colors">
                   {salvandoContagem ? "Salvando..." : "Salvar"}
                 </button>
               </div>
@@ -528,8 +528,8 @@ export default function Estoque() {
                 <div className="flex-1 overflow-y-auto px-4 md:px-6 py-3">
                   {porCategoria.map(({ cat, itens }) => (
                     <div key={cat} className="mb-5">
-                      <div className="text-[10px] text-[#4a4a6a] tracking-widest font-medium px-1 mb-2 uppercase">{cat}</div>
-                      <div className="bg-[#13131e] border border-[#1e1e2e] rounded-xl overflow-hidden">
+                      <div className="text-[10px] text-cinza-350 tracking-widest font-medium px-1 mb-2 uppercase">{cat}</div>
+                      <div className="bg-cinza-900 border border-cinza-800 rounded-xl overflow-hidden">
                         {itens.map((p, i) => {
                           const val = contagens[p.id] ?? "";
                           const novoVal = val !== "" ? parseFloat(String(val).replace(",", ".")) : null;
@@ -538,10 +538,10 @@ export default function Estoque() {
                             <div key={p.id}
                               className={`flex items-center gap-3 px-4 py-2.5 transition-colors
                                 ${mudou ? "bg-sky-500/5" : ""}
-                                ${i < itens.length - 1 ? "border-b border-[#1a1a24]" : ""}`}>
+                                ${i < itens.length - 1 ? "border-b border-cinza-850" : ""}`}>
                               <div className="flex-1 min-w-0">
-                                <div className="text-xs text-[#e8e8f0] truncate">{p.nome}</div>
-                                <div className="text-[10px] text-[#4a4a6a] mt-0.5">
+                                <div className="text-xs text-cinza-50 truncate">{p.nome}</div>
+                                <div className="text-[10px] text-cinza-350 mt-0.5">
                                   atual: {fmtQtd(p.estoque_atual, p.unidade)}
                                   {mudou && (
                                     <span className={`ml-2 font-medium ${novoVal > Number(p.estoque_atual) ? "text-emerald-400" : "text-red-400"}`}>
@@ -559,10 +559,10 @@ export default function Estoque() {
                                   value={val}
                                   onChange={e => setContagens(prev => ({ ...prev, [p.id]: e.target.value }))}
                                   placeholder={Number(p.estoque_atual).toLocaleString("pt-BR", { minimumFractionDigits: 1 })}
-                                  className={`w-20 text-right bg-[#1a1a28] border rounded-lg px-2 py-1.5 text-xs text-[#e8e8f0] placeholder-[#3a3a5a] outline-none transition-colors
-                                    ${mudou ? "border-sky-500/60 focus:border-sky-400" : "border-[#2a2a3e] focus:border-[#6c5fff]"}`}
+                                  className={`w-20 text-right bg-cinza-850 border rounded-lg px-2 py-1.5 text-xs text-cinza-50 placeholder-cinza-300 outline-none transition-colors
+                                    ${mudou ? "border-sky-500/60 focus:border-sky-400" : "border-cinza-700 focus:border-roxo-700"}`}
                                 />
-                                <span className="text-[10px] text-[#4a4a6a] w-4">{p.unidade}</span>
+                                <span className="text-[10px] text-cinza-350 w-4">{p.unidade}</span>
                               </div>
                             </div>
                           );
@@ -576,34 +576,34 @@ export default function Estoque() {
               /* ── Modo Texto ── */
               <div className="flex-1 flex flex-col overflow-hidden px-4 md:px-6 py-4 gap-4">
                 <div>
-                  <div className="text-[10px] text-[#6a6a8a] uppercase tracking-wider mb-2">
-                    Cole ou digite a lista no formato: <span className="text-[#a78bfa]">Produto — quantidade kg/un</span>
+                  <div className="text-[10px] text-cinza-200 uppercase tracking-wider mb-2">
+                    Cole ou digite a lista no formato: <span className="text-roxo-400">Produto — quantidade kg/un</span>
                   </div>
                   <textarea
                     value={textoContagem}
                     onChange={e => setTextoContagem(e.target.value)}
                     placeholder={"Abacaxi — 5 kg\nMorango — 3 kg\nAçaí 500ml — 6 un"}
                     rows={10}
-                    className="w-full bg-[#1a1a28] border border-[#2a2a3e] rounded-xl px-4 py-3 text-sm text-[#e8e8f0] placeholder-[#3a3a5a] outline-none focus:border-[#6c5fff] resize-none font-mono leading-relaxed transition-colors"
+                    className="w-full bg-cinza-850 border border-cinza-700 rounded-xl px-4 py-3 text-sm text-cinza-50 placeholder-cinza-300 outline-none focus:border-roxo-700 resize-none font-mono leading-relaxed transition-colors"
                   />
                 </div>
 
                 {/* Preview em tempo real */}
                 {itensTxt.length > 0 && (
                   <div className="flex-1 overflow-y-auto">
-                    <div className="text-[10px] text-[#6a6a8a] uppercase tracking-wider mb-2">
+                    <div className="text-[10px] text-cinza-200 uppercase tracking-wider mb-2">
                       Preview — {alteradosTxt.length} produto(s) serão atualizados
                     </div>
-                    <div className="bg-[#13131e] border border-[#1e1e2e] rounded-xl overflow-hidden">
+                    <div className="bg-cinza-900 border border-cinza-800 rounded-xl overflow-hidden">
                       {resolvidosTxt.map((item, i) => (
                         <div key={i}
                           className={`flex items-center gap-3 px-4 py-2.5
-                            ${i < resolvidosTxt.length - 1 ? "border-b border-[#1a1a24]" : ""}`}>
+                            ${i < resolvidosTxt.length - 1 ? "border-b border-cinza-850" : ""}`}>
                           {item.produto ? (
                             <>
                               <div className="flex-1 min-w-0">
-                                <div className="text-xs text-[#e8e8f0] truncate">{item.produto.nome}</div>
-                                <div className="text-[10px] text-[#4a4a6a]">
+                                <div className="text-xs text-cinza-50 truncate">{item.produto.nome}</div>
+                                <div className="text-[10px] text-cinza-350">
                                   {fmtQtd(item.produto.estoque_atual, item.produto.unidade)}
                                   {item.quantidade !== Number(item.produto.estoque_atual) && (
                                     <span className={`ml-2 font-medium ${item.quantidade > Number(item.produto.estoque_atual) ? "text-emerald-400" : "text-red-400"}`}>
@@ -611,7 +611,7 @@ export default function Estoque() {
                                     </span>
                                   )}
                                   {item.quantidade === Number(item.produto.estoque_atual) && (
-                                    <span className="ml-2 text-[#4a4a6a]">sem alteração</span>
+                                    <span className="ml-2 text-cinza-350">sem alteração</span>
                                   )}
                                 </div>
                               </div>
@@ -620,7 +620,7 @@ export default function Estoque() {
                           ) : (
                             <>
                               <div className="flex-1 min-w-0">
-                                <div className="text-xs text-[#6a6a8a] truncate">{item.nome}</div>
+                                <div className="text-xs text-cinza-200 truncate">{item.nome}</div>
                                 <div className="text-[10px] text-red-400/70">produto não encontrado</div>
                               </div>
                               <span className="text-[10px] text-red-400/70 shrink-0">✗</span>
@@ -630,7 +630,7 @@ export default function Estoque() {
                       ))}
                     </div>
                     {naoEncontradosTxt.length > 0 && (
-                      <div className="mt-2 text-[10px] text-[#4a4a6a]">
+                      <div className="mt-2 text-[10px] text-cinza-350">
                         ⚠️ {naoEncontradosTxt.length} produto(s) não reconhecido(s) serão ignorados
                       </div>
                     )}
@@ -645,16 +645,16 @@ export default function Estoque() {
       {/* ── Modal de movimentação ─────────────────── */}
       {modal?.tipo === "mov" && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-end sm:items-center justify-center z-50 p-4">
-          <div className="bg-[#12121a] border border-[#2a2a3e] rounded-2xl w-full max-w-sm flex flex-col">
-            <div className="flex items-center justify-between px-5 py-4 border-b border-[#1e1e2e]">
+          <div className="bg-cinza-900 border border-cinza-700 rounded-2xl w-full max-w-sm flex flex-col">
+            <div className="flex items-center justify-between px-5 py-4 border-b border-cinza-800">
               <div>
-                <div className="text-sm font-semibold text-[#e8e8f0]">{modal.produto.nome}</div>
-                <div className="text-[10px] text-[#4a4a6a] mt-0.5">
+                <div className="text-sm font-semibold text-cinza-50">{modal.produto.nome}</div>
+                <div className="text-[10px] text-cinza-350 mt-0.5">
                   Estoque atual: {fmtQtd(modal.produto.estoque_atual, modal.produto.unidade)}
                 </div>
               </div>
               <button onClick={() => setModal(null)}
-                className="text-[#6a6a8a] hover:text-[#e8e8f0] transition-colors text-xl leading-none">
+                className="text-cinza-200 hover:text-cinza-50 transition-colors text-xl leading-none">
                 ✕
               </button>
             </div>
@@ -669,7 +669,7 @@ export default function Estoque() {
                         ? t === "entrada" ? "border-emerald-500 bg-emerald-500/15 text-emerald-400"
                           : t === "venda" ? "border-red-500 bg-red-500/15 text-red-400"
                           : "border-amber-500 bg-amber-500/15 text-amber-400"
-                        : "border-[#2a2a3e] text-[#6a6a8a] hover:border-[#3a3a50]"}`}>
+                        : "border-cinza-700 text-cinza-200 hover:border-cinza-600"}`}>
                     {TIPO_LABEL[t]}
                   </button>
                 ))}
@@ -677,47 +677,47 @@ export default function Estoque() {
 
               {/* Quantidade */}
               <div>
-                <label className="text-[10px] text-[#6a6a8a] uppercase tracking-wider">
+                <label className="text-[10px] text-cinza-200 uppercase tracking-wider">
                   Quantidade ({modal.produto.unidade})
                 </label>
                 <input
                   type="number" inputMode="decimal" min="0" step="0.1"
                   value={quantidade} onChange={e => setQuantidade(e.target.value)}
                   placeholder="0,0" autoFocus
-                  className="mt-1.5 w-full bg-[#1a1a28] border border-[#2a2a3e] rounded-lg px-3 py-2.5 text-sm text-[#e8e8f0] placeholder-[#4a4a6a] outline-none focus:border-[#6c5fff] transition-colors"
+                  className="mt-1.5 w-full bg-cinza-850 border border-cinza-700 rounded-lg px-3 py-2.5 text-sm text-cinza-50 placeholder-cinza-350 outline-none focus:border-roxo-700 transition-colors"
                 />
               </div>
 
               {/* Pessoa — só para consumo */}
               {tipoMov === "consumo" && (
                 <div>
-                  <label className="text-[10px] text-[#6a6a8a] uppercase tracking-wider">Pessoa</label>
+                  <label className="text-[10px] text-cinza-200 uppercase tracking-wider">Pessoa</label>
                   <input
                     type="text" value={pessoa} onChange={e => setPessoa(e.target.value)}
                     placeholder="Nome (opcional)"
-                    className="mt-1.5 w-full bg-[#1a1a28] border border-[#2a2a3e] rounded-lg px-3 py-2.5 text-sm text-[#e8e8f0] placeholder-[#4a4a6a] outline-none focus:border-[#6c5fff] transition-colors"
+                    className="mt-1.5 w-full bg-cinza-850 border border-cinza-700 rounded-lg px-3 py-2.5 text-sm text-cinza-50 placeholder-cinza-350 outline-none focus:border-roxo-700 transition-colors"
                   />
                 </div>
               )}
 
               {/* Observação */}
               <div>
-                <label className="text-[10px] text-[#6a6a8a] uppercase tracking-wider">Observação</label>
+                <label className="text-[10px] text-cinza-200 uppercase tracking-wider">Observação</label>
                 <input
                   type="text" value={obs} onChange={e => setObs(e.target.value)}
                   placeholder="Opcional"
-                  className="mt-1.5 w-full bg-[#1a1a28] border border-[#2a2a3e] rounded-lg px-3 py-2.5 text-sm text-[#e8e8f0] placeholder-[#4a4a6a] outline-none focus:border-[#6c5fff] transition-colors"
+                  className="mt-1.5 w-full bg-cinza-850 border border-cinza-700 rounded-lg px-3 py-2.5 text-sm text-cinza-50 placeholder-cinza-350 outline-none focus:border-roxo-700 transition-colors"
                 />
               </div>
             </div>
 
-            <div className="px-5 py-4 border-t border-[#1e1e2e] flex gap-2">
+            <div className="px-5 py-4 border-t border-cinza-800 flex gap-2">
               <button onClick={() => setModal(null)}
-                className="flex-1 py-2 rounded-lg text-xs font-semibold border border-[#2a2a3e] text-[#6a6a8a] hover:border-[#3a3a50] transition-colors">
+                className="flex-1 py-2 rounded-lg text-xs font-semibold border border-cinza-700 text-cinza-200 hover:border-cinza-600 transition-colors">
                 Cancelar
               </button>
               <button onClick={registrarMovimentacao} disabled={salvando || !quantidade || Number(quantidade) <= 0}
-                className="flex-1 py-2 bg-[#6c5fff] hover:bg-[#7c6fff] disabled:opacity-50 rounded-lg text-xs font-semibold text-white transition-colors">
+                className="flex-1 py-2 bg-roxo-700 hover:bg-roxo-600 disabled:opacity-50 rounded-lg text-xs font-semibold text-white transition-colors">
                 {salvando ? "Salvando..." : "Registrar"}
               </button>
             </div>
@@ -728,47 +728,47 @@ export default function Estoque() {
       {/* ── Modal de edição ──────────────────────── */}
       {modal?.tipo === "editar" && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-end sm:items-center justify-center z-50 p-4">
-          <div className="bg-[#12121a] border border-[#2a2a3e] rounded-2xl w-full max-w-sm flex flex-col">
-            <div className="flex items-center justify-between px-5 py-4 border-b border-[#1e1e2e]">
-              <span className="text-sm font-semibold text-[#e8e8f0]">Editar produto</span>
+          <div className="bg-cinza-900 border border-cinza-700 rounded-2xl w-full max-w-sm flex flex-col">
+            <div className="flex items-center justify-between px-5 py-4 border-b border-cinza-800">
+              <span className="text-sm font-semibold text-cinza-50">Editar produto</span>
               <button onClick={() => setModal(null)}
-                className="text-[#6a6a8a] hover:text-[#e8e8f0] transition-colors text-xl leading-none">
+                className="text-cinza-200 hover:text-cinza-50 transition-colors text-xl leading-none">
                 ✕
               </button>
             </div>
 
             <div className="px-5 py-4 flex flex-col gap-4">
               <div>
-                <label className="text-[10px] text-[#6a6a8a] uppercase tracking-wider">Nome</label>
+                <label className="text-[10px] text-cinza-200 uppercase tracking-wider">Nome</label>
                 <input type="text" value={editNome} onChange={e => setEditNome(e.target.value)}
-                  className="mt-1.5 w-full bg-[#1a1a28] border border-[#2a2a3e] rounded-lg px-3 py-2.5 text-sm text-[#e8e8f0] outline-none focus:border-[#6c5fff] transition-colors" />
+                  className="mt-1.5 w-full bg-cinza-850 border border-cinza-700 rounded-lg px-3 py-2.5 text-sm text-cinza-50 outline-none focus:border-roxo-700 transition-colors" />
               </div>
               <div>
-                <label className="text-[10px] text-[#6a6a8a] uppercase tracking-wider">
+                <label className="text-[10px] text-cinza-200 uppercase tracking-wider">
                   Estoque mínimo ({modal.produto.unidade})
                 </label>
                 <input type="number" inputMode="decimal" min="0" step="0.5"
                   value={editMin} onChange={e => setEditMin(e.target.value)}
-                  className="mt-1.5 w-full bg-[#1a1a28] border border-[#2a2a3e] rounded-lg px-3 py-2.5 text-sm text-[#e8e8f0] outline-none focus:border-[#6c5fff] transition-colors" />
+                  className="mt-1.5 w-full bg-cinza-850 border border-cinza-700 rounded-lg px-3 py-2.5 text-sm text-cinza-50 outline-none focus:border-roxo-700 transition-colors" />
               </div>
               <div>
-                <label className="text-[10px] text-[#6a6a8a] uppercase tracking-wider">
+                <label className="text-[10px] text-cinza-200 uppercase tracking-wider">
                   Preço de venda (R$/{modal.produto.unidade})
                 </label>
                 <input type="number" inputMode="decimal" min="0" step="0.01"
                   value={editPreco} onChange={e => setEditPreco(e.target.value)}
                   placeholder="Não definido"
-                  className="mt-1.5 w-full bg-[#1a1a28] border border-[#2a2a3e] rounded-lg px-3 py-2.5 text-sm text-[#e8e8f0] placeholder-[#4a4a6a] outline-none focus:border-[#6c5fff] transition-colors" />
+                  className="mt-1.5 w-full bg-cinza-850 border border-cinza-700 rounded-lg px-3 py-2.5 text-sm text-cinza-50 placeholder-cinza-350 outline-none focus:border-roxo-700 transition-colors" />
               </div>
             </div>
 
-            <div className="px-5 py-4 border-t border-[#1e1e2e] flex gap-2">
+            <div className="px-5 py-4 border-t border-cinza-800 flex gap-2">
               <button onClick={() => setModal(null)}
-                className="flex-1 py-2 rounded-lg text-xs font-semibold border border-[#2a2a3e] text-[#6a6a8a] hover:border-[#3a3a50] transition-colors">
+                className="flex-1 py-2 rounded-lg text-xs font-semibold border border-cinza-700 text-cinza-200 hover:border-cinza-600 transition-colors">
                 Cancelar
               </button>
               <button onClick={salvarEdicao} disabled={salvando}
-                className="flex-1 py-2 bg-[#6c5fff] hover:bg-[#7c6fff] disabled:opacity-50 rounded-lg text-xs font-semibold text-white transition-colors">
+                className="flex-1 py-2 bg-roxo-700 hover:bg-roxo-600 disabled:opacity-50 rounded-lg text-xs font-semibold text-white transition-colors">
                 {salvando ? "Salvando..." : "Salvar"}
               </button>
             </div>

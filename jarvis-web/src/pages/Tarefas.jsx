@@ -30,7 +30,7 @@ function EditCell({ valor, tipo = "text", opcoes = [], onSave, placeholder = "" 
         <select ref={inputRef} value={draft}
           onChange={e => setDraft(e.target.value)}
           onBlur={() => { salvar(); }}
-          className="text-xs px-1.5 py-0.5 rounded border border-[#6c5fff] bg-[#1a1a28] text-[#e8e8f0] outline-none cursor-pointer w-full">
+          className="text-xs px-1.5 py-0.5 rounded border border-roxo-700 bg-cinza-850 text-cinza-50 outline-none cursor-pointer w-full">
           {opcoes.map(o => <option key={o} value={o}>{o}</option>)}
         </select>
       );
@@ -41,7 +41,7 @@ function EditCell({ valor, tipo = "text", opcoes = [], onSave, placeholder = "" 
         onBlur={salvar}
         onKeyDown={e => { if (e.key === "Enter") salvar(); if (e.key === "Escape") setEditando(false); }}
         placeholder={placeholder}
-        className="text-xs px-1.5 py-0.5 rounded border border-[#6c5fff] bg-[#1a1a28] text-[#e8e8f0] outline-none w-full min-w-0"
+        className="text-xs px-1.5 py-0.5 rounded border border-roxo-700 bg-cinza-850 text-cinza-50 outline-none w-full min-w-0"
         style={{ maxWidth: tipo === "hora" ? 60 : tipo === "data" ? 70 : "100%" }}
       />
     );
@@ -52,7 +52,7 @@ function EditCell({ valor, tipo = "text", opcoes = [], onSave, placeholder = "" 
       title="Clique para editar"
       className="cursor-pointer hover:opacity-70 transition-opacity truncate"
       style={{ minWidth: 10 }}>
-      {salvando ? "..." : (valor || <span className="text-[#3a3a50]">{placeholder || "—"}</span>)}
+      {salvando ? "..." : (valor || <span className="text-cinza-300">{placeholder || "—"}</span>)}
     </span>
   );
 }
@@ -140,7 +140,7 @@ export default function Tarefas() {
   const FiltroBtn = ({ ativo, onClick, children }) => (
     <button onClick={onClick}
       className={`px-3 py-1 rounded-full text-xs border transition-all whitespace-nowrap
-        ${ativo ? "border-[#6c5fff] bg-[#6c5fff22] text-[#a78bfa]" : "border-[#2a2a3e] text-[#6a6a8a] hover:border-[#3a3a50]"}`}>
+        ${ativo ? "border-roxo-700 bg-roxo-700/13 text-roxo-400" : "border-cinza-700 text-cinza-200 hover:border-cinza-600"}`}>
       {children}
     </button>
   );
@@ -169,12 +169,12 @@ export default function Tarefas() {
           </div>
         </div>
 
-        <div className="text-[10px] text-[#4a4a6a] mb-3">💡 Clique em qualquer campo para editar</div>
+        <div className="text-[10px] text-cinza-350 mb-3">💡 Clique em qualquer campo para editar</div>
 
         {loading ? (
-          <div className="text-center text-[#4a4a6a] py-10 text-sm">Carregando...</div>
+          <div className="text-center text-cinza-350 py-10 text-sm">Carregando...</div>
         ) : filtradas.length === 0 ? (
-          <div className="text-center text-[#4a4a6a] py-10 text-sm">Nenhuma tarefa encontrada ✨</div>
+          <div className="text-center text-cinza-350 py-10 text-sm">Nenhuma tarefa encontrada ✨</div>
         ) : (
           <div className="flex flex-col gap-2">
             {filtradas.map(t => {
@@ -184,7 +184,7 @@ export default function Tarefas() {
 
               return (
                 <div key={t.id}
-                  className={`bg-[#13131e] border border-[#1e1e2e] rounded-xl px-4 py-3 hover:bg-[#1a1a28] transition-colors
+                  className={`bg-cinza-900 border border-cinza-800 rounded-xl px-4 py-3 hover:bg-cinza-850 transition-colors
                     ${concluida || concluídaHoje ? "opacity-50" : ""}`}>
 
                   {/* Linha principal */}
@@ -192,13 +192,13 @@ export default function Tarefas() {
                     {/* Checkbox */}
                     <button onClick={() => toggleConcluir(t)}
                       className={`mt-0.5 w-5 h-5 rounded-md border-2 flex items-center justify-center shrink-0 transition-all
-                        ${concluida || concluídaHoje ? "border-emerald-400 bg-emerald-400" : "border-[#3a3a50] hover:border-[#6c5fff]"}`}>
-                      {(concluida || concluídaHoje) && <span className="text-[10px] text-[#0f0f13] font-bold">✓</span>}
+                        ${concluida || concluídaHoje ? "border-emerald-400 bg-emerald-400" : "border-cinza-600 hover:border-roxo-700"}`}>
+                      {(concluida || concluídaHoje) && <span className="text-[10px] text-cinza-950 font-bold">✓</span>}
                     </button>
 
                     {/* Descrição editável */}
                     <div className="flex-1 min-w-0">
-                      <div className={`text-sm font-medium ${concluida || concluídaHoje ? "line-through text-[#4a4a6a]" : "text-[#e8e8f0]"}`}>
+                      <div className={`text-sm font-medium ${concluida || concluídaHoje ? "line-through text-cinza-350" : "text-cinza-50"}`}>
                         <EditCell
                           valor={t.descricao.charAt(0) + t.descricao.slice(1).toLowerCase()}
                           tipo="text"
@@ -208,7 +208,7 @@ export default function Tarefas() {
                       </div>
 
                       {/* Linha de metadados editáveis */}
-                      <div className="flex items-center gap-3 mt-1.5 flex-wrap text-xs text-[#6a6a8a]">
+                      <div className="flex items-center gap-3 mt-1.5 flex-wrap text-xs text-cinza-200">
 
                         {/* Data */}
                         <span className="flex items-center gap-1">
@@ -255,7 +255,7 @@ export default function Tarefas() {
 
                         {/* Data badge */}
                         {t.data !== "backlog" && t.data && (
-                          <span className={`font-mono text-[10px] ${t.data === hoje ? "text-emerald-400" : "text-[#a78bfa]"}`}>
+                          <span className={`font-mono text-[10px] ${t.data === hoje ? "text-emerald-400" : "text-roxo-400"}`}>
                             {t.data === hoje ? "hoje" : t.data}
                           </span>
                         )}
@@ -264,7 +264,7 @@ export default function Tarefas() {
 
                     {/* Excluir */}
                     <button onClick={() => excluir(t.id)}
-                      className="text-[#3a3a50] hover:text-red-400 transition-colors text-xs mt-0.5 shrink-0">✕</button>
+                      className="text-cinza-300 hover:text-red-400 transition-colors text-xs mt-0.5 shrink-0">✕</button>
                   </div>
                 </div>
               );

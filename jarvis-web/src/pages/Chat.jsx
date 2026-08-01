@@ -99,7 +99,7 @@ export default function Chat({ messages, setMessages }) {
       subtitle: "Texto, imagem, PDF e áudio",
       right: !pushStatus ? (
         <button onClick={ativarNotificacoes}
-          className="text-xs px-3 py-1 rounded-full bg-[#6c5fff22] border border-[#6c5fff] text-[#a78bfa] hover:bg-[#6c5fff33] transition-colors">
+          className="text-xs px-3 py-1 rounded-full bg-roxo-700/13 border border-roxo-700 text-roxo-400 hover:bg-roxo-700/20 transition-colors">
           🔔 Ativar notificações
         </button>
       ) : (
@@ -143,10 +143,10 @@ export default function Chat({ messages, setMessages }) {
     el.style.height = Math.min(el.scrollHeight, 150) + "px";
   }, [input]);
 
-  async function enviar() {
-    if (preview) { enviarArquivo(); return; }
-    if (!input.trim() || loading) return;
-    const texto = input.trim();
+  async function enviar(textoForcado) {
+    if (!textoForcado && preview) { enviarArquivo(); return; }
+    const texto = (textoForcado ?? input).trim();
+    if (!texto || loading) return;
     setInput("");
     setMessages(m => [...m, { role: "user", text: texto }]);
     setLoading(true);
@@ -157,7 +157,7 @@ export default function Chat({ messages, setMessages }) {
         body: JSON.stringify({ texto }),
       });
       const data = await res.json();
-      setMessages(m => [...m, { role: "jarvis", text: data.texto || "Não consegui processar." }]);
+      setMessages(m => [...m, { role: "jarvis", text: data.texto || "Não consegui processar.", opcoes: data.opcoes || null }]);
     } catch {
       setMessages(m => [...m, { role: "jarvis", text: "Erro ao conectar. Tente novamente." }]);
     }
@@ -182,7 +182,7 @@ export default function Chat({ messages, setMessages }) {
         body: JSON.stringify({ base64, mimetype, texto: input.trim() }),
       });
       const data = await res.json();
-      setMessages(m => [...m, { role: "jarvis", text: data.texto || "Não consegui processar." }]);
+      setMessages(m => [...m, { role: "jarvis", text: data.texto || "Não consegui processar.", opcoes: data.opcoes || null }]);
     } catch {
       setMessages(m => [...m, { role: "jarvis", text: "Erro ao conectar. Tente novamente." }]);
     }
@@ -301,15 +301,15 @@ export default function Chat({ messages, setMessages }) {
       {modalMsg && (
         <div className="fixed inset-0 z-50 flex items-center justify-center px-6"
           style={{ background: "rgba(0,0,0,0.6)", backdropFilter: "blur(4px)" }}>
-          <div className="w-full max-w-sm bg-[#1a1a28] border border-[#2a2a3e] rounded-2xl shadow-xl overflow-hidden">
+          <div className="w-full max-w-sm bg-cinza-850 border border-cinza-700 rounded-2xl shadow-xl overflow-hidden">
             <div className="px-5 pt-5 pb-4">
               <p className="text-base font-semibold text-white mb-2">{modalMsg.titulo}</p>
-              <p className="text-sm text-[#c8c8e0] leading-relaxed whitespace-pre-line">{modalMsg.corpo}</p>
+              <p className="text-sm text-cinza-200 leading-relaxed whitespace-pre-line">{modalMsg.corpo}</p>
             </div>
-            <div className="border-t border-[#2a2a3e] px-5 py-3 flex justify-end">
+            <div className="border-t border-cinza-700 px-5 py-3 flex justify-end">
               <button
                 onClick={() => setModalMsg(null)}
-                className="px-5 py-1.5 bg-[#6c5fff] hover:bg-[#7c6fff] rounded-xl text-sm font-semibold text-white transition-colors">
+                className="px-5 py-1.5 bg-roxo-700 hover:bg-roxo-600 rounded-xl text-sm font-semibold text-white transition-colors">
                 OK
               </button>
             </div>
@@ -318,40 +318,58 @@ export default function Chat({ messages, setMessages }) {
       )}
       {/* Mensagens */}
       <div ref={chatRef} className="flex-1 overflow-y-auto px-4 md:px-6 pt-4 pb-52 md:pb-4 flex flex-col gap-4">
-        {messages.map((m, i) => (
-          <div key={i} className={`flex items-center gap-3 ${m.role === "user" ? "justify-end" : "justify-start"}`}>
-            {m.role === "jarvis" && (
-              <img src={logo} alt="JARVIS" className="w-10 h-10 object-contain shrink-0" />
-            )}
-            <div className={`max-w-[75%] px-4 py-2.5 rounded-2xl text-sm leading-relaxed break-words overflow-hidden
-              ${m.role === "user"
-                ? "bg-gradient-to-br from-[#6c5fff] to-[#a78bfa] text-white rounded-br-sm"
-                : "bg-[#1a1a28] text-[#c8c8e0] rounded-bl-sm"}`}>
-              {m.attachment?.mimetype?.startsWith("image/") && (
-                <img
-                  src={`data:${m.attachment.mimetype};base64,${m.attachment.base64}`}
-                  className="rounded-lg max-w-full mb-1"
-                  alt="imagem"
-                />
+        {messages.map((m, i) => {
+          const temOpcoes = m.role === "jarvis" && i === messages.length - 1 && !loading && m.opcoes?.botoes?.length > 0;
+          return (
+          <div key={i} className="flex flex-col gap-2">
+            <div className={`flex items-center gap-3 ${m.role === "user" ? "justify-end" : "justify-start"}`}>
+              {m.role === "jarvis" && (
+                <img src={logo} alt="JARVIS" className="w-10 h-10 object-contain shrink-0" />
               )}
-              {m.attachment && !m.attachment.mimetype?.startsWith("image/") && (
-                <div className="text-xs opacity-70 mb-1">📎 {m.text}</div>
-              )}
-              {!m.attachment && (
-                <span dangerouslySetInnerHTML={{ __html: formatarWhatsApp(m.text) }} />
-              )}
-              {m.attachment?.mimetype?.startsWith("image/") && m.text && (
-                <div className="mt-1 text-xs opacity-80">{m.text}</div>
-              )}
+              <div className={`max-w-[75%] px-4 py-2.5 rounded-2xl text-sm leading-relaxed break-words overflow-hidden
+                ${m.role === "user"
+                  ? "bg-gradient-to-br from-roxo-700 to-roxo-400 text-white rounded-br-sm"
+                  : "bg-cinza-850 text-cinza-200 rounded-bl-sm"}`}>
+                {m.attachment?.mimetype?.startsWith("image/") && (
+                  <img
+                    src={`data:${m.attachment.mimetype};base64,${m.attachment.base64}`}
+                    className="rounded-lg max-w-full mb-1"
+                    alt="imagem"
+                  />
+                )}
+                {m.attachment && !m.attachment.mimetype?.startsWith("image/") && (
+                  <div className="text-xs opacity-70 mb-1">📎 {m.text}</div>
+                )}
+                {!m.attachment && (
+                  <span dangerouslySetInnerHTML={{ __html: formatarWhatsApp(m.text) }} />
+                )}
+                {m.attachment?.mimetype?.startsWith("image/") && m.text && (
+                  <div className="mt-1 text-xs opacity-80">{m.text}</div>
+                )}
+              </div>
             </div>
+            {temOpcoes && (
+              <div className="flex flex-wrap items-center gap-2 pl-[52px]">
+                {m.opcoes.botoes.map(b => (
+                  <button key={b} onClick={() => enviar(b)}
+                    className="text-xs px-3 py-1.5 rounded-full bg-roxo-700/13 border border-roxo-700 text-roxo-400 hover:bg-roxo-700/20 transition-colors">
+                    {b}
+                  </button>
+                ))}
+                {m.opcoes.dica && (
+                  <span className="text-[10px] text-cinza-200 w-full">{m.opcoes.dica}</span>
+                )}
+              </div>
+            )}
           </div>
-        ))}
+          );
+        })}
         {loading && (
           <div className="flex items-center gap-3">
             <img src={logo} alt="JARVIS" className="w-10 h-10 object-contain shrink-0" />
-            <div className="bg-[#1a1a28] px-4 py-3 rounded-2xl rounded-bl-sm flex gap-1.5 items-center">
+            <div className="bg-cinza-850 px-4 py-3 rounded-2xl rounded-bl-sm flex gap-1.5 items-center">
               {[0, 1, 2].map(i => (
-                <div key={i} className="w-1.5 h-1.5 rounded-full bg-[#6c5fff] animate-bounce"
+                <div key={i} className="w-1.5 h-1.5 rounded-full bg-roxo-700 animate-bounce"
                   style={{ animationDelay: `${i * 0.15}s` }} />
               ))}
             </div>
@@ -361,14 +379,14 @@ export default function Chat({ messages, setMessages }) {
 
       {/* Barra inferior: fixa no mobile (acompanha o teclado via Visual Viewport),
           em fluxo normal no desktop */}
-      <div className="fixed inset-x-0 bottom-0 md:static md:inset-auto shrink-0 bg-[#0f0f13]"
+      <div className="fixed inset-x-0 bottom-0 md:static md:inset-auto shrink-0 bg-cinza-950"
         style={{ transform: `translateY(-${keyboardOffset}px)` }}>
 
       {/* Sugestões rápidas */}
       <div className="px-3 pt-2 pb-1 flex gap-2 overflow-x-auto no-scrollbar shrink-0">
         {["Tarefas de hoje", "Tarefas pendentes", "Gastos do mês"].map(s => (
           <button key={s} onClick={() => setInput(s)}
-            className="text-xs px-3 py-1 rounded-full border border-[#2a2a3e] text-[#6a6a8a] hover:border-[#6c5fff] hover:text-[#a78bfa] transition-all whitespace-nowrap shrink-0">
+            className="text-xs px-3 py-1 rounded-full border border-cinza-700 text-cinza-200 hover:border-roxo-700 hover:text-roxo-400 transition-all whitespace-nowrap shrink-0">
             {s}
           </button>
         ))}
@@ -379,13 +397,13 @@ export default function Chat({ messages, setMessages }) {
         <input ref={fileRef} type="file" accept="image/*,application/pdf,.doc,.docx" hidden onChange={onFileChange} />
 
         {/* Card */}
-        <div className="bg-[#1a1a28] border border-[#2a2a3e] rounded-3xl shadow-lg">
+        <div className="bg-cinza-850 border border-cinza-700 rounded-3xl shadow-lg">
 
           {/* Preview de arquivo */}
           {preview && (
-            <div className="flex items-center gap-2 px-4 pt-3 pb-2 border-b border-[#2a2a3e]">
-              <span className="text-xs text-[#a78bfa] flex-1 truncate">📎 {preview.name}</span>
-              <button onClick={() => setPreview(null)} className="text-[#6a6a8a] hover:text-white text-xs shrink-0">✕</button>
+            <div className="flex items-center gap-2 px-4 pt-3 pb-2 border-b border-cinza-700">
+              <span className="text-xs text-roxo-400 flex-1 truncate">📎 {preview.name}</span>
+              <button onClick={() => setPreview(null)} className="text-cinza-200 hover:text-white text-xs shrink-0">✕</button>
             </div>
           )}
 
@@ -399,7 +417,7 @@ export default function Chat({ messages, setMessages }) {
             disabled={loading}
             rows={1}
             style={{ maxHeight: "150px" }}
-            className="w-full bg-transparent px-4 pt-3 pb-2 text-[16px] text-[#e8e8f0] placeholder-[#4a4a6a] focus:outline-none resize-none overflow-y-auto leading-relaxed disabled:opacity-50"
+            className="w-full bg-transparent px-4 pt-3 pb-2 text-[16px] text-cinza-50 placeholder-cinza-350 focus:outline-none resize-none overflow-y-auto leading-relaxed disabled:opacity-50"
           />
 
           {/* Barra de botões */}
@@ -407,7 +425,7 @@ export default function Chat({ messages, setMessages }) {
             {/* Botão "+" — abre seletor nativo */}
             <button
               onClick={() => { fileRef.current.value = ""; fileRef.current.click(); }}
-              className="w-9 h-9 flex items-center justify-center rounded-full text-[#6a6a8a] hover:bg-[#2a2a3e] hover:text-[#a78bfa] transition-colors text-2xl font-light leading-none select-none">
+              className="w-9 h-9 flex items-center justify-center rounded-full text-cinza-200 hover:bg-cinza-700 hover:text-roxo-400 transition-colors text-2xl font-light leading-none select-none">
               +
             </button>
 
@@ -419,7 +437,7 @@ export default function Chat({ messages, setMessages }) {
               onTouchStart={handleTouchStart}
               onTouchEnd={handleTouchEnd}
               className={`relative w-10 h-10 flex items-center justify-center rounded-full transition-all select-none
-                ${recording ? "" : "text-[#6a6a8a] hover:bg-[#2a2a3e] hover:text-[#a78bfa]"}`}>
+                ${recording ? "" : "text-cinza-200 hover:bg-cinza-700 hover:text-roxo-400"}`}>
               {recording ? (
                 <>
                   <div className="absolute inset-0 rounded-full bg-red-500 animate-ping opacity-40" />
@@ -427,7 +445,7 @@ export default function Chat({ messages, setMessages }) {
                   <span className="relative z-10 text-white"><MicIcon size={18} /></span>
                 </>
               ) : transcrevendo ? (
-                <span className="text-[#a78bfa] animate-pulse"><MicIcon size={20} /></span>
+                <span className="text-roxo-400 animate-pulse"><MicIcon size={20} /></span>
               ) : (
                 <MicIcon size={20} />
               )}
@@ -437,7 +455,7 @@ export default function Chat({ messages, setMessages }) {
             <button
               onClick={enviar}
               disabled={loading || transcrevendo}
-              className="px-4 py-2 bg-[#6c5fff] hover:bg-[#7c6fff] disabled:opacity-50 rounded-2xl text-sm font-semibold text-white transition-colors ml-1">
+              className="px-4 py-2 bg-roxo-700 hover:bg-roxo-600 disabled:opacity-50 rounded-2xl text-sm font-semibold text-white transition-colors ml-1">
               Enviar
             </button>
           </div>

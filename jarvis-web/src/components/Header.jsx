@@ -21,14 +21,14 @@ export default function Header({ sidebarOpen, onMenuClick }) {
   }, []);
 
   return (
-    <div ref={ref} className="shrink-0 bg-[#0f0f13] border-b border-[#1e1e2e] z-40">
+    <div ref={ref} className="shrink-0 bg-cinza-950 border-b border-cinza-800 z-40">
       <div className="flex items-center justify-between px-4 md:px-6 py-3 gap-3">
         <div className="flex items-center gap-3">
           <MenuButton open={sidebarOpen} onClick={onMenuClick} />
           <div>
             <div className="text-base font-semibold">{cfg.title}</div>
             {cfg.subtitle && (
-              <div className="text-xs text-[#4a4a6a] mt-0.5">{cfg.subtitle}</div>
+              <div className="text-xs text-cinza-350 mt-0.5">{cfg.subtitle}</div>
             )}
           </div>
         </div>

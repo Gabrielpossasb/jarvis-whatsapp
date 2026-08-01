@@ -89,7 +89,7 @@ export default function Faculdade() {
       right: (
         <button
           onClick={() => { setForm(FORM_INICIAL); setModal("add"); }}
-          className="text-xs px-2.5 py-1 rounded-lg bg-[#6c5fff22] border border-[#6c5fff44] text-[#a78bfa] hover:bg-[#6c5fff33] transition-all">
+          className="text-xs px-2.5 py-1 rounded-lg bg-roxo-700/13 border border-roxo-700/27 text-roxo-400 hover:bg-roxo-700/20 transition-all">
           + Evento
         </button>
       ),
@@ -98,8 +98,8 @@ export default function Faculdade() {
           {[["semana", "📅 Semana"], ["eventos", "📋 Eventos"]].map(([k, l]) => (
             <button key={k} onClick={() => setAba(k)}
               className={`px-3 py-1 rounded-lg text-xs font-medium border transition-all shrink-0
-                ${aba === k ? "border-[#6c5fff] bg-[#6c5fff22] text-[#a78bfa]"
-                           : "border-[#2a2a3e] text-[#6a6a8a] hover:border-[#3a3a50]"}`}>
+                ${aba === k ? "border-roxo-700 bg-roxo-700/13 text-roxo-400"
+                           : "border-cinza-700 text-cinza-200 hover:border-cinza-600"}`}>
               {l}
             </button>
           ))}
@@ -172,7 +172,7 @@ export default function Faculdade() {
 
   // ── Render ─────────────────────────────────────────────────────
   if (loading) {
-    return <div className="flex-1 flex items-center justify-center text-[#6a6a8a] text-sm">Carregando...</div>;
+    return <div className="flex-1 flex items-center justify-center text-cinza-200 text-sm">Carregando...</div>;
   }
 
   return (
@@ -183,23 +183,23 @@ export default function Faculdade() {
         {aba === "semana" && (
           <div className="flex flex-col">
             {/* Navegador de semana */}
-            <div className="flex items-center justify-between px-4 py-2 border-b border-[#1a1a24]">
+            <div className="flex items-center justify-between px-4 py-2 border-b border-cinza-850">
               <button onClick={() => setSemanaOff(v => v - 1)}
-                className="w-8 h-8 flex items-center justify-center text-[#6a6a8a] hover:text-[#e8e8f0] rounded-lg hover:bg-[#1e1e2e] transition-all text-lg">‹</button>
+                className="w-8 h-8 flex items-center justify-center text-cinza-200 hover:text-cinza-50 rounded-lg hover:bg-cinza-800 transition-all text-lg">‹</button>
               <div className="flex flex-col items-center gap-0.5">
-                <span className="text-sm text-[#e8e8f0]">{semanaLabel}</span>
+                <span className="text-sm text-cinza-50">{semanaLabel}</span>
                 {semanaOff !== 0 && (
-                  <button onClick={() => setSemanaOff(0)} className="text-[10px] text-[#6c5fff] hover:text-[#a78bfa]">
+                  <button onClick={() => setSemanaOff(0)} className="text-[10px] text-roxo-700 hover:text-roxo-400">
                     Semana atual
                   </button>
                 )}
               </div>
               <button onClick={() => setSemanaOff(v => v + 1)}
-                className="w-8 h-8 flex items-center justify-center text-[#6a6a8a] hover:text-[#e8e8f0] rounded-lg hover:bg-[#1e1e2e] transition-all text-lg">›</button>
+                className="w-8 h-8 flex items-center justify-center text-cinza-200 hover:text-cinza-50 rounded-lg hover:bg-cinza-800 transition-all text-lg">›</button>
             </div>
 
             {/* Dias */}
-            <div className="divide-y divide-[#131320]">
+            <div className="divide-y divide-cinza-900">
               {dias.map(d => {
                 const iso = toISO(d);
                 const aulas = aulasNoDia(d);
@@ -208,20 +208,20 @@ export default function Faculdade() {
                 const dow = d.getDay();
 
                 return (
-                  <div key={iso} className={`px-3 pt-3 pb-4 ${hoje ? "bg-[#0f0f18]" : ""}`}>
+                  <div key={iso} className={`px-3 pt-3 pb-4 ${hoje ? "bg-cinza-950" : ""}`}>
                     {/* Cabeçalho do dia */}
                     <div className="flex items-center gap-2 mb-2.5">
                       <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${
-                        hoje ? "bg-[#6c5fff] text-white" : "text-[#4a4a6a]"
+                        hoje ? "bg-roxo-700 text-white" : "text-cinza-350"
                       }`}>{DIAS_NOME[dow]}</span>
-                      <span className={`text-xs ${hoje ? "text-[#a78bfa]" : "text-[#2a2a3e]"}`}>
+                      <span className={`text-xs ${hoje ? "text-roxo-400" : "text-cinza-350"}`}>
                         {d.toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" })}
                         {hoje ? " · hoje" : ""}
                       </span>
                     </div>
 
                     {aulas.length === 0 && evDia.length === 0 ? (
-                      <div className="text-xs text-[#2a2a38] pl-1">Sem aulas</div>
+                      <div className="text-xs text-cinza-350 pl-1">Sem aulas</div>
                     ) : (
                       <div className="flex flex-col gap-2">
                         {/* Cards de aula */}
@@ -233,16 +233,16 @@ export default function Faculdade() {
                           );
                           return (
                             <div key={a.id}
-                              className={`bg-[#13131e] rounded-xl p-3 border transition-all ${
-                                ead ? "border-sky-500/25" : "border-[#1e1e2e]"
+                              className={`bg-cinza-900 rounded-xl p-3 border transition-all ${
+                                ead ? "border-sky-500/25" : "border-cinza-800"
                               }`}
                               style={{ borderLeftColor: a.cor, borderLeftWidth: 3 }}>
                               <div className="flex items-start justify-between gap-2">
                                 <div className="flex-1 min-w-0">
-                                  <div className="text-[11px] text-[#5a5a7a] tabular-nums">{a.inicio} – {a.fim}</div>
-                                  <div className="text-sm font-medium text-[#e8e8f0] mt-0.5 leading-snug">{a.disciplina}</div>
-                                  <div className="text-[11px] text-[#5a5a7a] mt-0.5">{a.local}</div>
-                                  <div className="text-[11px] text-[#5a5a7a]">{a.professor}</div>
+                                  <div className="text-[11px] text-cinza-300 tabular-nums">{a.inicio} – {a.fim}</div>
+                                  <div className="text-sm font-medium text-cinza-50 mt-0.5 leading-snug">{a.disciplina}</div>
+                                  <div className="text-[11px] text-cinza-300 mt-0.5">{a.local}</div>
+                                  <div className="text-[11px] text-cinza-300">{a.professor}</div>
                                 </div>
                                 <div className="flex flex-col items-end gap-1 shrink-0">
                                   {ead && (
@@ -276,12 +276,12 @@ export default function Faculdade() {
                           })
                           .map(e => (
                             <button key={e.id} onClick={() => setModal({ modo: "view", ev: e })}
-                              className={`text-left bg-[#13131e] rounded-xl px-3 py-2.5 border border-[#1e1e2e] hover:border-[#2a2a3e] transition-all ${e.concluido ? "opacity-50" : ""}`}>
+                              className={`text-left bg-cinza-900 rounded-xl px-3 py-2.5 border border-cinza-800 hover:border-cinza-700 transition-all ${e.concluido ? "opacity-50" : ""}`}>
                               <div className="flex items-center gap-2">
                                 <span className={`text-[10px] px-1.5 py-0.5 rounded-full ${TIPO_CFG[e.tipo]?.badge ?? ""}`}>
                                   {TIPO_CFG[e.tipo]?.icon} {TIPO_CFG[e.tipo]?.label}
                                 </span>
-                                <span className="text-sm text-[#e8e8f0] truncate">{e.titulo}</span>
+                                <span className="text-sm text-cinza-50 truncate">{e.titulo}</span>
                               </div>
                             </button>
                           ))
@@ -303,40 +303,40 @@ export default function Faculdade() {
               {[["todos", "Todos"], ...Object.entries(TIPO_CFG).map(([k, v]) => [k, `${v.icon} ${v.label}`])].map(([k, l]) => (
                 <button key={k} onClick={() => setFiltroTipo(k)}
                   className={`px-3 py-1 rounded-lg text-xs border transition-all shrink-0 ${
-                    filtroTipo === k ? "border-[#6c5fff] bg-[#6c5fff22] text-[#a78bfa]"
-                                    : "border-[#2a2a3e] text-[#6a6a8a] hover:border-[#3a3a50]"}`}>
+                    filtroTipo === k ? "border-roxo-700 bg-roxo-700/13 text-roxo-400"
+                                    : "border-cinza-700 text-cinza-200 hover:border-cinza-600"}`}>
                   {l}
                 </button>
               ))}
               <button onClick={() => setMostrarFeitos(v => !v)}
                 className={`px-3 py-1 rounded-lg text-xs border transition-all shrink-0 ${
-                  mostrarFeitos ? "border-[#6c5fff] bg-[#6c5fff22] text-[#a78bfa]"
-                               : "border-[#2a2a3e] text-[#6a6a8a] hover:border-[#3a3a50]"}`}>
+                  mostrarFeitos ? "border-roxo-700 bg-roxo-700/13 text-roxo-400"
+                               : "border-cinza-700 text-cinza-200 hover:border-cinza-600"}`}>
                 {mostrarFeitos ? "✓ Feitos" : "Feitos"}
               </button>
             </div>
 
             {eventosFiltrados.length === 0 && (
-              <div className="text-center text-[#3a3a50] text-sm py-10">Nenhum evento</div>
+              <div className="text-center text-cinza-300 text-sm py-10">Nenhum evento</div>
             )}
 
             {eventosFiltrados.map(e => {
               const tc = TIPO_CFG[e.tipo] ?? TIPO_CFG.aviso;
               return (
                 <button key={e.id} onClick={() => setModal({ modo: "view", ev: e })}
-                  className={`text-left bg-[#13131e] rounded-xl p-3 border border-[#1e1e2e] hover:border-[#2a2a3e] transition-all ${e.concluido ? "opacity-50" : ""}`}>
+                  className={`text-left bg-cinza-900 rounded-xl p-3 border border-cinza-800 hover:border-cinza-700 transition-all ${e.concluido ? "opacity-50" : ""}`}>
                   <div className="flex items-start justify-between gap-2">
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 mb-1 flex-wrap">
                         <span className={`text-[10px] px-1.5 py-0.5 rounded-full ${tc.badge}`}>{tc.icon} {tc.label}</span>
-                        {e.disciplina && <span className="text-[10px] text-[#4a4a6a] truncate max-w-[180px]">{e.disciplina}</span>}
+                        {e.disciplina && <span className="text-[10px] text-cinza-350 truncate max-w-[180px]">{e.disciplina}</span>}
                       </div>
-                      <div className={`text-sm font-medium text-[#e8e8f0] ${e.concluido ? "line-through" : ""}`}>{e.titulo}</div>
-                      {e.descricao && <div className="text-xs text-[#6a6a8a] mt-0.5 line-clamp-1">{e.descricao}</div>}
+                      <div className={`text-sm font-medium text-cinza-50 ${e.concluido ? "line-through" : ""}`}>{e.titulo}</div>
+                      {e.descricao && <div className="text-xs text-cinza-200 mt-0.5 line-clamp-1">{e.descricao}</div>}
                     </div>
                     <div className="text-right shrink-0">
-                      <div className="text-xs font-medium text-[#6a6a8a]">{fmtDMM(e.data)}</div>
-                      {e.hora && <div className="text-[11px] text-[#4a4a6a] tabular-nums">{e.hora.slice(0, 5)}</div>}
+                      <div className="text-xs font-medium text-cinza-200">{fmtDMM(e.data)}</div>
+                      {e.hora && <div className="text-[11px] text-cinza-350 tabular-nums">{e.hora.slice(0, 5)}</div>}
                     </div>
                   </div>
                 </button>
@@ -353,23 +353,23 @@ export default function Faculdade() {
         return (
           <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-4">
             <div className="absolute inset-0 bg-black/60" onClick={() => setModal(null)} />
-            <div className="relative z-10 w-full max-w-sm bg-[#13131e] border border-[#2a2a3e] rounded-2xl p-5 flex flex-col gap-4">
+            <div className="relative z-10 w-full max-w-sm bg-cinza-900 border border-cinza-700 rounded-2xl p-5 flex flex-col gap-4">
               <div className="flex items-start justify-between gap-2">
                 <div className="flex-1 min-w-0">
                   <span className={`text-[10px] px-1.5 py-0.5 rounded-full ${tc.badge}`}>{tc.icon} {tc.label}</span>
-                  {e.disciplina && <div className="text-xs text-[#6a6a8a] mt-1">{e.disciplina}</div>}
-                  <div className="text-base font-semibold text-[#e8e8f0] mt-1 leading-snug">{e.titulo}</div>
+                  {e.disciplina && <div className="text-xs text-cinza-200 mt-1">{e.disciplina}</div>}
+                  <div className="text-base font-semibold text-cinza-50 mt-1 leading-snug">{e.titulo}</div>
                 </div>
-                <button onClick={() => setModal(null)} className="text-[#4a4a6a] hover:text-[#e8e8f0] text-2xl leading-none shrink-0">×</button>
+                <button onClick={() => setModal(null)} className="text-cinza-350 hover:text-cinza-50 text-2xl leading-none shrink-0">×</button>
               </div>
 
-              <div className="flex gap-4 text-xs text-[#6a6a8a]">
+              <div className="flex gap-4 text-xs text-cinza-200">
                 <span>📅 {fmtDMM(e.data)}</span>
                 {e.hora && <span>⏰ {e.hora.slice(0, 5)}</span>}
               </div>
 
               {e.descricao && (
-                <div className="text-sm text-[#9a9ab8] bg-[#0f0f13] rounded-xl p-3 leading-relaxed">{e.descricao}</div>
+                <div className="text-sm text-cinza-300 bg-cinza-950 rounded-xl p-3 leading-relaxed">{e.descricao}</div>
               )}
 
               <div className="flex gap-2">
@@ -377,7 +377,7 @@ export default function Faculdade() {
                   onClick={() => toggleConcluido(e).then(() => setModal(null))}
                   className={`flex-1 py-2.5 rounded-xl text-sm font-medium border transition-all ${
                     e.concluido
-                      ? "border-[#2a2a3e] text-[#6a6a8a] hover:text-[#e8e8f0]"
+                      ? "border-cinza-700 text-cinza-200 hover:text-cinza-50"
                       : "border-emerald-500/30 bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500/20"
                   }`}>
                   {e.concluido ? "↩ Reabrir" : "✓ Concluir"}
@@ -396,20 +396,20 @@ export default function Faculdade() {
       {modal === "add" && (
         <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-4">
           <div className="absolute inset-0 bg-black/60" onClick={() => setModal(null)} />
-          <div className="relative z-10 w-full max-w-sm bg-[#13131e] border border-[#2a2a3e] rounded-2xl p-5 flex flex-col gap-4 max-h-[92dvh] overflow-y-auto">
+          <div className="relative z-10 w-full max-w-sm bg-cinza-900 border border-cinza-700 rounded-2xl p-5 flex flex-col gap-4 max-h-[92dvh] overflow-y-auto">
             <div className="flex items-center justify-between">
-              <div className="text-base font-semibold text-[#e8e8f0]">Novo Evento</div>
-              <button onClick={() => setModal(null)} className="text-[#4a4a6a] hover:text-[#e8e8f0] text-2xl leading-none">×</button>
+              <div className="text-base font-semibold text-cinza-50">Novo Evento</div>
+              <button onClick={() => setModal(null)} className="text-cinza-350 hover:text-cinza-50 text-2xl leading-none">×</button>
             </div>
 
             {/* Tipo */}
             <div>
-              <div className="text-xs text-[#6a6a8a] mb-2">Tipo</div>
+              <div className="text-xs text-cinza-200 mb-2">Tipo</div>
               <div className="flex gap-2 flex-wrap">
                 {Object.entries(TIPO_CFG).map(([k, v]) => (
                   <button key={k} onClick={() => setForm(f => ({ ...f, tipo: k }))}
                     className={`px-3 py-1.5 rounded-lg text-xs border transition-all ${
-                      form.tipo === k ? "border-[#6c5fff] bg-[#6c5fff22] text-[#a78bfa]" : "border-[#2a2a3e] text-[#6a6a8a]"
+                      form.tipo === k ? "border-roxo-700 bg-roxo-700/13 text-roxo-400" : "border-cinza-700 text-cinza-200"
                     }`}>{v.icon} {v.label}</button>
                 ))}
               </div>
@@ -417,10 +417,10 @@ export default function Faculdade() {
 
             {/* Disciplina */}
             <div>
-              <div className="text-xs text-[#6a6a8a] mb-1.5">Disciplina</div>
+              <div className="text-xs text-cinza-200 mb-1.5">Disciplina</div>
               <select value={form.disciplina}
                 onChange={e => setForm(f => ({ ...f, disciplina: e.target.value }))}
-                className="w-full bg-[#0f0f13] border border-[#2a2a3e] rounded-xl px-3 py-2 text-sm text-[#e8e8f0] outline-none focus:border-[#6c5fff] appearance-none">
+                className="w-full bg-cinza-950 border border-cinza-700 rounded-xl px-3 py-2 text-sm text-cinza-50 outline-none focus:border-roxo-700 appearance-none">
                 <option value="">— nenhuma —</option>
                 {disciplinas.map(d => <option key={d} value={d}>{d}</option>)}
               </select>
@@ -428,40 +428,40 @@ export default function Faculdade() {
 
             {/* Título */}
             <div>
-              <div className="text-xs text-[#6a6a8a] mb-1.5">Título</div>
+              <div className="text-xs text-cinza-200 mb-1.5">Título</div>
               <input type="text" value={form.titulo}
                 onChange={e => setForm(f => ({ ...f, titulo: e.target.value }))}
                 placeholder="Ex: Prova 1 — cap. 1 a 3"
-                className="w-full bg-[#0f0f13] border border-[#2a2a3e] rounded-xl px-3 py-2 text-sm text-[#e8e8f0] placeholder:text-[#3a3a50] outline-none focus:border-[#6c5fff]" />
+                className="w-full bg-cinza-950 border border-cinza-700 rounded-xl px-3 py-2 text-sm text-cinza-50 placeholder:text-cinza-300 outline-none focus:border-roxo-700" />
             </div>
 
             {/* Data e Hora */}
             <div className="flex gap-2">
               <div className="flex-1">
-                <div className="text-xs text-[#6a6a8a] mb-1.5">Data</div>
+                <div className="text-xs text-cinza-200 mb-1.5">Data</div>
                 <input type="date" value={form.data}
                   onChange={e => setForm(f => ({ ...f, data: e.target.value }))}
-                  className="w-full bg-[#0f0f13] border border-[#2a2a3e] rounded-xl px-3 py-2 text-sm text-[#e8e8f0] outline-none focus:border-[#6c5fff]" />
+                  className="w-full bg-cinza-950 border border-cinza-700 rounded-xl px-3 py-2 text-sm text-cinza-50 outline-none focus:border-roxo-700" />
               </div>
               <div>
-                <div className="text-xs text-[#6a6a8a] mb-1.5">Hora</div>
+                <div className="text-xs text-cinza-200 mb-1.5">Hora</div>
                 <input type="time" value={form.hora}
                   onChange={e => setForm(f => ({ ...f, hora: e.target.value }))}
-                  className="bg-[#0f0f13] border border-[#2a2a3e] rounded-xl px-3 py-2 text-sm text-[#e8e8f0] outline-none focus:border-[#6c5fff]" />
+                  className="bg-cinza-950 border border-cinza-700 rounded-xl px-3 py-2 text-sm text-cinza-50 outline-none focus:border-roxo-700" />
               </div>
             </div>
 
             {/* Descrição */}
             <div>
-              <div className="text-xs text-[#6a6a8a] mb-1.5">Descrição (opcional)</div>
+              <div className="text-xs text-cinza-200 mb-1.5">Descrição (opcional)</div>
               <textarea value={form.descricao} rows={2}
                 onChange={e => setForm(f => ({ ...f, descricao: e.target.value }))}
                 placeholder="Conteúdo, observações..."
-                className="w-full bg-[#0f0f13] border border-[#2a2a3e] rounded-xl px-3 py-2 text-sm text-[#e8e8f0] placeholder:text-[#3a3a50] outline-none focus:border-[#6c5fff] resize-none" />
+                className="w-full bg-cinza-950 border border-cinza-700 rounded-xl px-3 py-2 text-sm text-cinza-50 placeholder:text-cinza-300 outline-none focus:border-roxo-700 resize-none" />
             </div>
 
             <button onClick={salvarEvento} disabled={salvando || !form.titulo.trim()}
-              className="w-full py-2.5 rounded-xl text-sm font-medium bg-[#6c5fff] text-white hover:bg-[#5b4de8] disabled:opacity-50 transition-all">
+              className="w-full py-2.5 rounded-xl text-sm font-medium bg-roxo-700 text-white hover:bg-roxo-900 disabled:opacity-50 transition-all">
               {salvando ? "Salvando..." : "Adicionar Evento"}
             </button>
           </div>

@@ -28,10 +28,10 @@ function RailwayLogo() {
       <rect x="3" y="5" width="18" height="12" rx="3" />
       <rect x="7" y="18" width="3" height="2" rx="1" />
       <rect x="14" y="18" width="3" height="2" rx="1" />
-      <path d="M3 11.5h18" stroke="#12121a" strokeWidth="1.5" />
-      <circle cx="8" cy="8.5" r="1.5" fill="#12121a" />
-      <circle cx="12" cy="8.5" r="1.5" fill="#12121a" />
-      <circle cx="16" cy="8.5" r="1.5" fill="#12121a" />
+      <path d="M3 11.5h18" stroke="#13131e" strokeWidth="1.5" />
+      <circle cx="8" cy="8.5" r="1.5" fill="#13131e" />
+      <circle cx="12" cy="8.5" r="1.5" fill="#13131e" />
+      <circle cx="16" cy="8.5" r="1.5" fill="#13131e" />
     </svg>
   );
 }
@@ -61,7 +61,7 @@ function formatTokens(n) {
 function Secao({ titulo, children }) {
   return (
     <section>
-      <p className="text-[11px] font-semibold tracking-widest text-[#4a4a6a] uppercase mb-3">{titulo}</p>
+      <p className="text-[11px] font-semibold tracking-widest text-cinza-350 uppercase mb-3">{titulo}</p>
       {children}
     </section>
   );
@@ -217,14 +217,14 @@ export default function Configuracoes() {
       {modal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center px-6"
           style={{ background: "rgba(0,0,0,0.6)", backdropFilter: "blur(4px)" }}>
-          <div className="w-full max-w-sm bg-[#1a1a28] border border-[#2a2a3e] rounded-2xl shadow-xl overflow-hidden">
+          <div className="w-full max-w-sm bg-cinza-850 border border-cinza-700 rounded-2xl shadow-xl overflow-hidden">
             <div className="px-5 pt-5 pb-4">
               <p className="text-base font-semibold text-white mb-2">{modal.titulo}</p>
-              <p className="text-sm text-[#c8c8e0] leading-relaxed whitespace-pre-line">{modal.corpo}</p>
+              <p className="text-sm text-cinza-200 leading-relaxed whitespace-pre-line">{modal.corpo}</p>
             </div>
-            <div className="border-t border-[#2a2a3e] px-5 py-3 flex justify-end">
+            <div className="border-t border-cinza-700 px-5 py-3 flex justify-end">
               <button onClick={() => setModal(null)}
-                className="px-5 py-1.5 bg-[#6c5fff] hover:bg-[#7c6fff] rounded-xl text-sm font-semibold text-white transition-colors">
+                className="px-5 py-1.5 bg-roxo-700 hover:bg-roxo-600 rounded-xl text-sm font-semibold text-white transition-colors">
                 OK
               </button>
             </div>
@@ -236,14 +236,14 @@ export default function Configuracoes() {
       {confirmarReset && (
         <div className="fixed inset-0 z-50 flex items-center justify-center px-6"
           style={{ background: "rgba(0,0,0,0.6)", backdropFilter: "blur(4px)" }}>
-          <div className="w-full max-w-sm bg-[#1a1a28] border border-[#2a2a3e] rounded-2xl shadow-xl overflow-hidden">
+          <div className="w-full max-w-sm bg-cinza-850 border border-cinza-700 rounded-2xl shadow-xl overflow-hidden">
             <div className="px-5 pt-5 pb-4">
               <p className="text-base font-semibold text-white mb-2">Limpar conversa?</p>
-              <p className="text-sm text-[#c8c8e0] leading-relaxed">Isso apaga todo o histórico do chat. A ação não pode ser desfeita.</p>
+              <p className="text-sm text-cinza-200 leading-relaxed">Isso apaga todo o histórico do chat. A ação não pode ser desfeita.</p>
             </div>
-            <div className="border-t border-[#2a2a3e] px-5 py-3 flex justify-end gap-2">
+            <div className="border-t border-cinza-700 px-5 py-3 flex justify-end gap-2">
               <button onClick={() => setConfirmarReset(false)}
-                className="px-4 py-1.5 rounded-xl text-sm font-semibold text-[#6a6a8a] hover:text-white transition-colors">
+                className="px-4 py-1.5 rounded-xl text-sm font-semibold text-cinza-200 hover:text-white transition-colors">
                 Cancelar
               </button>
               <button onClick={confirmarLimparChat}
@@ -259,10 +259,10 @@ export default function Configuracoes() {
 
         {/* ── Notificações ── */}
         <Secao titulo="Notificações">
-          <div className="bg-[#1a1a28] border border-[#2a2a3e] rounded-2xl p-4 flex items-center justify-between gap-3">
+          <div className="bg-cinza-850 border border-cinza-700 rounded-2xl p-4 flex items-center justify-between gap-3">
             <div className="min-w-0">
-              <p className="text-sm font-medium text-[#e8e8f0]">Push notifications</p>
-              <p className="text-xs text-[#6a6a8a] mt-0.5 truncate">
+              <p className="text-sm font-medium text-cinza-50">Push notifications</p>
+              <p className="text-xs text-cinza-200 mt-0.5 truncate">
                 {pushStatus ? "Lembretes chegando no seu celular" : "Ative para receber lembretes e avisos"}
               </p>
             </div>
@@ -273,7 +273,7 @@ export default function Configuracoes() {
               </div>
             ) : (
               <button onClick={ativarNotificacoes}
-                className="shrink-0 px-3 py-1.5 bg-[#6c5fff] hover:bg-[#7c6fff] rounded-xl text-xs font-semibold text-white transition-colors">
+                className="shrink-0 px-3 py-1.5 bg-roxo-700 hover:bg-roxo-600 rounded-xl text-xs font-semibold text-white transition-colors">
                 Ativar
               </button>
             )}
@@ -282,16 +282,16 @@ export default function Configuracoes() {
 
         {/* ── Lembretes ── */}
         <Secao titulo="Lembretes">
-          <div className="bg-[#1a1a28] border border-[#2a2a3e] rounded-2xl p-4 flex flex-col gap-4">
+          <div className="bg-cinza-850 border border-cinza-700 rounded-2xl p-4 flex flex-col gap-4">
             <div className="flex items-center justify-between gap-3">
               <div>
-                <p className="text-sm font-medium text-[#e8e8f0]">Horário do resumo e lembrete</p>
-                <p className="text-xs text-[#6a6a8a] mt-0.5">Resumo diário e lembrete de gastos</p>
+                <p className="text-sm font-medium text-cinza-50">Horário do resumo e lembrete</p>
+                <p className="text-xs text-cinza-200 mt-0.5">Resumo diário e lembrete de gastos</p>
               </div>
               <select
                 value={config.hora_lembrete}
                 onChange={e => setConfig(c => ({ ...c, hora_lembrete: e.target.value }))}
-                className="bg-[#12121a] border border-[#2a2a3e] rounded-xl px-3 py-1.5 text-sm text-[#e8e8f0] focus:outline-none focus:border-[#6c5fff] shrink-0">
+                className="bg-cinza-900 border border-cinza-700 rounded-xl px-3 py-1.5 text-sm text-cinza-50 focus:outline-none focus:border-roxo-700 shrink-0">
                 {Array.from({ length: 24 }, (_, i) => String(i).padStart(2, "0")).map(h => (
                   <option key={h} value={h}>{h}:00</option>
                 ))}
@@ -299,13 +299,13 @@ export default function Configuracoes() {
             </div>
             <div className="flex items-center justify-between gap-3">
               <div>
-                <p className="text-sm font-medium text-[#e8e8f0]">Fuso horário</p>
-                <p className="text-xs text-[#6a6a8a] mt-0.5">Usado em todos os cron jobs</p>
+                <p className="text-sm font-medium text-cinza-50">Fuso horário</p>
+                <p className="text-xs text-cinza-200 mt-0.5">Usado em todos os cron jobs</p>
               </div>
               <select
                 value={config.timezone}
                 onChange={e => setConfig(c => ({ ...c, timezone: e.target.value }))}
-                className="bg-[#12121a] border border-[#2a2a3e] rounded-xl px-3 py-1.5 text-sm text-[#e8e8f0] focus:outline-none focus:border-[#6c5fff] shrink-0 max-w-[190px]">
+                className="bg-cinza-900 border border-cinza-700 rounded-xl px-3 py-1.5 text-sm text-cinza-50 focus:outline-none focus:border-roxo-700 shrink-0 max-w-[190px]">
                 {TIMEZONES.map(tz => (
                   <option key={tz.value} value={tz.value}>{tz.label}</option>
                 ))}
@@ -313,7 +313,7 @@ export default function Configuracoes() {
             </div>
             {configAlterada && (
               <button onClick={salvarConfig} disabled={salvando}
-                className="self-end px-5 py-1.5 bg-[#6c5fff] hover:bg-[#7c6fff] disabled:opacity-50 rounded-xl text-sm font-semibold text-white transition-colors">
+                className="self-end px-5 py-1.5 bg-roxo-700 hover:bg-roxo-600 disabled:opacity-50 rounded-xl text-sm font-semibold text-white transition-colors">
                 {salvando ? "Salvando…" : "Salvar"}
               </button>
             )}
@@ -322,18 +322,18 @@ export default function Configuracoes() {
 
         {/* ── Dados ── */}
         <Secao titulo="Dados">
-          <div className="bg-[#1a1a28] border border-[#2a2a3e] rounded-2xl p-4 flex items-center justify-between gap-3">
+          <div className="bg-cinza-850 border border-cinza-700 rounded-2xl p-4 flex items-center justify-between gap-3">
             <div className="min-w-0">
-              <p className="text-sm font-medium text-[#e8e8f0]">Exportar gastos</p>
+              <p className="text-sm font-medium text-cinza-50">Exportar gastos</p>
               <select
                 value={mesSelecionado}
                 onChange={e => setMesSelecionado(e.target.value)}
-                className="mt-1.5 bg-[#12121a] border border-[#2a2a3e] rounded-xl px-3 py-1 text-xs text-[#c8c8e0] focus:outline-none focus:border-[#6c5fff]">
+                className="mt-1.5 bg-cinza-900 border border-cinza-700 rounded-xl px-3 py-1 text-xs text-cinza-200 focus:outline-none focus:border-roxo-700">
                 {MESES.map(m => <option key={m} value={m}>{m}</option>)}
               </select>
             </div>
             <button onClick={exportarCSV} disabled={exportando}
-              className="shrink-0 px-3 py-1.5 bg-[#1e1e30] border border-[#2a2a3e] hover:border-[#6c5fff] disabled:opacity-50 rounded-xl text-xs font-semibold text-[#c8c8e0] transition-colors">
+              className="shrink-0 px-3 py-1.5 bg-cinza-800 border border-cinza-700 hover:border-roxo-700 disabled:opacity-50 rounded-xl text-xs font-semibold text-cinza-200 transition-colors">
               {exportando ? "…" : "↓ CSV"}
             </button>
           </div>
@@ -341,13 +341,13 @@ export default function Configuracoes() {
 
         {/* ── Geral ── */}
         <Secao titulo="Geral">
-          <div className="bg-[#1a1a28] border border-[#2a2a3e] rounded-2xl p-4 flex items-center justify-between gap-3">
+          <div className="bg-cinza-850 border border-cinza-700 rounded-2xl p-4 flex items-center justify-between gap-3">
             <div className="min-w-0">
-              <p className="text-sm font-medium text-[#e8e8f0]">Limpar conversa</p>
-              <p className="text-xs text-[#6a6a8a] mt-0.5">Apaga todo o histórico do chat</p>
+              <p className="text-sm font-medium text-cinza-50">Limpar conversa</p>
+              <p className="text-xs text-cinza-200 mt-0.5">Apaga todo o histórico do chat</p>
             </div>
             <button onClick={() => setConfirmarReset(true)}
-              className="shrink-0 px-3 py-1.5 bg-[#1e1e30] border border-[#2a2a3e] hover:border-red-600 hover:text-red-400 rounded-xl text-xs font-semibold text-[#c8c8e0] transition-colors">
+              className="shrink-0 px-3 py-1.5 bg-cinza-800 border border-cinza-700 hover:border-red-600 hover:text-red-400 rounded-xl text-xs font-semibold text-cinza-200 transition-colors">
               Limpar
             </button>
           </div>
@@ -356,50 +356,50 @@ export default function Configuracoes() {
         {/* ── Uso este mês ── */}
         <Secao titulo="Uso este mês">
           {loadingUso ? (
-            <div className="bg-[#1a1a28] border border-[#2a2a3e] rounded-2xl p-4 mb-3 animate-pulse">
-              <div className="h-3.5 w-16 bg-[#2a2a3e] rounded mb-3" />
+            <div className="bg-cinza-850 border border-cinza-700 rounded-2xl p-4 mb-3 animate-pulse">
+              <div className="h-3.5 w-16 bg-cinza-700 rounded mb-3" />
               <div className="flex gap-6">
-                <div className="h-7 w-16 bg-[#2a2a3e] rounded" />
-                <div className="h-7 w-16 bg-[#2a2a3e] rounded" />
+                <div className="h-7 w-16 bg-cinza-700 rounded" />
+                <div className="h-7 w-16 bg-cinza-700 rounded" />
               </div>
             </div>
           ) : uso?.openai ? (
-            <div className="bg-[#1a1a28] border border-[#2a2a3e] rounded-2xl p-4 mb-3">
+            <div className="bg-cinza-850 border border-cinza-700 rounded-2xl p-4 mb-3">
               <div className="flex items-center gap-2 mb-3">
                 <span className="text-base">🤖</span>
-                <span className="text-sm font-semibold text-[#e8e8f0]">OpenAI</span>
+                <span className="text-sm font-semibold text-cinza-50">OpenAI</span>
               </div>
               <div className="flex gap-8">
                 <div>
-                  <p className="text-2xl font-bold text-[#a78bfa]">${uso.openai.custo.toFixed(2)}</p>
-                  <p className="text-xs text-[#6a6a8a] mt-0.5">gastos</p>
+                  <p className="text-2xl font-bold text-roxo-400">${uso.openai.custo.toFixed(2)}</p>
+                  <p className="text-xs text-cinza-200 mt-0.5">gastos</p>
                 </div>
                 <div>
-                  <p className="text-2xl font-bold text-[#e8e8f0]">{formatTokens(uso.openai.tokens)}</p>
-                  <p className="text-xs text-[#6a6a8a] mt-0.5">tokens</p>
+                  <p className="text-2xl font-bold text-cinza-50">{formatTokens(uso.openai.tokens)}</p>
+                  <p className="text-xs text-cinza-200 mt-0.5">tokens</p>
                 </div>
               </div>
             </div>
           ) : (
-            <div className="bg-[#1a1a28] border border-[#2a2a3e] rounded-2xl p-4 mb-3">
+            <div className="bg-cinza-850 border border-cinza-700 rounded-2xl p-4 mb-3">
               <div className="flex items-center gap-2 mb-2">
                 <span className="text-base">🤖</span>
-                <span className="text-sm font-semibold text-[#e8e8f0]">OpenAI</span>
+                <span className="text-sm font-semibold text-cinza-50">OpenAI</span>
               </div>
-              <p className="text-xs text-[#6a6a8a] leading-relaxed">
-                Adicione <span className="text-[#a78bfa] font-mono">OPENAI_ADMIN_KEY</span> no Railway para ver o uso.{"\n"}
-                Crie em: <span className="text-[#6c5fff]">platform.openai.com → Settings → Admin Keys</span>
+              <p className="text-xs text-cinza-200 leading-relaxed">
+                Adicione <span className="text-roxo-400 font-mono">OPENAI_ADMIN_KEY</span> no Railway para ver o uso.{"\n"}
+                Crie em: <span className="text-roxo-700">platform.openai.com → Settings → Admin Keys</span>
               </p>
             </div>
           )}
           <div className="grid grid-cols-3 gap-2">
             {PLATAFORMAS.map(({ Logo, label, url }) => (
               <a key={label} href={url} target="_blank" rel="noopener noreferrer"
-                className="bg-[#1a1a28] border border-[#2a2a3e] rounded-2xl p-3 flex flex-col items-center gap-1.5
-                  hover:border-[#6c5fff44] hover:bg-[#1e1e30] transition-all active:scale-95">
+                className="bg-cinza-850 border border-cinza-700 rounded-2xl p-3 flex flex-col items-center gap-1.5
+                  hover:border-roxo-700/27 hover:bg-cinza-800 transition-all active:scale-95">
                 <Logo />
-                <span className="text-xs text-[#c8c8e0] font-medium">{label}</span>
-                <span className="text-[10px] text-[#4a4a6a]">Dashboard ↗</span>
+                <span className="text-xs text-cinza-200 font-medium">{label}</span>
+                <span className="text-[10px] text-cinza-350">Dashboard ↗</span>
               </a>
             ))}
           </div>
@@ -407,18 +407,18 @@ export default function Configuracoes() {
 
         {/* ── Sobre ── */}
         <Secao titulo="Sobre">
-          <div className="bg-[#1a1a28] border border-[#2a2a3e] rounded-2xl p-4 flex flex-col gap-2">
+          <div className="bg-cinza-850 border border-cinza-700 rounded-2xl p-4 flex flex-col gap-2">
             <div className="flex items-center justify-between">
-              <span className="text-sm text-[#c8c8e0]">App</span>
-              <span className="text-sm font-semibold text-[#e8e8f0]">JARVIS v1.0</span>
+              <span className="text-sm text-cinza-200">App</span>
+              <span className="text-sm font-semibold text-cinza-50">JARVIS v1.0</span>
             </div>
             <div className="flex items-center justify-between">
-              <span className="text-sm text-[#c8c8e0]">Backend</span>
-              <span className="text-xs text-[#6a6a8a] font-mono truncate max-w-[180px]">{JARVIS_URL.replace("https://", "")}</span>
+              <span className="text-sm text-cinza-200">Backend</span>
+              <span className="text-xs text-cinza-200 font-mono truncate max-w-[180px]">{JARVIS_URL.replace("https://", "")}</span>
             </div>
             <div className="flex items-center justify-between">
-              <span className="text-sm text-[#c8c8e0]">Stack</span>
-              <span className="text-sm text-[#6a6a8a]">React · Node.js · Supabase</span>
+              <span className="text-sm text-cinza-200">Stack</span>
+              <span className="text-sm text-cinza-200">React · Node.js · Supabase</span>
             </div>
           </div>
         </Secao>

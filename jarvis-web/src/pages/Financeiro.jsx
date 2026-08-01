@@ -22,7 +22,7 @@ const fmt = v => `R$ ${Number(v || 0).toLocaleString("pt-BR", { minimumFractionD
 function MiniBar({ valor, total, cor }) {
   const pct = total > 0 ? Math.min((valor / total) * 100, 100) : 0;
   return (
-    <div className="w-full bg-[#1e1e2e] rounded-full h-1.5 mt-1">
+    <div className="w-full bg-cinza-800 rounded-full h-1.5 mt-1">
       <div className="h-1.5 rounded-full transition-all duration-500" style={{ width: `${pct}%`, background: cor }} />
     </div>
   );
@@ -65,9 +65,9 @@ function RelatorioAnual({ todosMeses }) {
         return (
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
             {cards.map((c, i) => (
-              <div key={i} className={`bg-[#13131e] border ${c.border} rounded-xl p-3 md:p-4`}>
-                <div className="text-[10px] text-[#4a4a6a] mb-0.5">{c.icon} {c.label}</div>
-                <div className="text-[9px] text-[#3a3a5a] mb-2">{c.sub}</div>
+              <div key={i} className={`bg-cinza-900 border ${c.border} rounded-xl p-3 md:p-4`}>
+                <div className="text-[10px] text-cinza-350 mb-0.5">{c.icon} {c.label}</div>
+                <div className="text-[9px] text-cinza-300 mb-2">{c.sub}</div>
                 <div className={`font-mono text-base md:text-xl font-medium ${c.cor}`}>{c.valor}</div>
               </div>
             ))}
@@ -76,8 +76,8 @@ function RelatorioAnual({ todosMeses }) {
       })()}
 
       {/* Gráfico de barras anual */}
-      <div className="bg-[#13131e] border border-[#1e1e2e] rounded-xl p-5">
-        <div className="text-xs text-[#4a4a6a] tracking-wider mb-5">DESPESAS POR MÊS</div>
+      <div className="bg-cinza-900 border border-cinza-800 rounded-xl p-5">
+        <div className="text-xs text-cinza-350 tracking-wider mb-5">DESPESAS POR MÊS</div>
         <div className="flex items-end gap-1 h-36">
           {resumo.map(({ mes, fixas, variaveis, total, ganhos, saldo }) => {
             const altGastos = total > 0 ? (total / maxTotal) * 100 : 0;
@@ -86,8 +86,8 @@ function RelatorioAnual({ todosMeses }) {
             return (
               <div key={mes} className="flex-1 flex flex-col items-center gap-1 group relative">
                 {temDados && (
-                  <div className="absolute bottom-full mb-2 left-1/2 -translate-x-1/2 bg-[#2a2a3e] border border-[#3a3a50] rounded-lg px-3 py-2 text-xs whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity z-10 pointer-events-none">
-                    <div className="font-semibold text-[#e8e8f0] mb-1">{mes}</div>
+                  <div className="absolute bottom-full mb-2 left-1/2 -translate-x-1/2 bg-cinza-700 border border-cinza-600 rounded-lg px-3 py-2 text-xs whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity z-10 pointer-events-none">
+                    <div className="font-semibold text-cinza-50 mb-1">{mes}</div>
                     {ganhos > 0 && <div className="text-emerald-400">Ganhos: {fmt(ganhos)}</div>}
                     <div className="text-orange-400">Fixas: {fmt(fixas)}</div>
                     <div className="text-violet-400">Variáveis: {fmt(variaveis)}</div>
@@ -104,32 +104,32 @@ function RelatorioAnual({ todosMeses }) {
                       <div className="w-full bg-violet-400/70" style={{ height: `${total > 0 ? (variaveis/total)*100 : 0}%` }} />
                     </div>
                   ) : !ganhos && (
-                    <div className="flex-1 h-1 bg-[#2a2a3e] rounded" />
+                    <div className="flex-1 h-1 bg-cinza-700 rounded" />
                   )}
                 </div>
-                <span className="text-[9px] text-[#4a4a6a]">{mes.slice(0,3)}</span>
+                <span className="text-[9px] text-cinza-350">{mes.slice(0,3)}</span>
               </div>
             );
           })}
         </div>
         <div className="flex gap-4 mt-3">
-          <div className="flex items-center gap-1.5 text-xs text-[#8a8aaa]">
+          <div className="flex items-center gap-1.5 text-xs text-cinza-350">
             <div className="w-3 h-3 rounded-sm bg-emerald-400/60" /> Ganhos
           </div>
-          <div className="flex items-center gap-1.5 text-xs text-[#8a8aaa]">
+          <div className="flex items-center gap-1.5 text-xs text-cinza-350">
             <div className="w-3 h-3 rounded-sm bg-orange-400/70" /> Fixas
           </div>
-          <div className="flex items-center gap-1.5 text-xs text-[#8a8aaa]">
+          <div className="flex items-center gap-1.5 text-xs text-cinza-350">
             <div className="w-3 h-3 rounded-sm bg-violet-400/70" /> Variáveis
           </div>
         </div>
       </div>
 
       {/* Tabela resumo anual */}
-      <div className="bg-[#13131e] border border-[#1e1e2e] rounded-xl overflow-hidden">
+      <div className="bg-cinza-900 border border-cinza-800 rounded-xl overflow-hidden">
         <div className="overflow-x-auto">
           <div style={{ minWidth: "420px" }}>
-            <div className="grid px-4 py-2.5 border-b border-[#1e1e2e] text-[10px] text-[#4a4a6a] tracking-wider"
+            <div className="grid px-4 py-2.5 border-b border-cinza-800 text-[10px] text-cinza-350 tracking-wider"
               style={{ gridTemplateColumns: "1fr 1fr 1fr 1fr 1fr" }}>
               <span>MÊS</span><span>GANHOS</span><span>FIXAS</span><span>VARIÁVEIS</span><span>SALDO</span>
             </div>
@@ -137,9 +137,9 @@ function RelatorioAnual({ todosMeses }) {
               const temDados = m.total > 0 || m.ganhos > 0;
               return (
                 <div key={m.mes}
-                  className={`grid px-4 py-3 text-sm transition-colors ${temDados ? "hover:bg-[#1a1a28]" : "opacity-30"} ${i < resumo.length - 1 ? "border-b border-[#1a1a24]" : ""}`}
+                  className={`grid px-4 py-3 text-sm transition-colors ${temDados ? "hover:bg-cinza-850" : "opacity-30"} ${i < resumo.length - 1 ? "border-b border-cinza-850" : ""}`}
                   style={{ gridTemplateColumns: "1fr 1fr 1fr 1fr 1fr" }}>
-                  <span className={temDados ? "text-[#d8d8f0] font-medium" : "text-[#4a4a6a]"}>{m.mes}</span>
+                  <span className={temDados ? "text-cinza-100 font-medium" : "text-cinza-350"}>{m.mes}</span>
                   <span className="font-mono text-xs text-emerald-400">{m.ganhos > 0 ? fmt(m.ganhos) : "—"}</span>
                   <span className="font-mono text-xs text-orange-400">{m.fixas > 0 ? fmt(m.fixas) : "—"}</span>
                   <span className="font-mono text-xs text-violet-400">{m.variaveis > 0 ? fmt(m.variaveis) : "—"}</span>
@@ -147,9 +147,9 @@ function RelatorioAnual({ todosMeses }) {
                 </div>
               );
             })}
-            <div className="grid px-4 py-3 border-t border-[#2a2a3e] text-sm font-semibold"
+            <div className="grid px-4 py-3 border-t border-cinza-700 text-sm font-semibold"
               style={{ gridTemplateColumns: "1fr 1fr 1fr 1fr 1fr" }}>
-              <span className="text-[#8a8aaa]">TOTAL</span>
+              <span className="text-cinza-350">TOTAL</span>
               <span className="font-mono text-emerald-400">{fmt(totalGanhosAnual)}</span>
               <span className="font-mono text-orange-400">{fmt(totalFixas)}</span>
               <span className="font-mono text-violet-400">{fmt(totalVariaveis)}</span>
@@ -192,7 +192,7 @@ function RelatorioMensal({ gastos, mes }) {
   const tabela = abaTabela === "fixas" ? fixas : variaveis;
 
   if (gastos.length === 0) {
-    return <div className="text-center text-[#4a4a6a] py-10 text-sm">Nenhum dado para {mes} ✨</div>;
+    return <div className="text-center text-cinza-350 py-10 text-sm">Nenhum dado para {mes} ✨</div>;
   }
 
   const gastosNubank = somenteGastos.filter(g => g.meio_pagamento === "Nubank").reduce((s, g) => s + Number(g.valor || 0), 0);
@@ -212,9 +212,9 @@ function RelatorioMensal({ gastos, mes }) {
         return (
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
             {cards.map((c, i) => (
-              <div key={i} className={`bg-[#13131e] border ${c.border} rounded-xl p-3 md:p-4`}>
-                <div className="text-[10px] text-[#4a4a6a] mb-0.5">{c.icon} {c.label}</div>
-                <div className="text-[9px] text-[#3a3a5a] mb-2">{c.sub}</div>
+              <div key={i} className={`bg-cinza-900 border ${c.border} rounded-xl p-3 md:p-4`}>
+                <div className="text-[10px] text-cinza-350 mb-0.5">{c.icon} {c.label}</div>
+                <div className="text-[9px] text-cinza-300 mb-2">{c.sub}</div>
                 <div className={`font-mono text-base md:text-xl font-medium ${c.cor}`}>{c.valor}</div>
               </div>
             ))}
@@ -225,14 +225,14 @@ function RelatorioMensal({ gastos, mes }) {
       {/* Gráficos */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         {/* Por categoria */}
-        <div className="bg-[#13131e] border border-[#1e1e2e] rounded-xl p-4">
-          <div className="text-xs text-[#4a4a6a] tracking-wider mb-4">GASTO POR CATEGORIA</div>
+        <div className="bg-cinza-900 border border-cinza-800 rounded-xl p-4">
+          <div className="text-xs text-cinza-350 tracking-wider mb-4">GASTO POR CATEGORIA</div>
           <div className="flex flex-col gap-3">
             {catOrdenadas.map(([cat, val]) => (
               <div key={cat}>
                 <div className="flex justify-between text-xs mb-0.5">
-                  <span className="text-[#c8c8e0]">{cat}</span>
-                  <span className="font-mono text-[#8a8aaa]">{fmt(val)}</span>
+                  <span className="text-cinza-200">{cat}</span>
+                  <span className="font-mono text-cinza-350">{fmt(val)}</span>
                 </div>
                 <MiniBar valor={val} total={totalGeral} cor={CORES_CAT[cat] || "#6c5fff"} />
               </div>
@@ -241,8 +241,8 @@ function RelatorioMensal({ gastos, mes }) {
         </div>
 
         {/* Por meio */}
-        <div className="bg-[#13131e] border border-[#1e1e2e] rounded-xl p-4">
-          <div className="text-xs text-[#4a4a6a] tracking-wider mb-4">POR MEIO DE PAGAMENTO</div>
+        <div className="bg-cinza-900 border border-cinza-800 rounded-xl p-4">
+          <div className="text-xs text-cinza-350 tracking-wider mb-4">POR MEIO DE PAGAMENTO</div>
           <div className="flex flex-col gap-4">
             {Object.entries(porMeio).map(([meio, val]) => {
               const pct = totalGeral > 0 ? ((val / totalGeral) * 100).toFixed(1) : 0;
@@ -253,7 +253,7 @@ function RelatorioMensal({ gastos, mes }) {
                     <span className="text-sm">{meio === "Nubank" ? "💜" : "🟡"} {meio}</span>
                     <div className="text-right">
                       <div className="font-mono text-sm" style={{ color: cor }}>{fmt(val)}</div>
-                      <div className="text-xs text-[#4a4a6a]">{pct}%</div>
+                      <div className="text-xs text-cinza-350">{pct}%</div>
                     </div>
                   </div>
                   <MiniBar valor={val} total={totalGeral} cor={cor} />
@@ -261,54 +261,54 @@ function RelatorioMensal({ gastos, mes }) {
               );
             })}
           </div>
-          <div className="mt-6 pt-4 border-t border-[#1e1e2e] grid grid-cols-2 gap-3">
+          <div className="mt-6 pt-4 border-t border-cinza-800 grid grid-cols-2 gap-3">
             <div className="text-center">
-              <div className="text-xs text-[#4a4a6a] mb-1">Fixas</div>
+              <div className="text-xs text-cinza-350 mb-1">Fixas</div>
               <div className="font-mono text-sm text-orange-400">{fmt(totalFixas)}</div>
-              <div className="text-xs text-[#4a4a6a]">{totalGeral > 0 ? ((totalFixas/totalGeral)*100).toFixed(1) : 0}%</div>
+              <div className="text-xs text-cinza-350">{totalGeral > 0 ? ((totalFixas/totalGeral)*100).toFixed(1) : 0}%</div>
             </div>
             <div className="text-center">
-              <div className="text-xs text-[#4a4a6a] mb-1">Variáveis</div>
+              <div className="text-xs text-cinza-350 mb-1">Variáveis</div>
               <div className="font-mono text-sm text-violet-400">{fmt(totalVariaveis)}</div>
-              <div className="text-xs text-[#4a4a6a]">{totalGeral > 0 ? ((totalVariaveis/totalGeral)*100).toFixed(1) : 0}%</div>
+              <div className="text-xs text-cinza-350">{totalGeral > 0 ? ((totalVariaveis/totalGeral)*100).toFixed(1) : 0}%</div>
             </div>
           </div>
         </div>
       </div>
 
       {/* Tabela */}
-      <div className="bg-[#13131e] border border-[#1e1e2e] rounded-xl overflow-hidden">
-        <div className="flex border-b border-[#1e1e2e]">
+      <div className="bg-cinza-900 border border-cinza-800 rounded-xl overflow-hidden">
+        <div className="flex border-b border-cinza-800">
           {[
             { id: "fixas", label: `Fixas (${fixas.length})` },
             { id: "variaveis", label: `Variáveis (${variaveis.length})` },
           ].map(a => (
             <button key={a.id} onClick={() => setAbaTabela(a.id)}
               className={`px-5 py-3 text-xs font-medium border-b-2 transition-all
-                ${abaTabela === a.id ? "border-[#6c5fff] text-[#a78bfa]" : "border-transparent text-[#6a6a8a] hover:text-[#9a9ab8]"}`}>
+                ${abaTabela === a.id ? "border-roxo-700 text-roxo-400" : "border-transparent text-cinza-200 hover:text-cinza-300"}`}>
               {a.label}
             </button>
           ))}
           <div className="ml-auto px-4 flex items-center">
-            <span className="font-mono text-sm text-[#8a8aaa]">
+            <span className="font-mono text-sm text-cinza-350">
               {fmt(abaTabela === "fixas" ? totalFixas : totalVariaveis)}
             </span>
           </div>
         </div>
         <div className="overflow-x-auto">
           <div style={{ minWidth: "500px" }}>
-            <div className="grid px-4 py-2.5 border-b border-[#1e1e2e] text-[10px] text-[#4a4a6a] tracking-wider"
+            <div className="grid px-4 py-2.5 border-b border-cinza-800 text-[10px] text-cinza-350 tracking-wider"
               style={{ gridTemplateColumns: "70px 1fr 110px 140px 120px" }}>
               <span>DATA</span><span>DESCRIÇÃO</span><span>VALOR</span><span>PAGAMENTO</span><span>CATEGORIA</span>
             </div>
             {tabela.map((g, i) => (
               <div key={g.id}
-                className={`grid items-center px-4 py-3 text-sm hover:bg-[#1a1a28] transition-colors ${i < tabela.length - 1 ? "border-b border-[#1a1a24]" : ""}`}
+                className={`grid items-center px-4 py-3 text-sm hover:bg-cinza-850 transition-colors ${i < tabela.length - 1 ? "border-b border-cinza-850" : ""}`}
                 style={{ gridTemplateColumns: "70px 1fr 110px 140px 120px" }}>
-                <span className="font-mono text-xs text-[#6a6a8a]">{g.data}</span>
-                <span className="text-[#d8d8f0] font-medium truncate pr-2">{g.descricao}</span>
+                <span className="font-mono text-xs text-cinza-200">{g.data}</span>
+                <span className="text-cinza-100 font-medium truncate pr-2">{g.descricao}</span>
                 <span className="font-mono text-red-400 font-semibold">{fmt(g.valor)}</span>
-                <span className="text-xs text-[#8a8aaa]">{g.meio_pagamento === "Nubank" ? "💜 Nubank" : "🟡 Mercado Pago"}</span>
+                <span className="text-xs text-cinza-350">{g.meio_pagamento === "Nubank" ? "💜 Nubank" : "🟡 Mercado Pago"}</span>
                 <span className="text-xs px-2 py-0.5 rounded w-fit"
                   style={{ background: `${CORES_CAT[g.categoria] || "#6c5fff"}20`, color: CORES_CAT[g.categoria] || "#6c5fff" }}>
                   {g.categoria}
@@ -362,11 +362,11 @@ export default function Financeiro() {
       title: "Financeiro",
       subtitle: visao === "ano" ? "Relatório anual 2026" : `${gastosMes.length} lançamentos · ${mesSel}`,
       right: (
-        <div className="flex rounded-lg border border-[#2a2a3e] overflow-hidden shrink-0">
+        <div className="flex rounded-lg border border-cinza-700 overflow-hidden shrink-0">
           {[{ id: "mes", label: "Mensal" }, { id: "ano", label: "Anual" }].map(v => (
             <button key={v.id} onClick={() => setVisao(v.id)}
               className={`px-4 py-1.5 text-xs font-medium transition-all
-                ${visao === v.id ? "bg-[#6c5fff] text-white" : "text-[#6a6a8a] hover:text-[#9a9ab8]"}`}>
+                ${visao === v.id ? "bg-roxo-700 text-white" : "text-cinza-200 hover:text-cinza-300"}`}>
               {v.label}
             </button>
           ))}
@@ -377,7 +377,7 @@ export default function Financeiro() {
           {mesesDisponiveis.map(m => (
             <button key={m} onClick={() => setMesSel(m)}
               className={`px-3 py-1.5 rounded-lg text-xs font-medium border transition-all shrink-0
-                ${mesSel === m ? "border-[#6c5fff] bg-[#6c5fff22] text-[#a78bfa]" : "border-[#2a2a3e] text-[#6a6a8a] hover:border-[#3a3a50]"}`}>
+                ${mesSel === m ? "border-roxo-700 bg-roxo-700/13 text-roxo-400" : "border-cinza-700 text-cinza-200 hover:border-cinza-600"}`}>
               {m}
             </button>
           ))}
@@ -390,7 +390,7 @@ export default function Financeiro() {
     <div className="flex flex-col h-full">
       <div className="flex-1 overflow-y-auto px-6 py-5">
         {loading ? (
-          <div className="text-center text-[#4a4a6a] py-10 text-sm">Carregando...</div>
+          <div className="text-center text-cinza-350 py-10 text-sm">Carregando...</div>
         ) : visao === "ano" ? (
           <RelatorioAnual todosMeses={todosMeses} />
         ) : (
