@@ -56,7 +56,7 @@ Maior extração do webhook.js (~250 linhas, 13 funções):
 
 ---
 
-### ⬜ P8 — Mover `require(supabase)` para o topo dos arquivos ← **próxima etapa**
+### ✅ P8 — Mover `require(supabase)` para o topo dos arquivos — commit `ac860ea`
 `const { supabase } = require("../services/supabase")` aparece dentro do corpo de funções em `handlers/webhook.js` (linhas ~245, ~350, ~430, etc.) escondendo a dependência.
 
 **⚠️ Cuidado com dependência circular:** alguns `require` dentro de função podem estar lá justamente para quebrar um ciclo. Procedimento obrigatório:
@@ -66,7 +66,7 @@ Maior extração do webhook.js (~250 linhas, 13 funções):
 
 ---
 
-### ⬜ P9 — Atualizar CLAUDE.md
+### ⬜ P9 — Atualizar CLAUDE.md ← **próxima etapa**
 - Adicionar seção de segurança para agentes: não tocar em `.env`, sempre commit pequeno, rodar `npm test` antes de cada commit
 - Adicionar pointer: "nomes de modelos de LLM ficam em `config.js` → `MODELOS`"
 - Adicionar o comando `npm test` na seção Comandos
