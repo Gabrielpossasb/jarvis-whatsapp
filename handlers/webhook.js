@@ -1198,4 +1198,9 @@ async function handleExtratoConfirmar(req, res) {
   }
 }
 
-module.exports = { handleWebhook, handleWebChat, handleMensagemArquivo, handleTranscricaoAudio, handleExtratoUpload, handleExtratoConfirmar };
+module.exports = {
+  handleWebhook, handleWebChat, handleMensagemArquivo, handleTranscricaoAudio, handleExtratoUpload, handleExtratoConfirmar,
+  // Exported for testing — will move to dedicated modules in P6/P7
+  parsearContagemEstoque, normalizarNome, datasNoIntervalo, formatarMsgExtrato,
+  verificarDuplicatasExtrato, processarContagemEstoque,
+};
