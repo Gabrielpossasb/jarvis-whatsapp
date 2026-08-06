@@ -46,17 +46,17 @@ Adicionar `"test": "jest"` no `package.json` e documentar `npm test` no CLAUDE.m
 
 ---
 
-### ⬜ P7 — Extrair lógica de faculdade para `handlers/faculdade.js` ← **próxima etapa**
-Maior extração do webhook.js:
+### ✅ P7 — Extrair lógica de faculdade para `handlers/faculdade.js` — commit `32a447a`
+Maior extração do webhook.js (~250 linhas, 13 funções):
 - `podeSerEventoFaculdade`, `buscarDisciplinas`, `detectarEventoFaculdade`
 - `ddmm`, `datasNoIntervalo`
 - `processarEventoFaculdadeUnico`, `processarEventoFaculdadeIntervalo`, `processarEventoFaculdadeNota`, `processarEventoFaculdadeFormula`, `processarEventoFaculdadeAula`
 - `despacharEventoFaculdade`, `processarPlanoFaculdade`, `detectarPlanoFaculdadeDeArquivo`
-- Rodar testes antes e depois
+- 34 testes passando antes e depois
 
 ---
 
-### ⬜ P8 — Mover `require(supabase)` para o topo dos arquivos
+### ⬜ P8 — Mover `require(supabase)` para o topo dos arquivos ← **próxima etapa**
 `const { supabase } = require("../services/supabase")` aparece dentro do corpo de funções em `handlers/webhook.js` (linhas ~245, ~350, ~430, etc.) escondendo a dependência.
 
 **⚠️ Cuidado com dependência circular:** alguns `require` dentro de função podem estar lá justamente para quebrar um ciclo. Procedimento obrigatório:
