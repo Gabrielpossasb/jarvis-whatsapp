@@ -2,6 +2,8 @@
 //  handlers/estoque.js — Contagem e atualização de estoque
 // ─────────────────────────────────────────────
 
+const { supabase } = require("../services/supabase");
+
 const LINHA_CONTAGEM = /^(.+?)\s*[—–-]+\s*([\d,\.]+)\s*(kg|un)?\s*$/i;
 
 function parsearContagemEstoque(texto) {
@@ -24,7 +26,6 @@ function normalizarNome(s) {
 }
 
 async function processarContagemEstoque(itens) {
-  const { supabase } = require("../services/supabase");
   const { data: produtos } = await supabase
     .from("estoque_produtos")
     .select("id, nome, unidade, estoque_atual")

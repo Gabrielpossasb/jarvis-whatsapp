@@ -2,7 +2,8 @@
 //  handlers/webhook.js — Lógica principal
 // ─────────────────────────────────────────────
 
-const { CONFIG } = require("../config");
+const { CONFIG, MESES } = require("../config");
+const { supabase } = require("../services/supabase");
 const { parsearContagemEstoque, normalizarNome, processarContagemEstoque } = require("./estoque");
 const { detectarEventoFaculdade, despacharEventoFaculdade, detectarPlanoFaculdadeDeArquivo } = require("./faculdade");
 const { obterEstado, salvarEstado, deletarEstado } = require("../services/pending-states");
@@ -38,7 +39,6 @@ async function encontrarTarefa(descBusca) {
 }
 // ── Verifica duplicatas no extrato ────────────────────────────────
 async function verificarDuplicatasExtrato(transacoes) {
-  const { supabase } = require("../services/supabase");
   const { data: gastosExistentes } = await supabase.from("gastos").select("descricao, valor, data, mes");
   const novas = [];
   const duplicatas = [];
@@ -60,8 +60,6 @@ async function verificarDuplicatasExtrato(transacoes) {
 
 // ── Adiciona lote de gastos ───────────────────────────────────────
 async function adicionarLoteGastos(transacoes) {
-  const { supabase } = require("../services/supabase");
-  const { MESES } = require("../config");
   const mes = MESES[agora().getMonth()];
   const registros = transacoes.map(t => ({
     data: t.data, descricao: t.descricao, valor: t.valor,
@@ -328,7 +326,6 @@ async function processarMensagem(texto, remoteJid, canal = "whatsapp") {
 
     if (confirmou) {
       await deletarEstado(remoteJid, "evento_faculdade_lote");
-      const { supabase } = require("../services/supabase");
       const { error } = await supabase.from("faculdade_eventos").insert(eventos);
       if (error) throw error;
       await responder(`✅ *${eventos.length} evento(s) registrado(s)!*\n\n_Abra a aba Faculdade para ver todos._`);
@@ -352,7 +349,6 @@ async function processarMensagem(texto, remoteJid, canal = "whatsapp") {
 
     if (confirmou) {
       await deletarEstado(remoteJid, "plano_faculdade");
-      const { supabase } = require("../services/supabase");
       if (eventos.length > 0) {
         const { error } = await supabase.from("faculdade_eventos").insert(eventos);
         if (error) throw error;
@@ -390,7 +386,6 @@ async function processarMensagem(texto, remoteJid, canal = "whatsapp") {
 
     if (confirmou) {
       await deletarEstado(remoteJid, "aula_faculdade");
-      const { supabase } = require("../services/supabase");
       const { error } = await supabase.from("faculdade_aulas").insert(aulas);
       if (error) throw error;
       await responder(`✅ *${aulas[0].disciplina} cadastrada!*\n\n_Abra a aba Faculdade → Matérias para ver/editar._`);
@@ -444,7 +439,6 @@ async function processarMensagem(texto, remoteJid, canal = "whatsapp") {
     }
 
     if (tipoOrigem === "nota_faculdade") {
-      const { supabase } = require("../services/supabase");
       const { data: eventosDisc } = await supabase
         .from("faculdade_eventos")
         .select("id, tipo, titulo")

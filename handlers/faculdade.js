@@ -2,6 +2,7 @@
 //  handlers/faculdade.js — Eventos e grade de faculdade
 // ─────────────────────────────────────────────
 
+const { supabase } = require("../services/supabase");
 const { salvarEstado } = require("../services/pending-states");
 const { encontrarSimilar } = require("../utils/similarity");
 const { corParaDisciplina } = require("../utils/coresFaculdade");
@@ -16,7 +17,6 @@ function podeSerEventoFaculdade(texto) {
 }
 
 async function buscarDisciplinas() {
-  const { supabase } = require("../services/supabase");
   const { data } = await supabase.from("faculdade_aulas").select("disciplina").eq("ativo", true);
   return [...new Set((data || []).map(a => a.disciplina))];
 }
@@ -49,7 +49,6 @@ function datasNoIntervalo(dataInicioISO, dataFimISO, diaSemana) {
 }
 
 async function processarEventoFaculdadeUnico(evento) {
-  const { supabase } = require("../services/supabase");
   const row = {
     tipo: evento.tipo,
     disciplina: evento.disciplina || null,
@@ -79,7 +78,6 @@ async function processarEventoFaculdadeIntervalo(evento, remoteJid, texto) {
     return { texto: `🤔 Entendi que é sobre várias aulas, mas não identifiquei de qual disciplina — pode especificar o nome?` };
   }
 
-  const { supabase } = require("../services/supabase");
   const { data: aulas } = await supabase
     .from("faculdade_aulas")
     .select("dia, inicio")
@@ -127,7 +125,6 @@ async function processarEventoFaculdadeIntervalo(evento, remoteJid, texto) {
 
 // Registra a nota de uma prova/atividade já cadastrada — casa evento_referencia contra os eventos da disciplina
 async function processarEventoFaculdadeNota(evento, remoteJid, texto) {
-  const { supabase } = require("../services/supabase");
   const { data: eventosDisc } = await supabase
     .from("faculdade_eventos")
     .select("id, tipo, titulo")
@@ -154,7 +151,6 @@ async function processarEventoFaculdadeNota(evento, remoteJid, texto) {
 
 // Cadastra/atualiza a fórmula de cálculo da média de uma disciplina
 async function processarEventoFaculdadeFormula(evento) {
-  const { supabase } = require("../services/supabase");
   const { error } = await supabase
     .from("faculdade_disciplinas")
     .upsert({ nome: evento.disciplina, formula_media: evento.formula_media }, { onConflict: "nome" });
