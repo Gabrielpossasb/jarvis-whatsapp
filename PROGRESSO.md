@@ -13,7 +13,7 @@ Ordem de execução aprovada pelo Gabriel. Uma etapa por vez, commit pequeno, di
 
 ---
 
-### ⬜ P5 — Auth no `POST /api/mensagem` ← **próxima etapa**
+### ✅ P5 — Auth no `POST /api/mensagem` — commit `b382efd`
 Qualquer um que conheça a URL do Railway pode disparar chamadas pagas ao GPT e escrever no Supabase.
 - Adicionar middleware de token compartilhado (header `x-jarvis-token`) nas rotas web: `/api/mensagem`, `/api/mensagem/arquivo`, `/api/audio/transcrever`
 - Token lido de variável de ambiente `JARVIS_API_TOKEN` (adicionar no Railway)
@@ -22,7 +22,7 @@ Qualquer um que conheça a URL do Railway pode disparar chamadas pagas ao GPT e 
 
 ---
 
-### ⬜ P4 — Testes com Jest
+### ⬜ P4 — Testes com Jest ← **próxima etapa**
 Configurar Jest no backend. **Não parar nas funções puras** — elas são o aquecimento. As que mais importam (com mock de Supabase) devem ser cobertas nesta etapa, antes de qualquer refatoração estrutural.
 
 Funções puras (sem mock, aquecimento):
