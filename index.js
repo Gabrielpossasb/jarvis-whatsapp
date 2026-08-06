@@ -22,11 +22,22 @@ app.options("*", cors({ origin: true }));
 app.use(express.json({ limit: "50mb" }));
 
 app.post("/webhook", handleWebhook);
-app.post("/api/mensagem", handleWebChat);
-app.post("/api/mensagem/arquivo", handleMensagemArquivo);
-app.post("/api/audio/transcrever", handleTranscricaoAudio);
-app.post("/api/extrato/analisar", handleExtratoUpload);
-app.post("/api/extrato/confirmar", handleExtratoConfirmar);
+
+// Protege rotas que disparam chamadas pagas ao GPT e escrevem no banco.
+// Token configurado via JARVIS_API_TOKEN no Railway e VITE_JARVIS_TOKEN no Vercel.
+function autenticarWeb(req, res, next) {
+  const token = req.headers["x-jarvis-token"];
+  if (!token || token !== process.env.JARVIS_API_TOKEN) {
+    return res.status(401).json({ error: "Não autorizado" });
+  }
+  next();
+}
+
+app.post("/api/mensagem", autenticarWeb, handleWebChat);
+app.post("/api/mensagem/arquivo", autenticarWeb, handleMensagemArquivo);
+app.post("/api/audio/transcrever", autenticarWeb, handleTranscricaoAudio);
+app.post("/api/extrato/analisar", autenticarWeb, handleExtratoUpload);
+app.post("/api/extrato/confirmar", autenticarWeb, handleExtratoConfirmar);
 app.get("/api/uso", async (req, res) => {
   const openai = await buscarUsoOpenAI();
   res.json({ openai });

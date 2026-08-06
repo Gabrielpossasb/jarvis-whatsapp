@@ -126,7 +126,7 @@ export default function Faculdade() {
     try {
       const res = await fetch(`${JARVIS_URL}/api/mensagem`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", "x-jarvis-token": import.meta.env.VITE_JARVIS_TOKEN },
         body: JSON.stringify({ texto }),
       });
       const data = await res.json();
@@ -151,7 +151,7 @@ export default function Faculdade() {
       });
       const res = await fetch(`${JARVIS_URL}/api/mensagem/arquivo`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", "x-jarvis-token": import.meta.env.VITE_JARVIS_TOKEN },
         body: JSON.stringify({ base64, mimetype: file.type, texto: chatInput.trim() }),
       });
       const data = await res.json();

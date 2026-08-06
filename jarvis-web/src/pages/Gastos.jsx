@@ -182,7 +182,7 @@ export default function Gastos() {
       });
       const response = await fetch(`${JARVIS_URL}/api/extrato/analisar`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", "x-jarvis-token": import.meta.env.VITE_JARVIS_TOKEN },
         body: JSON.stringify({ base64, mimetype: extratoArquivo.type, contexto: extratoTexto }),
       });
       const data = await response.json();
@@ -220,7 +220,7 @@ export default function Gastos() {
     try {
       const response = await fetch(`${JARVIS_URL}/api/extrato/confirmar`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", "x-jarvis-token": import.meta.env.VITE_JARVIS_TOKEN },
         body: JSON.stringify({ transacoes: paraAdicionar }),
       });
       const data = await response.json();
