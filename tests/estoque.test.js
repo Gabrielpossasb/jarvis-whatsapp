@@ -24,7 +24,7 @@ jest.mock("../utils/similarity", () => ({ encontrarSimilar: jest.fn() }));
 jest.mock("../utils/coresFaculdade", () => ({ corParaDisciplina: jest.fn() }));
 
 const { supabase } = require("../services/supabase");
-const { processarContagemEstoque } = require("../handlers/webhook");
+const { processarContagemEstoque } = require("../handlers/estoque");
 
 // Mounts do builder Supabase para cada teste
 let mockInsert;

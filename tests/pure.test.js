@@ -23,12 +23,8 @@ jest.mock("../services/categorias", () => ({
 jest.mock("../utils/similarity", () => ({ encontrarSimilar: jest.fn() }));
 jest.mock("../utils/coresFaculdade", () => ({ corParaDisciplina: jest.fn() }));
 
-const {
-  parsearContagemEstoque,
-  normalizarNome,
-  datasNoIntervalo,
-  formatarMsgExtrato,
-} = require("../handlers/webhook");
+const { parsearContagemEstoque, normalizarNome } = require("../handlers/estoque");
+const { datasNoIntervalo, formatarMsgExtrato } = require("../handlers/webhook");
 
 // ─── parsearContagemEstoque ──────────────────────────────────────────────────
 
