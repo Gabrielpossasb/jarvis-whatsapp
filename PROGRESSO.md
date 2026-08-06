@@ -66,10 +66,11 @@ Maior extração do webhook.js (~250 linhas, 13 funções):
 
 ---
 
-### ⬜ P9 — Atualizar CLAUDE.md ← **próxima etapa**
-- Adicionar seção de segurança para agentes: não tocar em `.env`, sempre commit pequeno, rodar `npm test` antes de cada commit
-- Adicionar pointer: "nomes de modelos de LLM ficam em `config.js` → `MODELOS`"
-- Adicionar o comando `npm test` na seção Comandos
+### ✅ P9 — Atualizar CLAUDE.md — commit `1e74bea`
+- Nova seção "Regras para agentes": não tocar em `.env`, commit pequeno, `npm test` antes de commitar
+- Pointer: nomes de LLM centralizados em `config.js` → `MODELOS`
+- `npm test` adicionado na seção Comandos; removida frase "não há suíte de testes"
+- Referências de `handlers/webhook.js` corrigidas para `handlers/faculdade.js` onde cabiam
 
 ---
 
