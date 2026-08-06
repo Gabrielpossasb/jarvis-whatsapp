@@ -24,7 +24,8 @@ jest.mock("../utils/similarity", () => ({ encontrarSimilar: jest.fn() }));
 jest.mock("../utils/coresFaculdade", () => ({ corParaDisciplina: jest.fn() }));
 
 const { parsearContagemEstoque, normalizarNome } = require("../handlers/estoque");
-const { datasNoIntervalo, formatarMsgExtrato } = require("../handlers/webhook");
+const { datasNoIntervalo } = require("../handlers/faculdade");
+const { formatarMsgExtrato } = require("../handlers/webhook");
 
 // ─── parsearContagemEstoque ──────────────────────────────────────────────────
 
