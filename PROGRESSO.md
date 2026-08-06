@@ -39,14 +39,14 @@ Adicionar `"test": "jest"` no `package.json` e documentar `npm test` no CLAUDE.m
 
 ---
 
-### ⬜ P6 — Extrair lógica de estoque para `handlers/estoque.js` ← **próxima etapa**
+### ✅ P6 — Extrair lógica de estoque para `handlers/estoque.js` — commit `ed4980a`
 `handlers/webhook.js` tem 1202 linhas com 6 responsabilidades. Extrair primeiro o domínio de estoque (menor, mais isolado):
 - `parsearContagemEstoque`, `normalizarNome`, `processarContagemEstoque` → `handlers/estoque.js`
 - Rodar testes antes e depois para confirmar que nada quebrou
 
 ---
 
-### ⬜ P7 — Extrair lógica de faculdade para `handlers/faculdade.js`
+### ⬜ P7 — Extrair lógica de faculdade para `handlers/faculdade.js` ← **próxima etapa**
 Maior extração do webhook.js:
 - `podeSerEventoFaculdade`, `buscarDisciplinas`, `detectarEventoFaculdade`
 - `ddmm`, `datasNoIntervalo`
