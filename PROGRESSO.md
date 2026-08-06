@@ -22,7 +22,7 @@ Qualquer um que conheça a URL do Railway pode disparar chamadas pagas ao GPT e 
 
 ---
 
-### ⬜ P4 — Testes com Jest ← **próxima etapa**
+### ✅ P4 — Testes com Jest — commit `3d504aa`
 Configurar Jest no backend. **Não parar nas funções puras** — elas são o aquecimento. As que mais importam (com mock de Supabase) devem ser cobertas nesta etapa, antes de qualquer refatoração estrutural.
 
 Funções puras (sem mock, aquecimento):
@@ -39,7 +39,7 @@ Adicionar `"test": "jest"` no `package.json` e documentar `npm test` no CLAUDE.m
 
 ---
 
-### ⬜ P6 — Extrair lógica de estoque para `handlers/estoque.js`
+### ⬜ P6 — Extrair lógica de estoque para `handlers/estoque.js` ← **próxima etapa**
 `handlers/webhook.js` tem 1202 linhas com 6 responsabilidades. Extrair primeiro o domínio de estoque (menor, mais isolado):
 - `parsearContagemEstoque`, `normalizarNome`, `processarContagemEstoque` → `handlers/estoque.js`
 - Rodar testes antes e depois para confirmar que nada quebrou
