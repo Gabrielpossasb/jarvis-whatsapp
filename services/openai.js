@@ -5,7 +5,7 @@
 const OpenAI = require("openai");
 const axios = require("axios");
 const FormData = require("form-data");
-const { CONFIG, MESES_CURTOS, DIAS_SEMANA } = require("../config");
+const { CONFIG, MESES_CURTOS, DIAS_SEMANA, MODELOS } = require("../config");
 const { getListaCategorias } = require("./categorias");
 const { formatarData, formatarHora, agora, amanha, proximoDiaSemana } = require("../utils/date");
 
@@ -19,7 +19,6 @@ async function extrairDados(texto) {
     const seguinte = proximoDiaSemana(dia, true);
     return `  "${dia}"/"na ${dia}" → ${proxima} | "próxima ${dia}"/"${dia} que vem" → ${seguinte}`;
   }).join("\n");
-  console.log("TABELA DATAS:\n" + tabelaDatas);
   const horaAgora = formatarHora();
   const diaAtual = DIAS_SEMANA[agora().getDay()];
   const mesAtual = MESES_CURTOS[agora().getMonth()];
@@ -127,7 +126,7 @@ Responda APENAS com JSON válido, sem markdown:
 Mensagem: "${texto}"`;
 
   const response = await openai.chat.completions.create({
-    model: "gpt-4o-mini",
+    model: MODELOS.rapido,
     messages: [{ role: "user", content: prompt }],
     temperature: 0.1,
     response_format: { type: "json_object" },
@@ -159,7 +158,7 @@ Responda APENAS com JSON (array), sem markdown:
 Se todas estiverem corretas, retorne array vazio: []`;
 
   const response = await openai.chat.completions.create({
-    model: "gpt-4o-mini",
+    model: MODELOS.rapido,
     messages: [{ role: "user", content: prompt }],
     temperature: 0.1,
   });
@@ -191,7 +190,7 @@ Responda APENAS com JSON (array), sem markdown:
 Se todas estiverem corretas, retorne array vazio: []`;
 
   const response = await openai.chat.completions.create({
-    model: "gpt-4o-mini",
+    model: MODELOS.rapido,
     messages: [{ role: "user", content: prompt }],
     temperature: 0.1,
   });
@@ -204,7 +203,7 @@ async function transcreverAudio(base64, mimetype) {
   const buffer = Buffer.from(base64, "base64");
   const formData = new FormData();
   formData.append("file", buffer, { filename: "audio.ogg", contentType: mimetype || "audio/ogg" });
-  formData.append("model", "whisper-1");
+  formData.append("model", MODELOS.audio);
   formData.append("language", "pt");
 
   const response = await axios.post(
@@ -217,7 +216,7 @@ async function transcreverAudio(base64, mimetype) {
 
 async function analisarImagem(base64, mimetype) {
   const response = await openai.chat.completions.create({
-    model: "gpt-4o",
+    model: MODELOS.visao,
     messages: [{
       role: "user",
       content: [
@@ -232,7 +231,7 @@ async function analisarImagem(base64, mimetype) {
 
 async function analisarPDF(base64) {
   const response = await openai.chat.completions.create({
-    model: "gpt-4o",
+    model: MODELOS.visao,
     messages: [{
       role: "user",
       content: [
@@ -362,9 +361,8 @@ Responda APENAS com JSON válido, sem markdown:
     ];
   }
 
-  const openai = new OpenAI({ apiKey: CONFIG.OPENAI_API_KEY });
   const response = await openai.chat.completions.create({
-    model: "gpt-4o",
+    model: MODELOS.visao,
     messages: [{ role: "user", content }],
     max_tokens: 16000,
   });
@@ -431,9 +429,8 @@ Responda APENAS com JSON válido, sem markdown:
 Texto do extrato:
 ${texto}`;
 
-  const openai = new OpenAI({ apiKey: CONFIG.OPENAI_API_KEY });
   const response = await openai.chat.completions.create({
-    model: "gpt-4o-mini",
+    model: MODELOS.rapido,
     messages: [{ role: "user", content: prompt }],
     max_tokens: 16000,
     temperature: 0.1,
@@ -501,9 +498,8 @@ Responda APENAS com o JSON ({"resultado": null} se não for sobre faculdade, ou 
 
 Mensagem: "${texto.replace(/"/g, "'")}"`;
 
-  const openai = new OpenAI({ apiKey: CONFIG.OPENAI_API_KEY });
   const response = await openai.chat.completions.create({
-    model: "gpt-4o-mini",
+    model: MODELOS.rapido,
     messages: [{ role: "user", content: prompt }],
     max_tokens: 300,
     temperature: 0,
@@ -560,9 +556,8 @@ Regras:
     ? [{ type: "image_url", image_url: { url: `data:${mimetype};base64,${base64}` } }, { type: "text", text: prompt }]
     : [{ type: "text", text: prompt }, { type: "file", file: { filename: "documento.pdf", file_data: `data:application/pdf;base64,${base64}` } }];
 
-  const openai = new OpenAI({ apiKey: CONFIG.OPENAI_API_KEY });
   const response = await openai.chat.completions.create({
-    model: "gpt-4o",
+    model: MODELOS.visao,
     messages: [{ role: "user", content }],
     max_tokens: 2800,
     response_format: { type: "json_object" },
@@ -595,9 +590,8 @@ Calcule a média atual (considerando só o que já tem nota) e explique, em um r
 Responda APENAS com JSON válido, sem markdown:
 {"media_atual": número ou null se nenhuma nota lançada ainda, "notas_faltando": "frase curta sobre o que falta, ex: precisa de 7.0 na P2 pra passar direto", "resumo": "1-2 frases resumindo a situação"}`;
 
-  const openai = new OpenAI({ apiKey: CONFIG.OPENAI_API_KEY });
   const response = await openai.chat.completions.create({
-    model: "gpt-4o-mini",
+    model: MODELOS.rapido,
     messages: [{ role: "user", content: prompt }],
     temperature: 0.1,
     response_format: { type: "json_object" },

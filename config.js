@@ -25,4 +25,14 @@ const MESES_CURTOS = [
 
 const DIAS_SEMANA = ["domingo","segunda","terça","quarta","quinta","sexta","sábado"];
 
-module.exports = { CONFIG, MESES, MESES_CURTOS, DIAS_SEMANA };
+// Nomes de modelos centralizados — trocar de LLM é uma mudança de uma linha aqui.
+// rapido: textos, classificação, cálculos simples
+// visao: imagens e PDFs (requer multimodal)
+// audio: transcrição de voz
+const MODELOS = {
+  rapido: "gpt-4o-mini",
+  visao: "gpt-4o",
+  audio: "whisper-1",
+};
+
+module.exports = { CONFIG, MESES, MESES_CURTOS, DIAS_SEMANA, MODELOS };
