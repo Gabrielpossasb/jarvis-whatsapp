@@ -68,6 +68,21 @@ React Router com páginas em `src/pages/` (Chat, Tarefas, Gastos, Financeiro, Es
 
 **Paleta de cores nomeada**: `tailwind.config.js` define `theme.extend.colors.cinza` (950→50, do fundo mais escuro ao texto mais claro) e `.roxo` (900→400, cor de destaque). Nunca usar hex solto em `className` (`text-[#...]`) — sempre os tokens nomeados (`text-cinza-350`, `border-roxo-700`, etc). Os tons de texto mais escuros que existiam antes (`#4a4a6a`, `#6a6a8a` etc, baixo contraste) foram mapeados para tokens mais claros do que a leitura "literal" do hex sugeriria (ex: um antigo `text-[#4a4a6a]` virou `text-cinza-350`, não um tom escuro correspondente) — isso foi proposital, pra resolver legibilidade; ao adicionar um novo texto secundário, prefira `cinza-300`/`cinza-350`/`cinza-200` a reintroduzir um tom escuro. `CORES_CAT` (cores de categoria financeira em `Financeiro.jsx`/`Gastos.jsx`, hoje duplicado nos dois arquivos) fica fora dessa paleta — é uma paleta semântica separada, não mexida nessa padronização.
 
+## Memória de sessões (.memory/)
+
+AO INICIAR uma sessão de trabalho relevante:
+- Leia os arquivos mais recentes de `.memory/sessions/`.
+- Leia os arquivos relevantes de `.memory/decisions/` e `.memory/gotchas/` para a tarefa atual.
+- Não refaça decisões já registradas sem antes conferir se há uma decisão contrária documentada.
+
+AO CONCLUIR uma sessão de trabalho relevante:
+- Crie um resumo em `.memory/sessions/AAAA-MM-DD-tema.md` com: o que foi feito, o que ficou pendente e os próximos passos.
+- Se uma decisão arquitetural foi tomada, registre em `.memory/decisions/`.
+- Se uma pegadinha foi descoberta, registre em `.memory/gotchas/`.
+- Mantenha cada arquivo curto e específico. Nomes descritivos e buscáveis por grep.
+
+REGRA DE QUALIDADE: não polua a memória. Registre só o que ajuda uma sessão futura. Memória errada é pior que memória nenhuma.
+
 ## Regras para agentes (Claude Code)
 
 - **Nunca tocar em `.env` ou credenciais** — variáveis de ambiente ficam no Railway/Vercel, nunca no repositório.
