@@ -28,3 +28,30 @@ input, textarea, select { font-size: 16px !important; }
 /* Scrollbar invisível mas funcional (para filtros horizontais) */
 .no-scrollbar::-webkit-scrollbar { display: none; }
 .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+
+/* Scrollbar personalizada em toda a aplicação (substitui a padrão do SO/navegador).
+   .no-scrollbar continua funcionando por cima — seletor de classe tem mais
+   especificidade que o `*` usado aqui, então essas regras não conflitam. */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: #2a2a3e transparent;
+}
+*::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+*::-webkit-scrollbar-track {
+  background: transparent;
+}
+*::-webkit-scrollbar-thumb {
+  background-color: #2a2a3e;
+  border-radius: 9999px;
+  border: 2px solid transparent;
+  background-clip: padding-box;
+}
+*::-webkit-scrollbar-thumb:hover {
+  background-color: #6c5fff;
+}
+*::-webkit-scrollbar-corner {
+  background: transparent;
+}
