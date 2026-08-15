@@ -20,34 +20,76 @@ const TIPO_BADGE = {
   contagem: "bg-sky-500/15 text-sky-400",
 };
 
+const EMOJI_PADRAO = "🍹";
+const BUCKET_ICONES = "estoque-icones";
+
+// Mostra a imagem enviada pra esse produto (icone_url), com o emoji como
+// fallback quando não há imagem — mesmo helper em toda a página pra não
+// duplicar essa checagem em cada lugar que mostra um sabor.
+function IconeProduto({ p, size = 20 }) {
+  if (p?.icone_url) {
+    return (
+      <img src={p.icone_url} alt="" className="rounded-lg object-cover shrink-0"
+        style={{ width: size, height: size }} />
+    );
+  }
+  return (
+    <span className="leading-none shrink-0" style={{ fontSize: size }}>
+      {p?.emoji || EMOJI_PADRAO}
+    </span>
+  );
+}
+
 export default function Estoque() {
   const { setCfg } = useHeader();
   const [produtos, setProdutos] = useState([]);
   const [movs, setMovs] = useState([]);
   const [aba, setAba] = useState("estoque");
   const [loading, setLoading] = useState(true);
-  const [modal, setModal] = useState(null); // null | { tipo:'mov'|'editar', produto }
-  const [modalConteudo, setModalConteudo] = useState(null); // mantém o conteúdo visível durante a animação de saída
+  const [modal, setModal] = useState(null);
+  const [modalConteudo, setModalConteudo] = useState(null);
   if (modal && modal !== modalConteudo) setModalConteudo(modal);
   const [filtroMov, setFiltroMov] = useState("todos");
   const [toast, setToast] = useState(null);
   const [modoContagem, setModoContagem] = useState(false);
-  const [contagens, setContagens] = useState({}); // { [produto_id]: string }
+  const [contagens, setContagens] = useState({});
   const [salvandoContagem, setSalvandoContagem] = useState(false);
-  const [textoContagem, setTextoContagem] = useState(""); // modo texto
-  const [abaContagem, setAbaContagem] = useState("formulario"); // 'formulario' | 'texto'
+  const [textoContagem, setTextoContagem] = useState("");
+  const [abaContagem, setAbaContagem] = useState("formulario");
 
-  // Estado do modal de movimentação
+  // Modal de movimentação individual
   const [tipoMov, setTipoMov] = useState("entrada");
   const [quantidade, setQuantidade] = useState("");
   const [pessoa, setPessoa] = useState("");
   const [obs, setObs] = useState("");
   const [salvando, setSalvando] = useState(false);
 
-  // Estado do modal de edição
+  // Modal de edição
   const [editNome, setEditNome] = useState("");
+  const [editEmoji, setEditEmoji] = useState("");
+  const [editIconeUrl, setEditIconeUrl] = useState("");
+  const [enviandoIcone, setEnviandoIcone] = useState(false);
   const [editMin, setEditMin] = useState("");
   const [editPreco, setEditPreco] = useState("");
+  const [confirmandoRemocao, setConfirmandoRemocao] = useState(false);
+
+  // Modal de novo produto
+  const [novoNome, setNovoNome] = useState("");
+  const [novoCategoria, setNovoCategoria] = useState(CATEGORIAS[0]);
+  const [novoUnidade, setNovoUnidade] = useState("kg");
+  const [novoEmoji, setNovoEmoji] = useState("");
+  const [novoIconeUrl, setNovoIconeUrl] = useState("");
+  const [enviandoIconeNovo, setEnviandoIconeNovo] = useState(false);
+  const [novoMin, setNovoMin] = useState("");
+  const [novoPreco, setNovoPreco] = useState("");
+
+  // Gerenciar (venda/entrada em lote)
+  const [modoGerenciar, setModoGerenciar] = useState(false);
+  const [tipoGerenciar, setTipoGerenciar] = useState("venda"); // 'venda' | 'entrada'
+  const [itensGerenciar, setItensGerenciar] = useState({}); // { [produto_id]: number }
+  const [clienteGerenciar, setClienteGerenciar] = useState("");
+  const [pickerAberto, setPickerAberto] = useState(false);
+  const [salvandoGerenciar, setSalvandoGerenciar] = useState(false);
 
   function showToast(msg, ok = true) {
     setToast({ msg, ok });
@@ -66,7 +108,7 @@ export default function Estoque() {
   async function carregarMovs() {
     const { data } = await supabase
       .from("estoque_movimentacoes")
-      .select("*, produto:produto_id(nome, unidade)")
+      .select("*, produto:produto_id(nome, unidade, emoji, icone_url)")
       .order("criado_em", { ascending: false })
       .limit(300);
     if (data) setMovs(data);
@@ -91,10 +133,23 @@ export default function Estoque() {
         ? `${totalKg.toFixed(1)} kg · ⚠️ ${alertas} abaixo do mínimo`
         : `${totalKg.toFixed(1)} kg · tudo ok`,
       right: (
-        <button onClick={() => { setContagens({}); setTextoContagem(""); setAbaContagem("formulario"); setModoContagem(true); }}
-          className="text-xs px-3 py-1 rounded-full bg-cinza-850 border border-cinza-700 text-cinza-200 hover:border-roxo-700 hover:text-roxo-400 transition-colors whitespace-nowrap">
-          📋 Contagem
-        </button>
+        <div className="flex gap-2">
+          <button
+            onClick={() => { setItensGerenciar({}); setClienteGerenciar(""); setTipoGerenciar("venda"); setPickerAberto(false); setModoGerenciar(true); }}
+            className="text-xs px-3 py-1 rounded-full bg-red-500/10 border border-red-500/30 text-red-400 hover:bg-red-500/20 transition-colors whitespace-nowrap">
+            🔄 Gerenciar
+          </button>
+          <button
+            onClick={() => { setContagens({}); setTextoContagem(""); setAbaContagem("formulario"); setModoContagem(true); }}
+            className="text-xs px-3 py-1 rounded-full bg-cinza-850 border border-cinza-700 text-cinza-200 hover:border-roxo-700 hover:text-roxo-400 transition-colors whitespace-nowrap">
+            📋 Contagem
+          </button>
+          <button
+            onClick={abrirNovoProduto}
+            className="text-xs px-3 py-1 rounded-full bg-roxo-700/10 border border-roxo-700/30 text-roxo-400 hover:bg-roxo-700/20 transition-colors whitespace-nowrap">
+            + Produto
+          </button>
+        </div>
       ),
       secondRow: (
         <div className="flex gap-2 overflow-x-auto no-scrollbar">
@@ -123,13 +178,150 @@ export default function Estoque() {
 
   function abrirEditar(produto) {
     setEditNome(produto.nome);
+    setEditEmoji(produto.emoji || "");
+    setEditIconeUrl(produto.icone_url || "");
     setEditMin(String(produto.estoque_minimo));
     setEditPreco(produto.preco != null ? String(produto.preco) : "");
+    setConfirmandoRemocao(false);
     setModal({ tipo: "editar", produto });
   }
 
+  function abrirNovoProduto() {
+    setNovoNome("");
+    setNovoCategoria(CATEGORIAS[0]);
+    setNovoUnidade("kg");
+    setNovoEmoji("");
+    setNovoIconeUrl("");
+    setNovoMin("");
+    setNovoPreco("");
+    setModal({ tipo: "novo" });
+  }
+
+  // Produto ainda não existe (sem id) nesse ponto, então o upload usa uma
+  // chave aleatória em vez do id do produto (diferente de enviarIcone, usado
+  // na edição de um produto já criado).
+  async function enviarIconeNovo(file) {
+    if (!file) return;
+    if (file.size > 2 * 1024 * 1024) {
+      showToast("Imagem muito grande (máx. 2MB)", false);
+      return;
+    }
+    setEnviandoIconeNovo(true);
+    const ext = file.name.split(".").pop();
+    const caminho = `novo-${crypto.randomUUID()}.${ext}`;
+    const { error } = await supabase.storage.from(BUCKET_ICONES).upload(caminho, file, { upsert: true });
+    if (error) {
+      showToast("Erro ao enviar imagem", false);
+    } else {
+      const { data } = supabase.storage.from(BUCKET_ICONES).getPublicUrl(caminho);
+      setNovoIconeUrl(data.publicUrl);
+    }
+    setEnviandoIconeNovo(false);
+  }
+
+  async function criarProduto() {
+    const nome = novoNome.trim();
+    if (!nome) return;
+    setSalvando(true);
+    const { data, error } = await supabase.from("estoque_produtos").insert({
+      nome,
+      categoria: novoCategoria,
+      unidade: novoUnidade,
+      emoji: novoEmoji.trim() || null,
+      icone_url: novoIconeUrl || null,
+      estoque_atual: 0,
+      estoque_minimo: parseFloat(String(novoMin).replace(",", ".")) || 0,
+      preco: novoPreco ? parseFloat(String(novoPreco).replace(",", ".")) : null,
+      ativo: true,
+    }).select().single();
+
+    if (error) {
+      showToast("Erro ao criar produto", false);
+    } else {
+      setProdutos(prev => [...prev, data].sort((a, b) => a.nome.localeCompare(b.nome, "pt-BR")));
+      showToast("Produto criado");
+      setModal(null);
+    }
+    setSalvando(false);
+  }
+
+  // Desativa em vez de excluir (mesma convenção de "ativo" usada no resto do
+  // projeto, ex: encerrar semestre em faculdade_aulas) — preserva o
+  // histórico de movimentações em vez de apagar tudo via cascade.
+  async function removerProduto() {
+    setSalvando(true);
+    const p = modal.produto;
+    const { error } = await supabase.from("estoque_produtos").update({ ativo: false }).eq("id", p.id);
+    if (error) {
+      showToast("Erro ao remover produto", false);
+    } else {
+      setProdutos(prev => prev.filter(x => x.id !== p.id));
+      showToast("Produto removido");
+      setModal(null);
+    }
+    setSalvando(false);
+  }
+
+  async function enviarIcone(file) {
+    if (!file) return;
+    if (file.size > 2 * 1024 * 1024) {
+      showToast("Imagem muito grande (máx. 2MB)", false);
+      return;
+    }
+    setEnviandoIcone(true);
+    const ext = file.name.split(".").pop();
+    const caminho = `${modalConteudo.produto.id}-${Date.now()}.${ext}`;
+    const { error } = await supabase.storage.from(BUCKET_ICONES).upload(caminho, file, { upsert: true });
+    if (error) {
+      showToast("Erro ao enviar imagem", false);
+    } else {
+      const { data } = supabase.storage.from(BUCKET_ICONES).getPublicUrl(caminho);
+      setEditIconeUrl(data.publicUrl);
+    }
+    setEnviandoIcone(false);
+  }
+
+  // Stepper de quantidade no modal individual (+/-) — sempre de 1 em 1
+  function adjQuantidade(delta) {
+    const atual = parseFloat(String(quantidade).replace(",", ".")) || 0;
+    const novo = Math.max(0, atual + delta);
+    setQuantidade(novo === 0 ? "" : String(novo));
+  }
+
+  // Stepper de quantidade no gerenciar em lote (+/-) — usado tanto na
+  // lista de itens adicionados quanto no picker (onde o primeiro "+"
+  // já adiciona o sabor); chegar a 0 remove o item do lote.
+  function adjItemGerenciar(prodId, delta) {
+    setItensGerenciar(prev => {
+      const novo = (prev[prodId] || 0) + delta;
+      if (novo <= 0) {
+        const next = { ...prev };
+        delete next[prodId];
+        return next;
+      }
+      return { ...prev, [prodId]: novo };
+    });
+  }
+
+  function removerItemGerenciar(prodId) {
+    setItensGerenciar(prev => {
+      const next = { ...prev };
+      delete next[prodId];
+      return next;
+    });
+  }
+
+  function fecharGerenciar() {
+    setModoGerenciar(false);
+    setPickerAberto(false);
+  }
+
+  function fecharContagem() {
+    setModoContagem(false);
+  }
+
   async function registrarMovimentacao() {
-    const qtd = parseFloat(quantidade.replace(",", "."));
+    const qtd = parseFloat(String(quantidade).replace(",", "."));
     if (!qtd || qtd <= 0) return;
     setSalvando(true);
     const p = modal.produto;
@@ -159,7 +351,7 @@ export default function Estoque() {
         pessoa: tipoMov === "consumo" ? (pessoa.trim() || null) : null,
         observacao: obs.trim() || null,
         criado_em: new Date().toISOString(),
-        produto: { nome: p.nome, unidade: p.unidade },
+        produto: { nome: p.nome, unidade: p.unidade, emoji: p.emoji, icone_url: p.icone_url },
       }, ...prev]);
       showToast(tipoMov === "entrada"
         ? `+${fmtQtd(qtd, p.unidade)} adicionado`
@@ -169,11 +361,65 @@ export default function Estoque() {
     setSalvando(false);
   }
 
+  async function registrarGerenciar() {
+    const itensAtivos = produtos.filter(p => (itensGerenciar[p.id] || 0) > 0);
+    if (itensAtivos.length === 0) return;
+
+    setSalvandoGerenciar(true);
+    const agora = new Date().toISOString();
+    const sinal = tipoGerenciar === "entrada" ? 1 : -1;
+
+    const insertsMovs = itensAtivos.map(p => ({
+      produto_id: p.id,
+      tipo: tipoGerenciar,
+      quantidade: itensGerenciar[p.id],
+      pessoa: tipoGerenciar === "venda" ? (clienteGerenciar.trim() || null) : null,
+      observacao: null,
+      criado_em: agora,
+    }));
+
+    const { error } = await supabase.from("estoque_movimentacoes").insert(insertsMovs);
+
+    if (!error) {
+      await Promise.all(itensAtivos.map(p => {
+        const novoEstoque = Math.max(0, Number(p.estoque_atual) + sinal * itensGerenciar[p.id]);
+        return supabase.from("estoque_produtos").update({ estoque_atual: novoEstoque }).eq("id", p.id);
+      }));
+
+      setProdutos(prev => prev.map(p => {
+        const qty = itensGerenciar[p.id];
+        if (!qty) return p;
+        return { ...p, estoque_atual: Math.max(0, Number(p.estoque_atual) + sinal * qty) };
+      }));
+
+      setMovs(prev => [
+        ...insertsMovs.map((m, i) => ({
+          ...m,
+          id: `tmp-ger-${Date.now()}-${i}`,
+          produto: { nome: itensAtivos[i].nome, unidade: itensAtivos[i].unidade, emoji: itensAtivos[i].emoji, icone_url: itensAtivos[i].icone_url },
+        })),
+        ...prev,
+      ]);
+
+      const totalR = tipoGerenciar === "venda"
+        ? itensAtivos.reduce((s, p) => s + (itensGerenciar[p.id] * (p.preco || 0)), 0)
+        : 0;
+      const acao = tipoGerenciar === "venda" ? "vendido(s)" : "recebido(s)";
+      showToast(`${itensAtivos.length} produto(s) ${acao}${totalR > 0 ? ` · R$ ${totalR.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}` : ""}`);
+      fecharGerenciar();
+    } else {
+      showToast("Erro ao registrar", false);
+    }
+    setSalvandoGerenciar(false);
+  }
+
   async function salvarEdicao() {
     setSalvando(true);
     const p = modal.produto;
     const updates = {
       nome: editNome.trim() || p.nome,
+      emoji: editEmoji.trim() || null,
+      icone_url: editIconeUrl || null,
       estoque_minimo: parseFloat(String(editMin).replace(",", ".")) || 0,
       preco: editPreco ? parseFloat(String(editPreco).replace(",", ".")) : null,
     };
@@ -230,7 +476,7 @@ export default function Estoque() {
         ...insertsMovs.map((m, i) => ({
           ...m,
           id: `tmp-cont-${Date.now()}-${i}`,
-          produto: { nome: alterados[i].nome, unidade: alterados[i].unidade },
+          produto: { nome: alterados[i].nome, unidade: alterados[i].unidade, emoji: alterados[i].emoji, icone_url: alterados[i].icone_url },
         })),
         ...prev,
       ]);
@@ -245,8 +491,7 @@ export default function Estoque() {
     setContagens({});
   }
 
-  // Parseamento do modo texto (mesmo formato que o chat)
-  const LINHA_RE = /^(.+?)\s*[—–-]+\s*([\d,\.]+)\s*(kg|un)?\s*$/i;
+  const LINHA_RE = /^(.+?)\s*[—–-]+\s*([\d,.]+)\s*(kg|un)?\s*$/i;
   function normNome(s) {
     return s.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "").trim();
   }
@@ -297,7 +542,7 @@ export default function Estoque() {
       setMovs(prev => [
         ...insertsMovs.map((m, idx) => ({
           ...m, id: `tmp-txt-${Date.now()}-${idx}`,
-          produto: { nome: alterados[idx].produto.nome, unidade: alterados[idx].produto.unidade },
+          produto: { nome: alterados[idx].produto.nome, unidade: alterados[idx].produto.unidade, emoji: alterados[idx].produto.emoji, icone_url: alterados[idx].produto.icone_url },
         })),
         ...prev,
       ]);
@@ -316,6 +561,12 @@ export default function Estoque() {
   })).filter(g => g.itens.length > 0);
 
   const movsFiltradas = filtroMov === "todos" ? movs : movs.filter(m => m.tipo === filtroMov);
+
+  // Itens do gerenciar em lote
+  const itensGerenciarAtivos = produtos.filter(p => (itensGerenciar[p.id] || 0) > 0);
+  const gerenciarTotalR = tipoGerenciar === "venda"
+    ? itensGerenciarAtivos.reduce((s, p) => s + (itensGerenciar[p.id] * (p.preco || 0)), 0)
+    : 0;
 
   return (
     <div className="flex flex-col h-full">
@@ -349,29 +600,39 @@ export default function Estoque() {
                   const pct = minimo > 0 ? Math.min(100, (atual / minimo) * 100) : 100;
                   return (
                     <div key={p.id}
-                      className={`bg-cinza-900 border rounded-xl p-3 flex flex-col gap-2
+                      className={`relative bg-cinza-900 border rounded-xl p-3 flex flex-col gap-2
                         ${abaixo ? "border-red-500/40" : "border-cinza-800"}`}>
 
-                      {/* Nome + botão editar */}
-                      <div className="flex items-start justify-between gap-1 min-h-[32px]">
-                        <span className="text-[11px] font-medium text-cinza-50 leading-tight">
+                      <button onClick={() => abrirEditar(p)}
+                        className="absolute top-2 right-2 text-cinza-300 hover:text-roxo-400 transition-colors z-10">
+                        <svg viewBox="0 0 16 16" width="12" height="12" fill="currentColor">
+                          <path d="M11.5 1.5a1.5 1.5 0 0 1 2.12 2.12l-8.5 8.5-2.83.71.71-2.83 8.5-8.5z"/>
+                        </svg>
+                      </button>
+
+                      {/* Imagem/emoji + nome centralizados */}
+                      <div className="flex items-center gap-4 pt-1">
+                        <IconeProduto p={p} size={44} />
+                        <span className="text-[14px] font-medium text-cinza-50 leading-tight text-center">
                           {abaixo && <span className="text-red-400 mr-0.5">⚠</span>}
                           {p.nome}
                         </span>
-                        <button onClick={() => abrirEditar(p)}
-                          className="text-cinza-300 hover:text-roxo-400 transition-colors shrink-0 mt-0.5 leading-none">
-                          <svg viewBox="0 0 16 16" width="12" height="12" fill="currentColor">
-                            <path d="M11.5 1.5a1.5 1.5 0 0 1 2.12 2.12l-8.5 8.5-2.83.71.71-2.83 8.5-8.5z"/>
-                          </svg>
-                        </button>
                       </div>
 
                       {/* Estoque atual */}
-                      <div>
-                        <div className={`text-base font-bold leading-tight ${abaixo ? "text-red-400" : "text-roxo-400"}`}>
-                          {fmtQtd(atual, p.unidade)}
+                      <div className="flex items-center justify-between gap-2">
+                        <div>
+                          <div className={`text-base font-bold leading-tight ${abaixo ? "text-red-400" : "text-roxo-400"}`}>
+                            {fmtQtd(atual, p.unidade)}
+                          </div>
+                          <div className="text-[10px] text-cinza-350 mt-0.5">mín {fmtQtd(minimo, p.unidade)}</div>
                         </div>
-                        <div className="text-[10px] text-cinza-350 mt-0.5">mín {fmtQtd(minimo, p.unidade)}</div>
+
+                        <button onClick={() => abrirMov(p, "venda")}
+                          title="Registrar venda"
+                          className="w-8 h-8 shrink-0 flex items-center pb-1 justify-center rounded-full bg-roxo-700 hover:bg-roxo-600 text-white font-bold text-2xl leading-none transition-colors">
+                          +
+                        </button>
                       </div>
 
                       {/* Barra de progresso */}
@@ -384,25 +645,6 @@ export default function Estoque() {
                       {fmtMoeda(p.preco) && (
                         <div className="text-[10px] text-cinza-300">{fmtMoeda(p.preco)}/{p.unidade}</div>
                       )}
-
-                      {/* Botões de ação */}
-                      <div className="flex gap-1 mt-auto pt-1">
-                        <button onClick={() => abrirMov(p, "entrada")}
-                          title="Entrada de estoque"
-                          className="flex-1 py-1.5 rounded-lg text-[10px] font-bold border border-emerald-500/30 bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500/20 transition-colors">
-                          +
-                        </button>
-                        <button onClick={() => abrirMov(p, "venda")}
-                          title="Registrar venda"
-                          className="flex-1 py-1.5 rounded-lg text-[10px] font-semibold border border-red-500/30 bg-red-500/10 text-red-400 hover:bg-red-500/20 transition-colors">
-                          Venda
-                        </button>
-                        <button onClick={() => abrirMov(p, "consumo")}
-                          title="Consumo interno"
-                          className="flex-1 py-1.5 rounded-lg text-[10px] font-semibold border border-amber-500/30 bg-amber-500/10 text-amber-400 hover:bg-amber-500/20 transition-colors">
-                          ☕
-                        </button>
-                      </div>
                     </div>
                   );
                 })}
@@ -415,7 +657,6 @@ export default function Estoque() {
 
         /* ── Aba Histórico ────────────────────────── */
         <div className="flex flex-col h-full overflow-hidden">
-          {/* Filtros */}
           <div className="px-4 md:px-6 pt-3 pb-2 flex gap-2 overflow-x-auto no-scrollbar shrink-0">
             {["todos", "entrada", "venda", "consumo", "contagem"].map(t => (
               <button key={t} onClick={() => setFiltroMov(t)}
@@ -428,7 +669,6 @@ export default function Estoque() {
             ))}
           </div>
 
-          {/* Lista */}
           <div className="flex-1 overflow-y-auto px-4 md:px-6 pb-4">
             {movsFiltradas.length === 0 ? (
               <div className="text-center text-cinza-350 text-sm py-10">Nenhuma movimentação</div>
@@ -442,7 +682,8 @@ export default function Estoque() {
                       {TIPO_LABEL[m.tipo]}
                     </span>
                     <div className="flex-1 min-w-0">
-                      <div className="text-xs text-cinza-50 truncate">
+                      <div className="flex items-center gap-1.5 text-xs text-cinza-50 truncate">
+                        <IconeProduto p={m.produto} size={22} />
                         {m.produto?.nome || "—"}
                         {m.pessoa && (
                           <span className="text-cinza-200 ml-1.5">· {m.pessoa}</span>
@@ -469,103 +710,142 @@ export default function Estoque() {
         </div>
       )}
 
-      {/* ── Overlay de Contagem de Estoque ──────────── */}
-      {modoContagem && (() => {
-        // preview para modo texto
-        const itensTxt = parsearTexto(textoContagem);
-        const resolvidosTxt = resolverProdutosTexto(itensTxt);
-        const alteradosTxt = resolvidosTxt.filter(i => i.produto && i.quantidade !== Number(i.produto.estoque_atual));
-        const naoEncontradosTxt = resolvidosTxt.filter(i => !i.produto);
-
-        return (
-          <div className="fixed inset-0 bg-cinza-950 z-40 flex flex-col">
+      {/* ── Modal de Gerenciar (venda/entrada em lote) ───── */}
+      <Modal open={modoGerenciar} onClose={fecharGerenciar} align="bottom">
+        <div className="bg-cinza-900 border border-cinza-700 rounded-2xl w-full max-w-md mx-auto flex flex-col max-h-[88vh] sm:max-h-[75vh]">
             {/* Header */}
-            <div className="flex items-center justify-between px-4 py-3 border-b border-cinza-800 shrink-0">
-              <div>
-                <div className="text-sm font-semibold text-cinza-50">Contagem de Estoque</div>
-                <div className="flex gap-1.5 mt-1.5">
-                  {["formulario", "texto"].map(a => (
-                    <button key={a} onClick={() => setAbaContagem(a)}
-                      className={`px-2.5 py-0.5 rounded-md text-[10px] font-medium border transition-all
-                        ${abaContagem === a
-                          ? "border-roxo-700 bg-roxo-700/13 text-roxo-400"
-                          : "border-cinza-700 text-cinza-200 hover:border-cinza-600"}`}>
-                      {a === "formulario" ? "📋 Formulário" : "📝 Texto"}
-                    </button>
-                  ))}
-                </div>
-              </div>
-              <div className="flex gap-2">
-                <button onClick={() => { setModoContagem(false); setContagens({}); setTextoContagem(""); }}
-                  className="px-3 py-1.5 rounded-lg text-xs border border-cinza-700 text-cinza-200 hover:border-cinza-600 transition-colors">
-                  Cancelar
-                </button>
-                <button
-                  onClick={abaContagem === "formulario" ? salvarContagem : salvarContagemTexto}
-                  disabled={salvandoContagem}
-                  className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-roxo-700 hover:bg-roxo-600 disabled:opacity-50 text-white transition-colors">
-                  {salvandoContagem ? "Salvando..." : "Salvar"}
-                </button>
-              </div>
+            <div className="flex items-center justify-between px-5 py-4 border-b border-cinza-800 shrink-0">
+              <span className="text-sm font-semibold text-cinza-50">🔄 Gerenciar Estoque</span>
+              <button onClick={fecharGerenciar}
+                className="text-cinza-200 hover:text-cinza-50 transition-colors text-xl leading-none">
+                ✕
+              </button>
             </div>
 
-            {abaContagem === "formulario" ? (
-              <>
-                {/* Resumo de alterações — modo formulário */}
-                {Object.keys(contagens).some(id => {
-                  const p = produtos.find(x => x.id === id);
-                  if (!p || contagens[id] === "") return false;
-                  return parseFloat(String(contagens[id]).replace(",", ".")) !== Number(p.estoque_atual);
-                }) && (
-                  <div className="px-4 py-2 bg-sky-500/10 border-b border-sky-500/20 shrink-0">
-                    <span className="text-[11px] text-sky-400">
-                      {Object.keys(contagens).filter(id => {
-                        const p = produtos.find(x => x.id === id);
-                        if (!p || contagens[id] === "") return false;
-                        return parseFloat(String(contagens[id]).replace(",", ".")) !== Number(p.estoque_atual);
-                      }).length} produto(s) com valor diferente do atual
-                    </span>
+            {/* Toggle Venda / Entrada */}
+            <div className="px-5 py-3 border-b border-cinza-800 shrink-0 flex gap-2">
+              {["venda", "entrada"].map(t => (
+                <button key={t} onClick={() => setTipoGerenciar(t)}
+                  className={`flex-1 py-2 rounded-lg text-xs font-semibold border transition-all
+                    ${tipoGerenciar === t
+                      ? t === "venda" ? "border-red-500 bg-red-500/15 text-red-400" : "border-emerald-500 bg-emerald-500/15 text-emerald-400"
+                      : "border-cinza-700 text-cinza-200 hover:border-cinza-600"}`}>
+                  {t === "venda" ? "🔻 Venda" : "🔺 Entrada de estoque"}
+                </button>
+              ))}
+            </div>
+
+            {/* Nome do cliente — só faz sentido em venda */}
+            {tipoGerenciar === "venda" && (
+              <div className="px-5 py-3 border-b border-cinza-800 shrink-0">
+                <input
+                  type="text"
+                  value={clienteGerenciar}
+                  onChange={e => setClienteGerenciar(e.target.value)}
+                  placeholder="Nome do cliente (opcional)"
+                  className="w-full bg-cinza-850 border border-cinza-700 rounded-lg px-3 py-2.5 text-sm text-cinza-50 placeholder-cinza-350 outline-none focus:border-red-500/60 transition-colors"
+                />
+              </div>
+            )}
+
+            {/* Corpo: lista de sabores adicionados, ou o picker */}
+            <div className="flex-1 min-h-0 overflow-y-auto px-5 py-3">
+              {!pickerAberto ? (
+                <>
+                  {itensGerenciarAtivos.length === 0 ? (
+                    <div className="text-center text-cinza-350 text-sm py-10">
+                      Nenhum sabor adicionado ainda
+                    </div>
+                  ) : (
+                    <div className="bg-cinza-950/40 border border-cinza-800 rounded-xl overflow-hidden mb-3">
+                      {itensGerenciarAtivos.map((p, i) => {
+                        const qty = itensGerenciar[p.id];
+                        return (
+                          <div key={p.id}
+                            className={`flex items-center gap-3 px-3 py-2.5 ${i < itensGerenciarAtivos.length - 1 ? "border-b border-cinza-850" : ""}`}>
+                            <IconeProduto p={p} size={28} />
+                            <div className="flex-1 min-w-0">
+                              <div className="text-xs font-medium text-cinza-50 truncate">{p.nome}</div>
+                              <div className="text-[10px] text-cinza-350 mt-0.5">
+                                {fmtQtd(p.estoque_atual, p.unidade)}
+                                {p.preco && (
+                                  <span className={`ml-2 ${tipoGerenciar === "venda" ? "text-red-400/80" : "text-emerald-400/80"}`}>
+                                    = {fmtMoeda(qty * p.preco)}
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+                            <div className="flex items-center gap-1 shrink-0">
+                              <button
+                                onClick={() => adjItemGerenciar(p.id, -1)}
+                                className="w-7 h-7 flex items-center justify-center rounded-lg border border-cinza-700 text-cinza-200 hover:border-cinza-500 hover:text-cinza-50 transition-colors text-sm font-bold">
+                                −
+                              </button>
+                              <div className="w-8 text-center text-sm font-semibold text-cinza-50">
+                                {qty}
+                              </div>
+                              <button
+                                onClick={() => adjItemGerenciar(p.id, 1)}
+                                className="w-7 h-7 flex items-center justify-center rounded-lg border border-cinza-700 text-cinza-200 hover:border-cinza-500 hover:text-cinza-50 transition-colors text-sm font-bold">
+                                +
+                              </button>
+                              <button
+                                onClick={() => removerItemGerenciar(p.id)}
+                                title="Remover"
+                                className="ml-1 w-6 h-6 flex items-center justify-center rounded-lg text-cinza-350 hover:text-red-400 hover:bg-red-500/10 transition-colors text-xs">
+                                ✕
+                              </button>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+
+                  <button onClick={() => setPickerAberto(true)}
+                    className="w-full py-2.5 rounded-xl border border-dashed border-cinza-700 text-cinza-200 hover:border-roxo-700 hover:text-roxo-400 transition-colors text-xs font-semibold">
+                    + Adicionar sabor
+                  </button>
+                </>
+              ) : (
+                <>
+                  <div className="flex items-center justify-between mb-3 sticky top-0 bg-cinza-900 py-1 z-10">
+                    <span className="text-xs text-cinza-200">Ajuste as quantidades</span>
+                    <button onClick={() => setPickerAberto(false)}
+                      className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-roxo-700 hover:bg-roxo-600 text-white transition-colors">
+                      Concluir
+                    </button>
                   </div>
-                )}
-                {/* Lista de produtos */}
-                <div className="flex-1 overflow-y-auto px-4 md:px-6 py-3">
                   {porCategoria.map(({ cat, itens }) => (
-                    <div key={cat} className="mb-5">
+                    <div key={cat} className="mb-4">
                       <div className="text-[10px] text-cinza-350 tracking-widest font-medium px-1 mb-2 uppercase">{cat}</div>
-                      <div className="bg-cinza-900 border border-cinza-800 rounded-xl overflow-hidden">
+                      <div className="bg-cinza-950/40 border border-cinza-800 rounded-xl overflow-hidden">
                         {itens.map((p, i) => {
-                          const val = contagens[p.id] ?? "";
-                          const novoVal = val !== "" ? parseFloat(String(val).replace(",", ".")) : null;
-                          const mudou = novoVal !== null && novoVal !== Number(p.estoque_atual);
+                          const qty = itensGerenciar[p.id] || 0;
                           return (
                             <div key={p.id}
-                              className={`flex items-center gap-3 px-4 py-2.5 transition-colors
-                                ${mudou ? "bg-sky-500/5" : ""}
+                              className={`flex items-center gap-3 px-3 py-2.5 transition-colors
+                                ${qty > 0 ? "bg-roxo-700/10" : ""}
                                 ${i < itens.length - 1 ? "border-b border-cinza-850" : ""}`}>
-                              <div className="flex-1 min-w-0">
-                                <div className="text-xs text-cinza-50 truncate">{p.nome}</div>
-                                <div className="text-[10px] text-cinza-350 mt-0.5">
-                                  atual: {fmtQtd(p.estoque_atual, p.unidade)}
-                                  {mudou && (
-                                    <span className={`ml-2 font-medium ${novoVal > Number(p.estoque_atual) ? "text-emerald-400" : "text-red-400"}`}>
-                                      → {fmtQtd(novoVal, p.unidade)}
-                                      {novoVal > Number(p.estoque_atual)
-                                        ? ` (+${(novoVal - Number(p.estoque_atual)).toLocaleString("pt-BR", { minimumFractionDigits: 1 })})`
-                                        : ` (${(novoVal - Number(p.estoque_atual)).toLocaleString("pt-BR", { minimumFractionDigits: 1 })})`}
-                                    </span>
-                                  )}
-                                </div>
-                              </div>
+                              <IconeProduto p={p} size={28} />
+                              <span className={`flex-1 text-xs truncate ${qty > 0 ? "text-roxo-400 font-medium" : "text-cinza-50"}`}>
+                                {p.nome}
+                              </span>
                               <div className="flex items-center gap-1 shrink-0">
-                                <input
-                                  type="number" inputMode="decimal" min="0" step="0.1"
-                                  value={val}
-                                  onChange={e => setContagens(prev => ({ ...prev, [p.id]: e.target.value }))}
-                                  placeholder={Number(p.estoque_atual).toLocaleString("pt-BR", { minimumFractionDigits: 1 })}
-                                  className={`w-20 text-right bg-cinza-850 border rounded-lg px-2 py-1.5 text-xs text-cinza-50 placeholder-cinza-300 outline-none transition-colors
-                                    ${mudou ? "border-sky-500/60 focus:border-sky-400" : "border-cinza-700 focus:border-roxo-700"}`}
-                                />
-                                <span className="text-[10px] text-cinza-350 w-4">{p.unidade}</span>
+                                <button
+                                  onClick={() => adjItemGerenciar(p.id, -1)}
+                                  disabled={qty === 0}
+                                  className="w-7 h-7 flex items-center justify-center rounded-lg border border-cinza-700 text-cinza-200 hover:border-cinza-500 hover:text-cinza-50 disabled:opacity-30 transition-colors text-sm font-bold">
+                                  −
+                                </button>
+                                <div className="w-6 text-center text-xs font-semibold text-cinza-50">
+                                  {qty || "—"}
+                                </div>
+                                <button
+                                  onClick={() => adjItemGerenciar(p.id, 1)}
+                                  className="w-7 h-7 flex items-center justify-center rounded-lg border border-cinza-700 text-cinza-200 hover:border-cinza-500 hover:text-cinza-50 transition-colors text-sm font-bold">
+                                  +
+                                </button>
                               </div>
                             </div>
                           );
@@ -573,85 +853,233 @@ export default function Estoque() {
                       </div>
                     </div>
                   ))}
-                </div>
-              </>
-            ) : (
-              /* ── Modo Texto ── */
-              <div className="flex-1 flex flex-col overflow-hidden px-4 md:px-6 py-4 gap-4">
-                <div>
-                  <div className="text-[10px] text-cinza-200 uppercase tracking-wider mb-2">
-                    Cole ou digite a lista no formato: <span className="text-roxo-400">Produto — quantidade kg/un</span>
-                  </div>
-                  <textarea
-                    value={textoContagem}
-                    onChange={e => setTextoContagem(e.target.value)}
-                    placeholder={"Abacaxi — 5 kg\nMorango — 3 kg\nAçaí 500ml — 6 un"}
-                    rows={10}
-                    className="w-full bg-cinza-850 border border-cinza-700 rounded-xl px-4 py-3 text-sm text-cinza-50 placeholder-cinza-300 outline-none focus:border-roxo-700 resize-none font-mono leading-relaxed transition-colors"
-                  />
-                </div>
+                </>
+              )}
+            </div>
 
-                {/* Preview em tempo real */}
-                {itensTxt.length > 0 && (
-                  <div className="flex-1 overflow-y-auto">
-                    <div className="text-[10px] text-cinza-200 uppercase tracking-wider mb-2">
-                      Preview — {alteradosTxt.length} produto(s) serão atualizados
+            {/* Footer: resumo + ações */}
+            <div className="px-5 py-4 border-t border-cinza-800 shrink-0 flex flex-col gap-3">
+              {itensGerenciarAtivos.length > 0 && !pickerAberto && (
+                <div className="flex items-center justify-between">
+                  <div className="text-xs text-cinza-200">
+                    {itensGerenciarAtivos.length} sabor{itensGerenciarAtivos.length > 1 ? "es" : ""}
+                    {tipoGerenciar === "venda" && clienteGerenciar && <span className="text-cinza-350"> · {clienteGerenciar}</span>}
+                  </div>
+                  {gerenciarTotalR > 0 && (
+                    <div className={`text-sm font-bold ${tipoGerenciar === "venda" ? "text-red-400" : "text-emerald-400"}`}>
+                      {fmtMoeda(gerenciarTotalR)}
                     </div>
-                    <div className="bg-cinza-900 border border-cinza-800 rounded-xl overflow-hidden">
-                      {resolvidosTxt.map((item, i) => (
-                        <div key={i}
-                          className={`flex items-center gap-3 px-4 py-2.5
-                            ${i < resolvidosTxt.length - 1 ? "border-b border-cinza-850" : ""}`}>
-                          {item.produto ? (
-                            <>
-                              <div className="flex-1 min-w-0">
-                                <div className="text-xs text-cinza-50 truncate">{item.produto.nome}</div>
-                                <div className="text-[10px] text-cinza-350">
-                                  {fmtQtd(item.produto.estoque_atual, item.produto.unidade)}
-                                  {item.quantidade !== Number(item.produto.estoque_atual) && (
-                                    <span className={`ml-2 font-medium ${item.quantidade > Number(item.produto.estoque_atual) ? "text-emerald-400" : "text-red-400"}`}>
-                                      → {fmtQtd(item.quantidade, item.produto.unidade)}
-                                    </span>
-                                  )}
-                                  {item.quantidade === Number(item.produto.estoque_atual) && (
-                                    <span className="ml-2 text-cinza-350">sem alteração</span>
-                                  )}
+                  )}
+                </div>
+              )}
+              <div className="flex gap-2">
+                <button onClick={fecharGerenciar}
+                  className="flex-1 py-2 rounded-lg text-xs font-semibold border border-cinza-700 text-cinza-200 hover:border-cinza-600 transition-colors">
+                  Cancelar
+                </button>
+                <button
+                  onClick={registrarGerenciar}
+                  disabled={salvandoGerenciar || itensGerenciarAtivos.length === 0}
+                  className={`flex-1 py-2 rounded-lg text-xs font-semibold disabled:opacity-40 text-white transition-colors
+                    ${tipoGerenciar === "venda" ? "bg-red-500/80 hover:bg-red-500" : "bg-emerald-500/80 hover:bg-emerald-500"}`}>
+                  {salvandoGerenciar ? "Salvando..." : `Registrar${itensGerenciarAtivos.length > 0 ? ` (${itensGerenciarAtivos.length})` : ""}`}
+                </button>
+              </div>
+            </div>
+        </div>
+      </Modal>
+
+      {/* ── Modal de Contagem de Estoque ─────────────── */}
+      <Modal open={modoContagem} onClose={fecharContagem} align="bottom">
+        {(() => {
+          const itensTxt = parsearTexto(textoContagem);
+          const resolvidosTxt = resolverProdutosTexto(itensTxt);
+          const alteradosTxt = resolvidosTxt.filter(i => i.produto && i.quantidade !== Number(i.produto.estoque_atual));
+          const naoEncontradosTxt = resolvidosTxt.filter(i => !i.produto);
+          const alteradosForm = Object.keys(contagens).filter(id => {
+            const p = produtos.find(x => x.id === id);
+            if (!p || contagens[id] === "") return false;
+            return parseFloat(String(contagens[id]).replace(",", ".")) !== Number(p.estoque_atual);
+          });
+
+          return (
+            <div className="bg-cinza-900 border border-cinza-700 rounded-2xl w-full max-w-lg mx-auto flex flex-col max-h-[88vh] sm:max-h-[75vh]">
+              {/* Header */}
+              <div className="flex items-center justify-between px-5 py-4 border-b border-cinza-800 shrink-0">
+                <div>
+                  <div className="text-sm font-semibold text-cinza-50">Contagem de Estoque</div>
+                  <div className="flex gap-1.5 mt-1.5">
+                    {["formulario", "texto"].map(a => (
+                      <button key={a} onClick={() => setAbaContagem(a)}
+                        className={`px-2.5 py-0.5 rounded-md text-[10px] font-medium border transition-all
+                          ${abaContagem === a
+                            ? "border-roxo-700 bg-roxo-700/13 text-roxo-400"
+                            : "border-cinza-700 text-cinza-200 hover:border-cinza-600"}`}>
+                        {a === "formulario" ? "📋 Formulário" : "📝 Texto"}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                <button onClick={fecharContagem}
+                  className="text-cinza-200 hover:text-cinza-50 transition-colors text-xl leading-none">
+                  ✕
+                </button>
+              </div>
+
+              {/* Corpo */}
+              <div className="flex-1 min-h-0 overflow-y-auto px-5 py-3">
+                {abaContagem === "formulario" ? (
+                  <>
+                    {alteradosForm.length > 0 && (
+                      <div className="mb-3 -mt-1 px-3 py-1.5 rounded-lg bg-sky-500/10 border border-sky-500/20">
+                        <span className="text-[11px] text-sky-400">
+                          {alteradosForm.length} produto(s) com valor diferente do atual
+                        </span>
+                      </div>
+                    )}
+                    {porCategoria.map(({ cat, itens }) => (
+                      <div key={cat} className="mb-4">
+                        <div className="text-[10px] text-cinza-350 tracking-widest font-medium px-1 mb-2 uppercase">{cat}</div>
+                        <div className="bg-cinza-950/40 border border-cinza-800 rounded-xl overflow-hidden">
+                          {itens.map((p, i) => {
+                            const val = contagens[p.id] ?? "";
+                            const novoVal = val !== "" ? parseFloat(String(val).replace(",", ".")) : null;
+                            const mudou = novoVal !== null && novoVal !== Number(p.estoque_atual);
+                            return (
+                              <div key={p.id}
+                                className={`flex items-center gap-3 px-3 py-2.5 transition-colors
+                                  ${mudou ? "bg-sky-500/5" : ""}
+                                  ${i < itens.length - 1 ? "border-b border-cinza-850" : ""}`}>
+                                <div className="flex-1 min-w-0 flex items-center gap-2">
+                                  <IconeProduto p={p} size={26} />
+                                  <div className="min-w-0">
+                                    <div className="text-xs text-cinza-50 truncate">{p.nome}</div>
+                                    <div className="text-[10px] text-cinza-350 mt-0.5">
+                                      atual: {fmtQtd(p.estoque_atual, p.unidade)}
+                                      {mudou && (
+                                        <span className={`ml-2 font-medium ${novoVal > Number(p.estoque_atual) ? "text-emerald-400" : "text-red-400"}`}>
+                                          → {fmtQtd(novoVal, p.unidade)}
+                                          {novoVal > Number(p.estoque_atual)
+                                            ? ` (+${(novoVal - Number(p.estoque_atual)).toLocaleString("pt-BR", { minimumFractionDigits: 1 })})`
+                                            : ` (${(novoVal - Number(p.estoque_atual)).toLocaleString("pt-BR", { minimumFractionDigits: 1 })})`}
+                                        </span>
+                                      )}
+                                    </div>
+                                  </div>
+                                </div>
+                                <div className="flex items-center gap-1 shrink-0">
+                                  <input
+                                    type="number" inputMode="decimal" min="0" step="0.1"
+                                    value={val}
+                                    onChange={e => setContagens(prev => ({ ...prev, [p.id]: e.target.value }))}
+                                    placeholder={Number(p.estoque_atual).toLocaleString("pt-BR", { minimumFractionDigits: 1 })}
+                                    className={`w-20 text-right bg-cinza-850 border rounded-lg px-2 py-1.5 text-xs text-cinza-50 placeholder-cinza-300 outline-none transition-colors
+                                      ${mudou ? "border-sky-500/60 focus:border-sky-400" : "border-cinza-700 focus:border-roxo-700"}`}
+                                  />
+                                  <span className="text-[10px] text-cinza-350 w-4">{p.unidade}</span>
                                 </div>
                               </div>
-                              <span className="text-[10px] text-emerald-400/70 shrink-0">✓</span>
-                            </>
-                          ) : (
-                            <>
-                              <div className="flex-1 min-w-0">
-                                <div className="text-xs text-cinza-200 truncate">{item.nome}</div>
-                                <div className="text-[10px] text-red-400/70">produto não encontrado</div>
-                              </div>
-                              <span className="text-[10px] text-red-400/70 shrink-0">✗</span>
-                            </>
-                          )}
+                            );
+                          })}
                         </div>
-                      ))}
+                      </div>
+                    ))}
+                  </>
+                ) : (
+                  <div className="flex flex-col gap-4">
+                    <div>
+                      <div className="text-[10px] text-cinza-200 uppercase tracking-wider mb-2">
+                        Cole ou digite a lista no formato: <span className="text-roxo-400">Produto — quantidade kg/un</span>
+                      </div>
+                      <textarea
+                        value={textoContagem}
+                        onChange={e => setTextoContagem(e.target.value)}
+                        placeholder={"Abacaxi — 5 kg\nMorango — 3 kg\nAçaí 500ml — 6 un"}
+                        rows={6}
+                        className="w-full bg-cinza-850 border border-cinza-700 rounded-xl px-4 py-3 text-sm text-cinza-50 placeholder-cinza-300 outline-none focus:border-roxo-700 resize-none font-mono leading-relaxed transition-colors"
+                      />
                     </div>
-                    {naoEncontradosTxt.length > 0 && (
-                      <div className="mt-2 text-[10px] text-cinza-350">
-                        ⚠️ {naoEncontradosTxt.length} produto(s) não reconhecido(s) serão ignorados
+
+                    {itensTxt.length > 0 && (
+                      <div>
+                        <div className="text-[10px] text-cinza-200 uppercase tracking-wider mb-2">
+                          Preview — {alteradosTxt.length} produto(s) serão atualizados
+                        </div>
+                        <div className="bg-cinza-950/40 border border-cinza-800 rounded-xl overflow-hidden">
+                          {resolvidosTxt.map((item, i) => (
+                            <div key={i}
+                              className={`flex items-center gap-3 px-3 py-2.5
+                                ${i < resolvidosTxt.length - 1 ? "border-b border-cinza-850" : ""}`}>
+                              {item.produto ? (
+                                <>
+                                  <IconeProduto p={item.produto} size={26} />
+                                  <div className="flex-1 min-w-0">
+                                    <div className="text-xs text-cinza-50 truncate">{item.produto.nome}</div>
+                                    <div className="text-[10px] text-cinza-350">
+                                      {fmtQtd(item.produto.estoque_atual, item.produto.unidade)}
+                                      {item.quantidade !== Number(item.produto.estoque_atual) && (
+                                        <span className={`ml-2 font-medium ${item.quantidade > Number(item.produto.estoque_atual) ? "text-emerald-400" : "text-red-400"}`}>
+                                          → {fmtQtd(item.quantidade, item.produto.unidade)}
+                                        </span>
+                                      )}
+                                      {item.quantidade === Number(item.produto.estoque_atual) && (
+                                        <span className="ml-2 text-cinza-350">sem alteração</span>
+                                      )}
+                                    </div>
+                                  </div>
+                                  <span className="text-[10px] text-emerald-400/70 shrink-0">✓</span>
+                                </>
+                              ) : (
+                                <>
+                                  <div className="flex-1 min-w-0">
+                                    <div className="text-xs text-cinza-200 truncate">{item.nome}</div>
+                                    <div className="text-[10px] text-red-400/70">produto não encontrado</div>
+                                  </div>
+                                  <span className="text-[10px] text-red-400/70 shrink-0">✗</span>
+                                </>
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                        {naoEncontradosTxt.length > 0 && (
+                          <div className="mt-2 text-[10px] text-cinza-350">
+                            ⚠️ {naoEncontradosTxt.length} produto(s) não reconhecido(s) serão ignorados
+                          </div>
+                        )}
                       </div>
                     )}
                   </div>
                 )}
               </div>
-            )}
-          </div>
-        );
-      })()}
 
-      {/* ── Modal de movimentação ─────────────────── */}
+              {/* Footer */}
+              <div className="px-5 py-4 border-t border-cinza-800 shrink-0 flex gap-2">
+                <button onClick={fecharContagem}
+                  className="flex-1 py-2 rounded-lg text-xs font-semibold border border-cinza-700 text-cinza-200 hover:border-cinza-600 transition-colors">
+                  Cancelar
+                </button>
+                <button
+                  onClick={abaContagem === "formulario" ? salvarContagem : salvarContagemTexto}
+                  disabled={salvandoContagem}
+                  className="flex-1 py-2 rounded-lg text-xs font-semibold bg-roxo-700 hover:bg-roxo-600 disabled:opacity-50 text-white transition-colors">
+                  {salvandoContagem ? "Salvando..." : "Salvar"}
+                </button>
+              </div>
+            </div>
+          );
+        })()}
+      </Modal>
+
+      {/* ── Modal de movimentação individual ─────── */}
       <Modal open={modal?.tipo === "mov"} onClose={() => setModal(null)} align="bottom">
         {modalConteudo?.tipo === "mov" && (
           <div className="bg-cinza-900 border border-cinza-700 rounded-2xl w-full max-w-sm mx-auto flex flex-col">
             <div className="flex items-center justify-between px-5 py-4 border-b border-cinza-800">
               <div>
-                <div className="text-sm font-semibold text-cinza-50">{modalConteudo.produto.nome}</div>
+                <div className="flex items-center gap-1.5 text-sm font-semibold text-cinza-50">
+                  <IconeProduto p={modalConteudo.produto} size={26} />
+                  {modalConteudo.produto.nome}
+                </div>
                 <div className="text-[10px] text-cinza-350 mt-0.5">
                   Estoque atual: {fmtQtd(modalConteudo.produto.estoque_atual, modalConteudo.produto.unidade)}
                 </div>
@@ -678,17 +1106,29 @@ export default function Estoque() {
                 ))}
               </div>
 
-              {/* Quantidade */}
+              {/* Quantidade com stepper +/- */}
               <div>
                 <label className="text-[10px] text-cinza-200 uppercase tracking-wider">
                   Quantidade ({modalConteudo.produto.unidade})
                 </label>
-                <input
-                  type="number" inputMode="decimal" min="0" step="0.1"
-                  value={quantidade} onChange={e => setQuantidade(e.target.value)}
-                  placeholder="0,0" autoFocus
-                  className="mt-1.5 w-full bg-cinza-850 border border-cinza-700 rounded-lg px-3 py-2.5 text-sm text-cinza-50 placeholder-cinza-350 outline-none focus:border-roxo-700 transition-colors"
-                />
+                <div className="mt-1.5 flex items-center gap-2">
+                  <button
+                    onClick={() => adjQuantidade(-1)}
+                    className="w-11 h-11 flex items-center justify-center rounded-xl border border-cinza-700 text-cinza-200 hover:border-cinza-500 hover:text-cinza-50 transition-colors text-lg font-bold shrink-0">
+                    −
+                  </button>
+                  <input
+                    type="number" inputMode="decimal" min="0" step="1"
+                    value={quantidade} onChange={e => setQuantidade(e.target.value)}
+                    placeholder="0" autoFocus
+                    className="flex-1 text-center bg-cinza-850 border border-cinza-700 rounded-xl px-3 py-2.5 text-sm font-semibold text-cinza-50 placeholder-cinza-350 outline-none focus:border-roxo-700 transition-colors"
+                  />
+                  <button
+                    onClick={() => adjQuantidade(1)}
+                    className="w-11 h-11 flex items-center justify-center rounded-xl border border-cinza-700 text-cinza-200 hover:border-cinza-500 hover:text-cinza-50 transition-colors text-lg font-bold shrink-0">
+                    +
+                  </button>
+                </div>
               </div>
 
               {/* Pessoa — só para consumo */}
@@ -741,10 +1181,37 @@ export default function Estoque() {
             </div>
 
             <div className="px-5 py-4 flex flex-col gap-4">
-              <div>
-                <label className="text-[10px] text-cinza-200 uppercase tracking-wider">Nome</label>
-                <input type="text" value={editNome} onChange={e => setEditNome(e.target.value)}
-                  className="mt-1.5 w-full bg-cinza-850 border border-cinza-700 rounded-lg px-3 py-2.5 text-sm text-cinza-50 outline-none focus:border-roxo-700 transition-colors" />
+              <div className="flex gap-3 items-start">
+                <div className="shrink-0 flex flex-col items-center gap-1.5">
+                  <div className="w-20 h-20 rounded-xl bg-cinza-850 border border-cinza-700 flex items-center justify-center overflow-hidden">
+                    <IconeProduto p={{ emoji: editEmoji, icone_url: editIconeUrl }} size={44} />
+                  </div>
+                  <label className={`text-[9px] font-medium cursor-pointer transition-colors
+                    ${enviandoIcone ? "text-cinza-350" : "text-roxo-400 hover:text-roxo-300"}`}>
+                    {enviandoIcone ? "Enviando..." : "📷 Imagem"}
+                    <input type="file" accept="image/*" className="hidden" disabled={enviandoIcone}
+                      onChange={e => enviarIcone(e.target.files?.[0])} />
+                  </label>
+                  {editIconeUrl && !enviandoIcone && (
+                    <button type="button" onClick={() => setEditIconeUrl("")}
+                      className="text-[9px] text-cinza-350 hover:text-red-400 transition-colors">
+                      remover
+                    </button>
+                  )}
+                </div>
+                <div className="flex-1 flex flex-col gap-3">
+                  <div>
+                    <label className="text-[10px] text-cinza-200 uppercase tracking-wider">Nome</label>
+                    <input type="text" value={editNome} onChange={e => setEditNome(e.target.value)}
+                      className="mt-1.5 w-full bg-cinza-850 border border-cinza-700 rounded-lg px-3 py-2.5 text-sm text-cinza-50 outline-none focus:border-roxo-700 transition-colors" />
+                  </div>
+                  <div>
+                    <label className="text-[10px] text-cinza-200 uppercase tracking-wider">Emoji (se não tiver imagem)</label>
+                    <input type="text" value={editEmoji} onChange={e => setEditEmoji(e.target.value)}
+                      placeholder={EMOJI_PADRAO} maxLength={4}
+                      className="mt-1.5 w-20 text-center bg-cinza-850 border border-cinza-700 rounded-lg px-2 py-2 text-base outline-none focus:border-roxo-700 transition-colors" />
+                  </div>
+                </div>
               </div>
               <div>
                 <label className="text-[10px] text-cinza-200 uppercase tracking-wider">
@@ -763,6 +1230,31 @@ export default function Estoque() {
                   placeholder="Não definido"
                   className="mt-1.5 w-full bg-cinza-850 border border-cinza-700 rounded-lg px-3 py-2.5 text-sm text-cinza-50 placeholder-cinza-350 outline-none focus:border-roxo-700 transition-colors" />
               </div>
+
+              <div className="pt-1 border-t border-cinza-800">
+                {!confirmandoRemocao ? (
+                  <button type="button" onClick={() => setConfirmandoRemocao(true)}
+                    className="mt-3 text-[11px] text-cinza-350 hover:text-red-400 transition-colors">
+                    🗑 Remover produto
+                  </button>
+                ) : (
+                  <div className="mt-3 flex flex-col gap-2">
+                    <span className="text-[11px] text-red-400">
+                      Remover "{editNome}"? Sai da lista de estoque — o histórico de movimentações continua.
+                    </span>
+                    <div className="flex gap-2">
+                      <button type="button" onClick={() => setConfirmandoRemocao(false)}
+                        className="flex-1 py-1.5 rounded-lg text-[11px] font-semibold border border-cinza-700 text-cinza-200 hover:border-cinza-600 transition-colors">
+                        Cancelar
+                      </button>
+                      <button type="button" onClick={removerProduto} disabled={salvando}
+                        className="flex-1 py-1.5 rounded-lg text-[11px] font-semibold bg-red-500/80 hover:bg-red-500 disabled:opacity-50 text-white transition-colors">
+                        {salvando ? "Removendo..." : "Sim, remover"}
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
             </div>
 
             <div className="px-5 py-4 border-t border-cinza-800 flex gap-2">
@@ -773,6 +1265,118 @@ export default function Estoque() {
               <button onClick={salvarEdicao} disabled={salvando}
                 className="flex-1 py-2 bg-roxo-700 hover:bg-roxo-600 disabled:opacity-50 rounded-lg text-xs font-semibold text-white transition-colors">
                 {salvando ? "Salvando..." : "Salvar"}
+              </button>
+            </div>
+          </div>
+        )}
+      </Modal>
+
+      {/* ── Modal de novo produto ────────────────── */}
+      <Modal open={modal?.tipo === "novo"} onClose={() => setModal(null)} align="bottom">
+        {modalConteudo?.tipo === "novo" && (
+          <div className="bg-cinza-900 border border-cinza-700 rounded-2xl w-full max-w-sm mx-auto flex flex-col max-h-[88vh] sm:max-h-[80vh]">
+            <div className="flex items-center justify-between px-5 py-4 border-b border-cinza-800 shrink-0">
+              <span className="text-sm font-semibold text-cinza-50">Novo produto</span>
+              <button onClick={() => setModal(null)}
+                className="text-cinza-200 hover:text-cinza-50 transition-colors text-xl leading-none">
+                ✕
+              </button>
+            </div>
+
+            <div className="flex-1 min-h-0 overflow-y-auto px-5 py-4 flex flex-col gap-4">
+              <div className="flex gap-3 items-start">
+                <div className="shrink-0 flex flex-col items-center gap-1.5">
+                  <div className="w-20 h-20 rounded-xl bg-cinza-850 border border-cinza-700 flex items-center justify-center overflow-hidden">
+                    <IconeProduto p={{ emoji: novoEmoji, icone_url: novoIconeUrl }} size={44} />
+                  </div>
+                  <label className={`text-[9px] font-medium cursor-pointer transition-colors
+                    ${enviandoIconeNovo ? "text-cinza-350" : "text-roxo-400 hover:text-roxo-300"}`}>
+                    {enviandoIconeNovo ? "Enviando..." : "📷 Imagem"}
+                    <input type="file" accept="image/*" className="hidden" disabled={enviandoIconeNovo}
+                      onChange={e => enviarIconeNovo(e.target.files?.[0])} />
+                  </label>
+                  {novoIconeUrl && !enviandoIconeNovo && (
+                    <button type="button" onClick={() => setNovoIconeUrl("")}
+                      className="text-[9px] text-cinza-350 hover:text-red-400 transition-colors">
+                      remover
+                    </button>
+                  )}
+                </div>
+                <div className="flex-1 flex flex-col gap-3">
+                  <div>
+                    <label className="text-[10px] text-cinza-200 uppercase tracking-wider">Nome</label>
+                    <input type="text" value={novoNome} onChange={e => setNovoNome(e.target.value)}
+                      placeholder="Ex: Morango" autoFocus
+                      className="mt-1.5 w-full bg-cinza-850 border border-cinza-700 rounded-lg px-3 py-2.5 text-sm text-cinza-50 placeholder-cinza-350 outline-none focus:border-roxo-700 transition-colors" />
+                  </div>
+                  <div>
+                    <label className="text-[10px] text-cinza-200 uppercase tracking-wider">Emoji (se não tiver imagem)</label>
+                    <input type="text" value={novoEmoji} onChange={e => setNovoEmoji(e.target.value)}
+                      placeholder={EMOJI_PADRAO} maxLength={4}
+                      className="mt-1.5 w-20 text-center bg-cinza-850 border border-cinza-700 rounded-lg px-2 py-2 text-base outline-none focus:border-roxo-700 transition-colors" />
+                  </div>
+                </div>
+              </div>
+
+              <div>
+                <label className="text-[10px] text-cinza-200 uppercase tracking-wider">Categoria</label>
+                <div className="mt-1.5 flex flex-wrap gap-1.5">
+                  {CATEGORIAS.map(c => (
+                    <button key={c} type="button" onClick={() => setNovoCategoria(c)}
+                      className={`px-2.5 py-1.5 rounded-lg text-[11px] font-medium border transition-all
+                        ${novoCategoria === c
+                          ? "border-roxo-700 bg-roxo-700/15 text-roxo-400"
+                          : "border-cinza-700 text-cinza-200 hover:border-cinza-600"}`}>
+                      {c}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div>
+                <label className="text-[10px] text-cinza-200 uppercase tracking-wider">Unidade</label>
+                <div className="mt-1.5 flex gap-2">
+                  {["kg", "un"].map(u => (
+                    <button key={u} type="button" onClick={() => setNovoUnidade(u)}
+                      className={`flex-1 py-2 rounded-lg text-xs font-semibold border transition-all
+                        ${novoUnidade === u
+                          ? "border-roxo-700 bg-roxo-700/15 text-roxo-400"
+                          : "border-cinza-700 text-cinza-200 hover:border-cinza-600"}`}>
+                      {u === "kg" ? "Quilos (kg)" : "Unidade (un)"}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div>
+                <label className="text-[10px] text-cinza-200 uppercase tracking-wider">
+                  Estoque mínimo ({novoUnidade})
+                </label>
+                <input type="number" inputMode="decimal" min="0" step="0.5"
+                  value={novoMin} onChange={e => setNovoMin(e.target.value)}
+                  placeholder="0"
+                  className="mt-1.5 w-full bg-cinza-850 border border-cinza-700 rounded-lg px-3 py-2.5 text-sm text-cinza-50 placeholder-cinza-350 outline-none focus:border-roxo-700 transition-colors" />
+              </div>
+
+              <div>
+                <label className="text-[10px] text-cinza-200 uppercase tracking-wider">
+                  Preço de venda (R$/{novoUnidade})
+                </label>
+                <input type="number" inputMode="decimal" min="0" step="0.01"
+                  value={novoPreco} onChange={e => setNovoPreco(e.target.value)}
+                  placeholder="Não definido"
+                  className="mt-1.5 w-full bg-cinza-850 border border-cinza-700 rounded-lg px-3 py-2.5 text-sm text-cinza-50 placeholder-cinza-350 outline-none focus:border-roxo-700 transition-colors" />
+              </div>
+            </div>
+
+            <div className="px-5 py-4 border-t border-cinza-800 shrink-0 flex gap-2">
+              <button onClick={() => setModal(null)}
+                className="flex-1 py-2 rounded-lg text-xs font-semibold border border-cinza-700 text-cinza-200 hover:border-cinza-600 transition-colors">
+                Cancelar
+              </button>
+              <button onClick={criarProduto} disabled={salvando || !novoNome.trim()}
+                className="flex-1 py-2 bg-roxo-700 hover:bg-roxo-600 disabled:opacity-50 rounded-lg text-xs font-semibold text-white transition-colors">
+                {salvando ? "Criando..." : "Criar produto"}
               </button>
             </div>
           </div>
