@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-import { useHeader } from "../contexts/HeaderContext";
+import { useHeader } from "../contexts/useHeader";
 import Modal from "../components/Modal";
 
 const JARVIS_URL = import.meta.env.VITE_JARVIS_URL || "https://web-production-f30e8.up.railway.app";

@@ -1,6 +1,6 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { supabase } from "../lib/supabase";
-import { useHeader } from "../contexts/HeaderContext";
+import { useHeader } from "../contexts/useHeader";
 
 const MESES_ORDEM = ["Janeiro","Fevereiro","Março","Abril","Maio","Junho","Julho","Agosto","Setembro","Outubro","Novembro","Dezembro"];
 
@@ -45,7 +45,6 @@ function RelatorioAnual({ todosMeses }) {
   const totalFixas = resumo.reduce((s, m) => s + m.fixas, 0);
   const totalVariaveis = resumo.reduce((s, m) => s + m.variaveis, 0);
   const maxTotal = Math.max(...resumo.map(m => Math.max(m.total, m.ganhos)), 1);
-  const mesesComDados = resumo.filter(m => m.total > 0);
 
   const todosGastosFlat = todosMeses.filter(g => (g.natureza || "gasto") === "gasto");
   const gastosNubankAnual = todosGastosFlat.filter(g => g.meio_pagamento === "Nubank").reduce((s, g) => s + Number(g.valor || 0), 0);
@@ -174,7 +173,6 @@ function RelatorioMensal({ gastos, mes }) {
   const totalVariaveis = variaveis.reduce((s, g) => s + Number(g.valor || 0), 0);
   const totalGeral     = totalFixas + totalVariaveis;
   const totalGanhos    = somenteGanhos.reduce((s, g) => s + Number(g.valor || 0), 0);
-  const saldo          = totalGanhos - totalGeral;
 
   const porCategoria = somenteGastos.reduce((acc, g) => {
     const cat = g.categoria || "Outros";
@@ -327,16 +325,18 @@ export default function Financeiro() {
   const { setCfg } = useHeader();
   const [visao, setVisao] = useState("mes"); // "mes" | "ano"
   const [mesSel, setMesSel] = useState("");
-  const [gastosMes, setGastosMes] = useState([]);
   const [todosMeses, setTodosMeses] = useState([]);
   const [mesesDisponiveis, setMesesDisponiveis] = useState([]);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => { carregarTudo(); }, []);
-  useEffect(() => { if (mesSel && visao === "mes") carregarMes(); }, [mesSel, visao]);
+  // Derivado de todosMeses + mesSel — nunca setado à parte, então não
+  // precisa de estado próprio nem de efeito pra ressincronizar.
+  const gastosMes = useMemo(
+    () => todosMeses.filter(g => g.mes === mesSel),
+    [todosMeses, mesSel]
+  );
 
   async function carregarTudo() {
-    setLoading(true);
     const { data } = await supabase.from("gastos").select("*").order("mes");
     const todos = data || [];
     setTodosMeses(todos);
@@ -348,14 +348,10 @@ export default function Financeiro() {
     setLoading(false);
   }
 
-  async function carregarMes() {
-    const filtrado = todosMeses.filter(g => g.mes === mesSel);
-    setGastosMes(filtrado);
-  }
-
-  useEffect(() => {
-    if (mesSel) setGastosMes(todosMeses.filter(g => g.mes === mesSel));
-  }, [mesSel, todosMeses]);
+  // Busca inicial ao montar — carregarTudo só seta estado depois do await,
+  // mas a regra não distingue isso do caso síncrono.
+  // eslint-disable-next-line react-hooks/set-state-in-effect
+  useEffect(() => { carregarTudo(); }, []);
 
   useEffect(() => {
     setCfg({

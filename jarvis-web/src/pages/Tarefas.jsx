@@ -1,20 +1,26 @@
 import { useState, useEffect, useRef } from "react";
 import { supabase } from "../lib/supabase";
-import { useHeader } from "../contexts/HeaderContext";
+import { useHeader } from "../contexts/useHeader";
 
 const EMOJI = { Casa:"🏠", Elétrica:"⚡", Chácara:"🌿", Faculdade:"🎓", Trabalho:"💼", Pessoal:"👤", Saúde:"🏥", Financeiro:"💰", Outros:"📌" };
-
-const TODAS_CATS = ["Casa","Elétrica","Chácara","Faculdade","Trabalho","Pessoal","Saúde","Financeiro","Outros"];
 
 // ── Campo editável inline ─────────────────────────────────────────
 function EditCell({ valor, tipo = "text", opcoes = [], onSave, placeholder = "" }) {
   const [editando, setEditando] = useState(false);
   const [draft, setDraft] = useState(valor);
   const [salvando, setSalvando] = useState(false);
+  const [valorAnterior, setValorAnterior] = useState(valor);
   const inputRef = useRef();
 
+  // Ressincroniza o rascunho quando o valor vem de fora (ex: outro campo
+  // salvou e o pai repassou a tarefa atualizada) — ajustado durante o
+  // render em vez de um efeito, como recomendado pelo React pra esse caso.
+  if (valor !== valorAnterior) {
+    setValorAnterior(valor);
+    setDraft(valor);
+  }
+
   useEffect(() => { if (editando && inputRef.current) inputRef.current.focus(); }, [editando]);
-  useEffect(() => { setDraft(valor); }, [valor]);
 
   async function salvar() {
     if (draft === valor) { setEditando(false); return; }
@@ -69,10 +75,7 @@ export default function Tarefas() {
   const hoje = new Date().toLocaleDateString("pt-BR", { day:"2-digit", month:"short" })
     .replace(". de ", "/").replace(".", "").replace(" de ", "/");
 
-  useEffect(() => { carregar(); }, []);
-
   async function carregar() {
-    setLoading(true);
     const [{ data: t }, { data: c }] = await Promise.all([
       supabase.from("tarefas").select("*").order("id"),
       supabase.from("categorias").select("nome, emoji").order("nome"),
@@ -81,6 +84,11 @@ export default function Tarefas() {
     setCategorias(c || []);
     setLoading(false);
   }
+
+  // Busca inicial ao montar — carregar só seta estado depois do await, mas
+  // a regra não distingue isso do caso síncrono.
+  // eslint-disable-next-line react-hooks/set-state-in-effect
+  useEffect(() => { carregar(); }, []);
 
   async function atualizarCampo(id, campo, valor) {
     const dbCampo = {

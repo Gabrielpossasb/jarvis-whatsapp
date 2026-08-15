@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { supabase } from "../lib/supabase";
-import { useHeader } from "../contexts/HeaderContext";
+import { useHeader } from "../contexts/useHeader";
 import Modal from "../components/Modal";
 
 const CATEGORIAS = ["Polpas", "Frutas", "Outros", "Açaí em pote"];

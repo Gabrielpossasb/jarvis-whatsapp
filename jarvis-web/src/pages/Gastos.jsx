@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { supabase } from "../lib/supabase";
-import { useHeader } from "../contexts/HeaderContext";
+import { useHeader } from "../contexts/useHeader";
 import Modal from "../components/Modal";
 
 const MESES_ORDEM = ["Janeiro","Fevereiro","Março","Abril","Maio","Junho","Julho","Agosto","Setembro","Outubro","Novembro","Dezembro"];
@@ -32,7 +32,6 @@ const CATS_GASTO = [
   "Dívidas/Empréstimo","Outros","Presentes","Relacionamento","Saúde","Transporte"
 ];
 const CATS_GANHO = ["Salário","Freela","iFood (Entrega)","Transferência recebida","Outros ganhos"];
-const TODAS_CATS = [...CATS_GASTO, ...CATS_GANHO];
 
 // ── Célula de categoria editável ──────────────────────────────────
 function CatCell({ gasto, onUpdate }) {
@@ -140,7 +139,7 @@ export default function Gastos() {
   const fileRef = useRef();
 
   useEffect(() => { carregarMeses(); }, []);
-  useEffect(() => { if (mesSel) carregar(); }, [mesSel]);
+  useEffect(() => { if (mesSel) carregar(); }, [mesSel]); // eslint-disable-line react-hooks/exhaustive-deps
 
   async function carregarMeses(definirSel = true) {
     const { data } = await supabase.from("gastos").select("mes");

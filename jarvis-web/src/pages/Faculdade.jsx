@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo, useRef } from "react";
 import { supabase } from "../lib/supabase";
-import { useHeader } from "../contexts/HeaderContext";
+import { useHeader } from "../contexts/useHeader";
 import Modal from "../components/Modal";
 
 const JARVIS_URL = import.meta.env.VITE_JARVIS_URL || "https://web-production-f30e8.up.railway.app";
@@ -206,6 +206,7 @@ export default function Faculdade() {
         </div>
       ),
     });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [aba, eventos]);
 
   // ── Aba Semana ─────────────────────────────────────────────────

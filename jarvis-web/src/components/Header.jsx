@@ -1,6 +1,6 @@
 import { useRef, useEffect } from "react";
 import MenuButton from "./MenuButton";
-import { useHeader } from "../contexts/HeaderContext";
+import { useHeader } from "../contexts/useHeader";
 
 export default function Header({ sidebarOpen, onMenuClick }) {
   const { cfg } = useHeader();

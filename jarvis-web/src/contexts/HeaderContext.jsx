@@ -1,10 +1,7 @@
-import { createContext, useContext, useState } from "react";
-
-const Ctx = createContext(null);
+import { useState } from "react";
+import { HeaderCtx } from "./HeaderCtx";
 
 export function HeaderProvider({ children }) {
   const [cfg, setCfg] = useState({ title: "", subtitle: "", right: null, secondRow: null });
-  return <Ctx.Provider value={{ cfg, setCfg }}>{children}</Ctx.Provider>;
+  return <HeaderCtx.Provider value={{ cfg, setCfg }}>{children}</HeaderCtx.Provider>;
 }
-
-export function useHeader() { return useContext(Ctx); }
