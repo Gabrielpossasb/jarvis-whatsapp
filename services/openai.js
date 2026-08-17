@@ -604,4 +604,73 @@ Responda APENAS com JSON válido, sem markdown:
   }
 }
 
-module.exports = { extrairDados, revisarCategorias, revisarCategoriasGastos, transcreverAudio, analisarImagem, analisarPDF, extrairExtrato, extrairExtratoTexto, extrairEventoFaculdadeIA, extrairPlanoFaculdadeIA, calcularMediaFaculdadeIA };
+// Extrai um comando do negócio (Polpa Santa Helena): venda, despesa,
+// atualização de preço ou consulta de resultado. Chamado só depois do gate
+// rápido em handlers/psh.js — o prompt recebe a lista real de produtos pra
+// nunca inventar um nome que não existe no estoque.
+async function extrairComandoPSHIA(texto, produtos = [], categoriasDespesa = []) {
+  const hoje = new Date().toISOString().slice(0, 10);
+  const listaProdutos = produtos.length > 0
+    ? produtos.map(p => `- ${p.nome} (${p.unidade}, compra R$ ${p.preco_compra ?? "?"}, venda R$ ${p.preco ?? "?"})`).join("\n")
+    : "(nenhum produto cadastrado)";
+  const listaCategorias = categoriasDespesa.length > 0 ? categoriasDespesa.join(", ") : "Outros";
+
+  const prompt = `Você é um extrator de comandos do negócio "Polpa Santa Helena" (revenda de polpas de fruta e açaí). Analise a mensagem e determine o que o usuário quer fazer.
+
+Hoje é ${hoje}.
+
+Produtos cadastrados no estoque (use o nome EXATO quando a mensagem se referir a um deles):
+${listaProdutos}
+
+Categorias de despesa disponíveis: ${listaCategorias}
+
+Retorne um JSON dentro de {"resultado": ...} com um destes 5 modos:
+
+1) "venda" — o usuário vendeu produto(s) (ex: "vendi 5kg de goiaba pra Maria", "saiu 3 de açaí e 2 de morango"):
+{"modo":"venda","itens":[{"produto":"nome exato","quantidade":5}],"cliente":"nome ou null"}
+
+2) "despesa" — um gasto operacional do negócio, que NÃO é compra de produto (ex: "gastei 80 de gasolina pra entrega", "paguei 150 de embalagem"):
+{"modo":"despesa","valor":80,"descricao":"frase curta","categoria":"uma das categorias listadas"}
+
+3) "preco" — atualizar o preço de compra ou de venda de um produto (ex: "a goiaba subiu pra 18 o kg na compra", "vou vender o açaí a 38"):
+{"modo":"preco","produto":"nome exato","campo":"compra"|"venda","valor":18}
+
+4) "consulta" — pergunta sobre resultado financeiro (ex: "quanto lucrei esse mês?", "qual a margem da goiaba?", "quanto vendi de açaí?"):
+{"modo":"consulta","escopo":"geral"|"produto","produto":"nome exato ou null","periodo":"mes"|"tudo"}
+
+5) "nao_suportado" — é sobre o negócio mas você não tem confiança de como registrar:
+{"modo":"nao_suportado","motivo":"frase curta explicando o que faltou entender"}
+
+Regras:
+- Se a mensagem NÃO é sobre o negócio de polpas, retorne {"resultado": null}
+- NUNCA invente um produto que não está na lista — se não identificar com certeza, use "nao_suportado"
+- Compra de produto que chegou (entrada de estoque) NÃO é "despesa" — é uma entrada de estoque; use "nao_suportado" com motivo pedindo pra registrar pelo estoque
+- "quanto tenho de X" é pergunta de estoque, não de financeiro → retorne {"resultado": null}
+- Em "preco", distinga bem compra (o que ele paga ao fornecedor) de venda (o que ele cobra do cliente); se ambíguo, use "nao_suportado"
+
+Responda APENAS com o JSON.
+
+Mensagem: "${texto.replace(/"/g, "'")}"`;
+
+  const response = await openai.chat.completions.create({
+    model: MODELOS.rapido,
+    messages: [{ role: "user", content: prompt }],
+    max_tokens: 400,
+    temperature: 0,
+    response_format: { type: "json_object" },
+  });
+
+  try {
+    const cmd = JSON.parse(response.choices[0].message.content.trim()).resultado;
+    if (!cmd || !cmd.modo) return null;
+    if (cmd.modo === "venda" && (!Array.isArray(cmd.itens) || cmd.itens.length === 0)) return null;
+    if (cmd.modo === "despesa" && (cmd.valor === undefined || cmd.valor === null)) return null;
+    if (cmd.modo === "preco" && (!cmd.produto || !cmd.campo || cmd.valor === undefined || cmd.valor === null)) return null;
+    if (cmd.modo === "nao_suportado" && !cmd.motivo) return null;
+    return cmd;
+  } catch {
+    return null;
+  }
+}
+
+module.exports = { extrairDados, revisarCategorias, revisarCategoriasGastos, transcreverAudio, analisarImagem, analisarPDF, extrairExtrato, extrairExtratoTexto, extrairEventoFaculdadeIA, extrairPlanoFaculdadeIA, calcularMediaFaculdadeIA, extrairComandoPSHIA };

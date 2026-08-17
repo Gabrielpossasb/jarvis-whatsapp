@@ -6,6 +6,7 @@ const { CONFIG, MESES } = require("../config");
 const { supabase } = require("../services/supabase");
 const { parsearContagemEstoque, normalizarNome, processarContagemEstoque } = require("./estoque");
 const { detectarEventoFaculdade, despacharEventoFaculdade, detectarPlanoFaculdadeDeArquivo } = require("./faculdade");
+const { detectarComandoPSH, processarComandoPSH, confirmarVendaPSH } = require("./psh");
 const { obterEstado, salvarEstado, deletarEstado } = require("../services/pending-states");
 const { encontrarSimilar } = require("../utils/similarity");
 const { enviarMensagem, baixarMidia } = require("../services/evolution");
@@ -338,6 +339,25 @@ async function processarMensagem(texto, remoteJid, canal = "whatsapp") {
     await deletarEstado(remoteJid, "evento_faculdade_lote");
   }
 
+  // ── Verifica venda do PSH pendente de confirmação ──
+  const estadoVendaPSH = await obterEstado(remoteJid, "venda_psh");
+  if (estadoVendaPSH) {
+    const textoBusca = texto.toLowerCase().trim();
+    const confirmou = ["sim", "s", "pode", "confirmar", "yes"].some(p => textoBusca.includes(p));
+    const cancelou  = ["não", "nao", "n", "cancelar", "cancel", "no"].some(p => textoBusca.includes(p));
+
+    if (confirmou) {
+      await deletarEstado(remoteJid, "venda_psh");
+      await responder(await confirmarVendaPSH(estadoVendaPSH));
+      return { texto: respostas.join("\n\n"), opcoes: opcoesFinais };
+    } else if (cancelou) {
+      await deletarEstado(remoteJid, "venda_psh");
+      await responder(`❌ Cancelado! Nenhuma venda registrada.`);
+      return { texto: respostas.join("\n\n"), opcoes: opcoesFinais };
+    }
+    await deletarEstado(remoteJid, "venda_psh");
+  }
+
   // ── Verifica plano de faculdade pendente (extraído de foto/PDF) de confirmação ──
   const estadoPlano = await obterEstado(remoteJid, "plano_faculdade");
   if (estadoPlano) {
@@ -428,6 +448,18 @@ async function processarMensagem(texto, remoteJid, canal = "whatsapp") {
       return { texto: respostas.join("\n\n"), opcoes: opcoesFinais };
     }
 
+    if (tipoOrigem === "psh") {
+      const textoCombinado = `${textoOriginal} (${texto})`;
+      const psh2 = await detectarComandoPSH(textoCombinado);
+      if (!psh2 || psh2.cmd.modo === "nao_suportado") {
+        await responder("🤔 Ainda não consegui entender — manda a mensagem completa de novo?");
+      } else {
+        const r = await processarComandoPSH(psh2, remoteJid, textoCombinado);
+        await responder(r.texto, r.opcoes);
+      }
+      return { texto: respostas.join("\n\n"), opcoes: opcoesFinais };
+    }
+
     if (tipoOrigem === "tarefa_nao_encontrada") {
       const t = await encontrarTarefa(texto);
       if (!t) {
@@ -470,6 +502,16 @@ async function processarMensagem(texto, remoteJid, canal = "whatsapp") {
     const r = await despacharEventoFaculdade(eventoFac, remoteJid, texto);
     await responder(r.texto, r.opcoes);
     return { texto: respostas.join("\n\n"), opcoes: opcoesFinais };
+  }
+
+  // ── Detecta comando do negócio (venda/despesa/preço/consulta do PSH) ──
+  const comandoPSH = await detectarComandoPSH(texto);
+  if (comandoPSH) {
+    const r = await processarComandoPSH(comandoPSH, remoteJid, texto);
+    if (r) {
+      await responder(r.texto, r.opcoes);
+      return { texto: respostas.join("\n\n"), opcoes: opcoesFinais };
+    }
   }
 
   const dados = await extrairDados(texto);
