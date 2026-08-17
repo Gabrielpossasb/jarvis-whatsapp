@@ -1,13 +1,14 @@
 import { useRef } from "react";
 import { Link, useLocation } from "react-router-dom";
 import logo from "../assets/logo-transparent.png";
+import logoEstoque from "../assets/logo-polpa-santa-helena.png";
 
 const links = [
   { to: "/", icon: "💬", label: "Chat" },
   { to: "/tarefas", icon: "✅", label: "Tarefas" },
   { to: "/gastos", icon: "💰", label: "Lançamentos" },
   { to: "/financeiro", icon: "📊", label: "Financeiro" },
-  { to: "/estoque", icon: "📦", label: "Estoque" },
+  { to: "/estoque", img: logoEstoque, label: "Polpa SH" },
   { to: "/faculdade", icon: "🎓", label: "Faculdade" },
   { to: "/configuracoes", icon: "⚙️", label: "Configurações" },
 ];
@@ -24,12 +25,16 @@ function NavLinks({ onNavigate, big }) {
 
   return (
     <nav className="flex flex-col gap-1 px-2">
-      {links.map(({ to, icon, label }) => (
+      {links.map(({ to, icon, img, label }) => (
         <Link key={to} to={to} onClick={onNavigate}
           tabIndex={-1}
           className={`flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-150 ${big ? "text-base" : "text-sm"}
             ${isActive(to) ? "bg-cinza-800 text-roxo-400 font-semibold" : "text-cinza-200 hover:bg-cinza-850 hover:text-cinza-300"}`}>
-          <span className={big ? "text-lg" : "text-base"}>{icon}</span>
+          {img ? (
+            <img src={img} alt="" className={`rounded-full shrink-0 object-cover ${big ? "w-6 h-6" : "w-5 h-5"}`} />
+          ) : (
+            <span className={big ? "text-lg" : "text-base"}>{icon}</span>
+          )}
           <span>{label}</span>
         </Link>
       ))}
