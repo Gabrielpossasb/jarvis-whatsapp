@@ -9,3 +9,6 @@ jarvis-web/dist/
 jarvis-web/.env
 jarvis-web/.env.local
 jarvis-web/package-lock.json
+
+# artefatos do Playwright MCP (screenshots e snapshots de sessao)
+.playwright-mcp/

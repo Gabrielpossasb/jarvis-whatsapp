@@ -2,6 +2,7 @@ import { useState } from "react";
 import Modal from "../../components/Modal";
 import IconeProduto from "./IconeProduto";
 import { CATEGORIAS, fmtQtd, fmtMoeda, produtosParaLocal } from "./format";
+import { parsearTexto, resolverProdutosTexto } from "./parseTexto";
 
 const LABEL_TIPO = {
   venda: "🔴 Venda",
@@ -49,6 +50,8 @@ export default function ModalGerenciar({ open, produtos, localInicial, onClose, 
   const [itens, setItens] = useState({}); // { [produto_id]: number }
   const [cliente, setCliente] = useState("");
   const [pickerAberto, setPickerAberto] = useState(false);
+  const [modoTexto, setModoTexto] = useState(false);
+  const [texto, setTexto] = useState("");
   const [salvando, setSalvando] = useState(false);
 
   // Reseta o lote quando o modal abre — ajustado durante o render (padrão
@@ -61,6 +64,8 @@ export default function ModalGerenciar({ open, produtos, localInicial, onClose, 
     setItens({});
     setCliente("");
     setPickerAberto(false);
+    setModoTexto(false);
+    setTexto("");
   } else if (!open && abertoAntes) {
     setAbertoAntes(false);
   }
@@ -73,6 +78,7 @@ export default function ModalGerenciar({ open, produtos, localInicial, onClose, 
     setLocalModal(l);
     setTipo(TIPOS_POR_LOCAL[l][0]);
     setItens({});
+    setTexto("");
   }
 
   const produtosView = produtosParaLocal(produtos, localModal);
@@ -102,6 +108,32 @@ export default function ModalGerenciar({ open, produtos, localInicial, onClose, 
       return next;
     });
   }
+
+  // O texto não grava direto: preenche a lista e volta pra ela. Assim o
+  // usuário confere o que foi reconhecido (e o total em R$, e o aviso de
+  // saldo da câmara) antes de registrar — e ainda pode ajustar no +/-.
+  // Repetir o mesmo produto em duas linhas soma, que é o comportamento
+  // esperado de quem cola duas listas seguidas.
+  function aplicarTexto() {
+    const resolvidos = resolverProdutosTexto(parsearTexto(texto), produtosView);
+    const novos = {};
+    for (const item of resolvidos) {
+      if (!item.produto) continue;
+      novos[item.produto.id] = (novos[item.produto.id] || 0) + item.quantidade;
+    }
+    if (Object.keys(novos).length === 0) return;
+    setItens(prev => {
+      const next = { ...prev };
+      for (const [id, qtd] of Object.entries(novos)) next[id] = (next[id] || 0) + qtd;
+      return next;
+    });
+    setTexto("");
+    setModoTexto(false);
+  }
+
+  const resolvidosTxt = resolverProdutosTexto(parsearTexto(texto), produtosView);
+  const reconhecidosTxt = resolvidosTxt.filter(i => i.produto);
+  const naoEncontradosTxt = resolvidosTxt.filter(i => !i.produto);
 
   async function registrar() {
     if (excedeCamara) return;
@@ -172,9 +204,84 @@ export default function ModalGerenciar({ open, produtos, localInicial, onClose, 
           </div>
         )}
 
-        {/* Corpo: lista de sabores adicionados, ou o picker */}
+        {/* Corpo: lista de sabores, o picker de quantidades, ou o texto */}
         <div className="flex-1 min-h-0 overflow-y-auto px-4 sm:px-5 py-3">
-          {!pickerAberto ? (
+          {modoTexto ? (
+            <>
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-[10px] text-cinza-200 uppercase tracking-wider">
+                  Uma linha por sabor: <span className="text-roxo-400">Produto — quantidade</span>
+                </span>
+                <button onClick={() => { setModoTexto(false); setTexto(""); }}
+                  className="text-[11px] text-cinza-350 hover:text-cinza-50 transition-colors shrink-0 ml-2">
+                  voltar
+                </button>
+              </div>
+
+              <textarea
+                value={texto}
+                onChange={e => setTexto(e.target.value)}
+                placeholder={"Abacaxi — 5\nMorango — 3 kg\nAçaí 500ml — 6 un"}
+                rows={6}
+                autoFocus
+                className="w-full bg-cinza-850 border border-cinza-700 rounded-xl px-3 py-2.5 text-sm text-cinza-50 placeholder-cinza-300 outline-none focus:border-roxo-700 resize-none font-mono leading-relaxed transition-colors"
+              />
+
+              {resolvidosTxt.length > 0 && (
+                <div className="mt-3">
+                  <div className="text-[10px] text-cinza-200 uppercase tracking-wider mb-2">
+                    {reconhecidosTxt.length} sabor(es) reconhecido(s)
+                  </div>
+                  <div className="bg-cinza-950/40 border border-cinza-800 rounded-xl overflow-hidden">
+                    {resolvidosTxt.map((item, i) => (
+                      <div key={i}
+                        className={`flex items-center gap-2 px-3 py-2
+                          ${i < resolvidosTxt.length - 1 ? "border-b border-cinza-850" : ""}`}>
+                        {item.produto ? (
+                          <>
+                            <IconeProduto p={item.produto} size={24} />
+                            <div className="flex-1 min-w-0">
+                              <div className="text-xs text-cinza-50 truncate">{item.produto.nome}</div>
+                              {/* Na transferência o saldo que importa é o da
+                                  câmara, que é de onde a quantidade sai. */}
+                              {tipo === "transferencia" && item.quantidade > Number(item.produto.estoque_atual_camara) && (
+                                <div className="text-[10px] text-red-400">
+                                  só há {fmtQtd(item.produto.estoque_atual_camara, item.produto.unidade)} na câmara
+                                </div>
+                              )}
+                            </div>
+                            <span className="text-xs font-semibold text-roxo-400 shrink-0">
+                              {fmtQtd(item.quantidade, item.produto.unidade)}
+                            </span>
+                          </>
+                        ) : (
+                          <>
+                            <div className="flex-1 min-w-0">
+                              <div className="text-xs text-cinza-200 truncate">{item.nome}</div>
+                              <div className="text-[10px] text-red-400/70">produto não encontrado</div>
+                            </div>
+                            <span className="text-[10px] text-red-400/70 shrink-0">✗</span>
+                          </>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                  {naoEncontradosTxt.length > 0 && (
+                    <div className="mt-2 text-[10px] text-cinza-350">
+                      ⚠️ {naoEncontradosTxt.length} não reconhecido(s) serão ignorados
+                    </div>
+                  )}
+                </div>
+              )}
+
+              <button onClick={aplicarTexto} disabled={reconhecidosTxt.length === 0}
+                className="mt-3 w-full py-2.5 rounded-xl text-xs font-semibold bg-roxo-700 hover:bg-roxo-600 disabled:opacity-40 text-white transition-colors">
+                {reconhecidosTxt.length === 0
+                  ? "Cole a lista acima"
+                  : `Adicionar ${reconhecidosTxt.length} sabor(es) à lista`}
+              </button>
+            </>
+          ) : !pickerAberto ? (
             <>
               {itensAtivos.length === 0 ? (
                 <div className="text-center text-cinza-350 text-sm py-10">
@@ -192,7 +299,10 @@ export default function ModalGerenciar({ open, produtos, localInicial, onClose, 
                           <div className="text-xs font-medium text-cinza-50 truncate">{p.nome}</div>
                           <div className="text-[10px] text-cinza-350 mt-0.5">
                             {fmtQtd(p.estoque_atual, p.unidade)}
-                            {p.preco && (
+                            {/* Transferência não movimenta dinheiro — só
+                                realoca entre câmara e freezer. Mostrar um
+                                valor aqui sugeria o contrário. */}
+                            {p.preco && tipo !== "transferencia" && (
                               <span className={`ml-2 ${tipo === "venda" ? "text-red-400/80" : "text-emerald-400/80"}`}>
                                 = {fmtMoeda(qty * p.preco)}
                               </span>
@@ -231,10 +341,16 @@ export default function ModalGerenciar({ open, produtos, localInicial, onClose, 
                 </div>
               )}
 
-              <button onClick={() => setPickerAberto(true)}
-                className="w-full py-2.5 rounded-xl border border-dashed border-cinza-700 text-cinza-200 hover:border-roxo-700 hover:text-roxo-400 transition-colors text-xs font-semibold">
-                + Adicionar sabor
-              </button>
+              <div className="flex gap-2">
+                <button onClick={() => setPickerAberto(true)}
+                  className="flex-1 py-2.5 rounded-xl border border-dashed border-cinza-700 text-cinza-200 hover:border-roxo-700 hover:text-roxo-400 transition-colors text-xs font-semibold">
+                  + Adicionar sabor
+                </button>
+                <button onClick={() => setModoTexto(true)}
+                  className="flex-1 py-2.5 rounded-xl border border-dashed border-cinza-700 text-cinza-200 hover:border-roxo-700 hover:text-roxo-400 transition-colors text-xs font-semibold">
+                  📝 Colar lista
+                </button>
+              </div>
             </>
           ) : (
             <>
@@ -288,7 +404,7 @@ export default function ModalGerenciar({ open, produtos, localInicial, onClose, 
 
         {/* Footer: resumo + ações */}
         <div className="px-4 sm:px-5 py-4 border-t border-cinza-800 shrink-0 flex flex-col gap-3">
-          {itensAtivos.length > 0 && !pickerAberto && (
+          {itensAtivos.length > 0 && !pickerAberto && !modoTexto && (
             <div className="flex items-center justify-between">
               <div className="text-xs text-cinza-200">
                 {itensAtivos.length} sabor{itensAtivos.length > 1 ? "es" : ""}
@@ -306,9 +422,12 @@ export default function ModalGerenciar({ open, produtos, localInicial, onClose, 
               className="flex-1 py-2 rounded-lg text-xs font-semibold border border-cinza-700 text-cinza-200 hover:border-cinza-600 transition-colors">
               Cancelar
             </button>
+            {/* No modo texto o caminho é "Adicionar à lista" primeiro; deixar
+                Registrar ativo aqui gravaria o lote antigo e descartaria o
+                que está digitado sem aviso. */}
             <button
               onClick={registrar}
-              disabled={salvando || itensAtivos.length === 0 || excedeCamara}
+              disabled={salvando || itensAtivos.length === 0 || excedeCamara || modoTexto}
               className={`flex-1 py-2 rounded-lg text-xs font-semibold disabled:opacity-40 text-white transition-colors
                 ${tipo === "venda" ? "bg-red-500/80 hover:bg-red-500"
                   : tipo === "transferencia" ? "bg-roxo-700 hover:bg-roxo-600"

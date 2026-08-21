@@ -2,33 +2,7 @@ import { useState } from "react";
 import Modal from "../../components/Modal";
 import IconeProduto from "./IconeProduto";
 import { CATEGORIAS, fmtQtd, produtosParaLocal } from "./format";
-
-// Reconhece linhas do tipo "Produto — 5 kg" coladas na aba de texto.
-const LINHA_RE = /^(.+?)\s*[—–-]+\s*([\d,.]+)\s*(kg|un)?\s*$/i;
-
-function normNome(s) {
-  return s.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "").trim();
-}
-
-function parsearTexto(texto) {
-  return texto.split(/\r?\n/).map(l => l.trim()).filter(Boolean).flatMap(linha => {
-    const m = linha.match(LINHA_RE);
-    if (!m) return [];
-    const qtd = parseFloat(m[2].replace(",", "."));
-    if (isNaN(qtd) || qtd < 0) return [];
-    return [{ nome: m[1].trim(), quantidade: qtd }];
-  });
-}
-
-function resolverProdutosTexto(itens, produtos) {
-  return itens.map(item => {
-    const n = normNome(item.nome);
-    const produto = produtos.find(p => normNome(p.nome) === n)
-      || produtos.find(p => normNome(p.nome).includes(n))
-      || produtos.find(p => n.includes(normNome(p.nome)));
-    return { ...item, produto: produto || null };
-  });
-}
+import { parsearTexto, resolverProdutosTexto } from "./parseTexto";
 
 /**
  * Modal de contagem de estoque ("📋 Contagem" no header) — duas formas de
