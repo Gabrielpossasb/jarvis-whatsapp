@@ -12,3 +12,9 @@ jarvis-web/package-lock.json
 
 # artefatos do Playwright MCP (screenshots e snapshots de sessao)
 .playwright-mcp/
+
+# saida das execucoes de teste e2e (prints e traces de falha)
+jarvis-web/test-results/
+jarvis-web/playwright-report/
+jarvis-web/blob-report/
+jarvis-web/.cache/

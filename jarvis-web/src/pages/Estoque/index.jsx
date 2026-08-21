@@ -177,10 +177,13 @@ export default function Estoque() {
               ))}
             </div>
           )}
+          {/* data-testid nas abas: o nome acessível do botão muda entre
+              breakpoints (o emoji só aparece a partir de `sm`), então os
+              testes e2e casariam em um projeto e falhariam no outro. */}
           <div className="flex gap-1.5 sm:gap-2">
             {[["estoque", "📦", "Estoque"], ["historico", "📋", "Histórico"],
               ["financeiro", "💰", "Financeiro"], ["tabela", "📊", "Tabela"]].map(([a, icone, label]) => (
-              <button key={a} onClick={() => setAba(a)}
+              <button key={a} onClick={() => setAba(a)} data-testid={`aba-${a}`}
                 className={`flex-1 sm:flex-none px-2 sm:px-3 py-1.5 sm:py-1 rounded-lg text-xs font-medium border transition-all whitespace-nowrap
                   ${aba === a
                     ? "border-roxo-700 bg-roxo-700/13 text-roxo-400"
