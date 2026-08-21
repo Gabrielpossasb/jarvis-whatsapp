@@ -638,13 +638,17 @@ Retorne um JSON dentro de {"resultado": ...} com um destes 5 modos:
 4) "consulta" — pergunta sobre resultado financeiro (ex: "quanto lucrei esse mês?", "qual a margem da goiaba?", "quanto vendi de açaí?"):
 {"modo":"consulta","escopo":"geral"|"produto","produto":"nome exato ou null","periodo":"mes"|"tudo"}
 
-5) "nao_suportado" — é sobre o negócio mas você não tem confiança de como registrar:
+5) "transferencia" — o usuário tirou produto da câmara fria e colocou no freezer (ex: "transferi 10kg de goiaba da câmara pro freezer", "passei 5 de açaí pro freezer", "puxei 3kg de morango da câmara"):
+{"modo":"transferencia","itens":[{"produto":"nome exato","quantidade":10}]}
+
+6) "nao_suportado" — é sobre o negócio mas você não tem confiança de como registrar:
 {"modo":"nao_suportado","motivo":"frase curta explicando o que faltou entender"}
 
 Regras:
 - Se a mensagem NÃO é sobre o negócio de polpas, retorne {"resultado": null}
 - NUNCA invente um produto que não está na lista — se não identificar com certeza, use "nao_suportado"
 - Compra de produto que chegou (entrada de estoque) NÃO é "despesa" — é uma entrada de estoque; use "nao_suportado" com motivo pedindo pra registrar pelo estoque
+- Transferência é sempre câmara fria → freezer (nunca o contrário); "passei/puxei/tirei da câmara" e "botei/coloquei no freezer" descrevem o mesmo movimento. Não confunda com venda: transferência não tem cliente nem dinheiro envolvido
 - "quanto tenho de X" é pergunta de estoque, não de financeiro → retorne {"resultado": null}
 - Em "preco", distinga bem compra (o que ele paga ao fornecedor) de venda (o que ele cobra do cliente); se ambíguo, use "nao_suportado"
 
@@ -663,7 +667,8 @@ Mensagem: "${texto.replace(/"/g, "'")}"`;
   try {
     const cmd = JSON.parse(response.choices[0].message.content.trim()).resultado;
     if (!cmd || !cmd.modo) return null;
-    if (cmd.modo === "venda" && (!Array.isArray(cmd.itens) || cmd.itens.length === 0)) return null;
+    if ((cmd.modo === "venda" || cmd.modo === "transferencia")
+      && (!Array.isArray(cmd.itens) || cmd.itens.length === 0)) return null;
     if (cmd.modo === "despesa" && (cmd.valor === undefined || cmd.valor === null)) return null;
     if (cmd.modo === "preco" && (!cmd.produto || !cmd.campo || cmd.valor === undefined || cmd.valor === null)) return null;
     if (cmd.modo === "nao_suportado" && !cmd.motivo) return null;

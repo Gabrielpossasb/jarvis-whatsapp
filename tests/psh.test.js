@@ -133,6 +133,93 @@ describe("venda pelo chat", () => {
   });
 });
 
+describe("estoque negativo", () => {
+  // Vender antes de registrar a transferência da câmara é rotina. Se o
+  // saldo fosse truncado em 0, a transferência seguinte somaria em cima de
+  // um número errado e o estoque nunca fecharia.
+  test("venda além do saldo deixa o freezer negativo, sem truncar em zero", async () => {
+    const updateEq = jest.fn().mockResolvedValue({ error: null });
+    const update = jest.fn(() => ({ eq: updateEq }));
+    supabase.from.mockImplementation(t => {
+      if (t === "estoque_movimentacoes") return { insert: jest.fn().mockResolvedValue({ error: null }) };
+      if (t === "estoque_produtos") return { update };
+      return {};
+    });
+
+    const msg = await confirmarVendaPSH({
+      itens: [{ produto_id: "p2", nome: "Açaí", unidade: "kg", quantidade: 8, preco: 35, estoque_atual: 3 }],
+      cliente: null,
+    });
+
+    expect(update).toHaveBeenCalledWith({ estoque_atual: -5 });
+    expect(msg).toContain("-5");
+    expect(msg).toMatch(/falta transferir da câmara/i);
+  });
+});
+
+describe("transferência pelo chat", () => {
+  function mockEstoque() {
+    const insert = jest.fn().mockResolvedValue({ error: null });
+    const updateEq = jest.fn().mockResolvedValue({ error: null });
+    const update = jest.fn(() => ({ eq: updateEq }));
+    supabase.from.mockImplementation(t => {
+      if (t === "estoque_movimentacoes") return { insert };
+      if (t === "estoque_produtos") return { update };
+      return {};
+    });
+    return { insert, update };
+  }
+
+  test("move o saldo entre os dois locais e grava a movimentação", async () => {
+    const { insert, update } = mockEstoque();
+
+    const r = await processarComandoPSH(
+      { cmd: { modo: "transferencia", itens: [{ produto: "Goiaba", quantidade: 3 }] }, produtos: PRODUTOS },
+      "jid", "transferi 3kg de goiaba da câmara pro freezer");
+
+    expect(insert).toHaveBeenCalledWith([expect.objectContaining({
+      produto_id: "p1", tipo: "transferencia", quantidade: 3, local: "freezer",
+    })]);
+    // Goiaba: freezer 10 → 13, câmara 4 → 1
+    expect(update).toHaveBeenCalledWith({ estoque_atual: 13, estoque_atual_camara: 1 });
+    expect(r.texto).toMatch(/Transferência registrada/i);
+  });
+
+  test("não gera lançamento financeiro — transferência não movimenta dinheiro", async () => {
+    mockEstoque();
+
+    await processarComandoPSH(
+      { cmd: { modo: "transferencia", itens: [{ produto: "Goiaba", quantidade: 3 }] }, produtos: PRODUTOS },
+      "jid", "transferi 3kg de goiaba");
+
+    expect(supabase.from).not.toHaveBeenCalledWith("psh_lancamentos");
+  });
+
+  test("recusa quando a câmara não tem saldo, sem gravar nada", async () => {
+    const { insert, update } = mockEstoque();
+
+    const r = await processarComandoPSH(
+      { cmd: { modo: "transferencia", itens: [{ produto: "Goiaba", quantidade: 99 }] }, produtos: PRODUTOS },
+      "jid", "transferi 99kg de goiaba");
+
+    expect(insert).not.toHaveBeenCalled();
+    expect(update).not.toHaveBeenCalled();
+    expect(r.texto).toMatch(/câmara fria não tem esse saldo/i);
+    expect(r.texto).toMatch(/registre a entrada na câmara primeiro/i);
+  });
+
+  test("sinaliza quando a transferência regulariza um freezer negativo", async () => {
+    mockEstoque();
+    const negativado = PRODUTOS.map(p => p.id === "p1" ? { ...p, estoque_atual: -2 } : p);
+
+    const r = await processarComandoPSH(
+      { cmd: { modo: "transferencia", itens: [{ produto: "Goiaba", quantidade: 4 }] }, produtos: negativado },
+      "jid", "transferi 4kg de goiaba");
+
+    expect(r.texto).toMatch(/saldo regularizado/i);
+  });
+});
+
 describe("preço", () => {
   test("atualizar preço de compra recalcula a margem na resposta", async () => {
     const updateEq = jest.fn().mockResolvedValue({ error: null });

@@ -26,6 +26,12 @@ const TERMOS_NEGOCIO = /\b(polpa|polpas|psh|santa\s*helena|a[çc]a[íi]|freezer|
 const VERBOS_VENDA = /\b(vendi|vendeu|vendemos|saiu|sa[íi]ram|entreguei)\b/i;
 const TERMOS_FINANCEIRO = /\b(lucro|lucrei|lucrou|margem|faturei|faturamento|receita|cmv|custo)\b/i;
 const TERMOS_PRECO = /\b(pre[çc]o|custa|custando|kg|subiu|baixou|aumentou)\b/i;
+// "transferi" é específico o bastante pra passar sozinho. Verbos vagos
+// ("passei", "puxei", "tirei") ficam de fora de propósito: sozinhos
+// disparariam a IA em qualquer conversa do dia a dia — quando são sobre o
+// negócio, a frase quase sempre traz "câmara" ou "freezer", que já estão
+// em TERMOS_NEGOCIO.
+const VERBOS_TRANSFERENCIA = /\b(transferi|transferiu|transferimos|transferir|transfer[êe]ncia)\b/i;
 
 // Sinal antes do "R$" ("-R$ 20,00", não "R$ -20,00") — lucro e caixa
 // ficam negativos com frequência e o segundo formato lê mal.
@@ -53,7 +59,8 @@ async function detectarComandoPSH(texto) {
   const temVenda = VERBOS_VENDA.test(texto);
   const temFinanceiro = TERMOS_FINANCEIRO.test(texto);
   const temPreco = TERMOS_PRECO.test(texto);
-  if (!temNegocio && !temVenda && !temFinanceiro && !(temPreco && temNegocio)) return null;
+  const temTransferencia = VERBOS_TRANSFERENCIA.test(texto);
+  if (!temNegocio && !temVenda && !temFinanceiro && !temTransferencia && !(temPreco && temNegocio)) return null;
 
   const { data: produtos } = await supabase
     .from("estoque_produtos")
@@ -78,10 +85,82 @@ async function processarComandoPSH({ cmd, produtos }, remoteJid, texto) {
     return { texto: `🤔 Entendi que é sobre a Polpa Santa Helena, mas ${cmd.motivo}\n\nPode reformular?` };
   }
   if (cmd.modo === "venda") return prepararVenda(cmd, produtos, remoteJid);
+  if (cmd.modo === "transferencia") return registrarTransferencia(cmd, produtos);
   if (cmd.modo === "despesa") return lancarDespesa(cmd);
   if (cmd.modo === "preco") return atualizarPreco(cmd, produtos);
   if (cmd.modo === "consulta") return responderConsulta(cmd, produtos);
   return null;
+}
+
+// ── Transferência câmara → freezer ────────────────────────────────
+// Grava direto, sem confirmação, no mesmo espírito da contagem por texto
+// (handlers/estoque.js): não movimenta dinheiro, só realoca entre os dois
+// locais. Diferente da venda, a câmara NÃO pode ficar negativa — não faz
+// sentido tirar de onde não entrou; o pedido tem que ser registrado como
+// entrada primeiro.
+async function registrarTransferencia(cmd, produtos) {
+  const itens = [];
+  const naoEncontrados = [];
+
+  for (const item of cmd.itens) {
+    const p = acharProduto(item.produto, produtos);
+    if (!p) { naoEncontrados.push(item.produto); continue; }
+    itens.push({
+      produto: p,
+      quantidade: Number(item.quantidade),
+      camara: Number(p.estoque_atual_camara),
+      freezer: Number(p.estoque_atual),
+    });
+  }
+
+  if (itens.length === 0) {
+    return { texto: `⚠️ Não encontrei no estoque: _${naoEncontrados.join(", ")}_` };
+  }
+
+  const semSaldo = itens.filter(i => i.quantidade > i.camara);
+  if (semSaldo.length > 0) {
+    const detalhe = semSaldo
+      .map(i => `• *${i.produto.nome}*: pedido ${fmtQtd(i.quantidade, i.produto.unidade)}, câmara tem ${fmtQtd(i.camara, i.produto.unidade)}`)
+      .join("\n");
+    return {
+      texto: `⚠️ *A câmara fria não tem esse saldo:*\n\n${detalhe}\n\n_Se o pedido chegou mas não foi lançado, registre a entrada na câmara primeiro._`,
+    };
+  }
+
+  const agora = new Date().toISOString();
+  const { error } = await supabase.from("estoque_movimentacoes").insert(
+    itens.map(i => ({
+      produto_id: i.produto.id,
+      tipo: "transferencia",
+      quantidade: i.quantidade,
+      local: "freezer",
+      criado_em: agora,
+    }))
+  );
+  if (error) return { texto: `❌ Erro ao registrar a transferência: ${error.message}` };
+
+  await Promise.all(itens.map(i =>
+    supabase.from("estoque_produtos")
+      .update({
+        estoque_atual: i.freezer + i.quantidade,
+        estoque_atual_camara: i.camara - i.quantidade,
+      })
+      .eq("id", i.produto.id)
+  ));
+
+  const linhas = [`🔄 *Transferência registrada!*`, ""];
+  for (const i of itens) {
+    const u = i.produto.unidade;
+    const novoFreezer = i.freezer + i.quantidade;
+    linhas.push(`• *${i.produto.nome}* — ${fmtQtd(i.quantidade, u)}`);
+    linhas.push(`   ❄️ ${fmtQtd(i.camara, u)} → ${fmtQtd(i.camara - i.quantidade, u)}`);
+    // Saldo que estava negativo e voltou ao positivo: a venda adiantada
+    // finalmente "fechou", vale sinalizar.
+    const fechou = i.freezer < 0 && novoFreezer >= 0 ? "  ✅ saldo regularizado" : "";
+    linhas.push(`   🧊 ${fmtQtd(i.freezer, u)} → ${fmtQtd(novoFreezer, u)}${fechou}`);
+  }
+  if (naoEncontrados.length > 0) linhas.push(`\n⚠️ Não encontrados: _${naoEncontrados.join(", ")}_`);
+  return { texto: linhas.join("\n") };
 }
 
 // ── Venda (pede confirmação) ──────────────────────────────────────
@@ -147,16 +226,21 @@ async function confirmarVendaPSH(estado) {
   );
   if (error) return `❌ Erro ao registrar a venda: ${error.message}`;
 
+  // Sem piso em zero: vender antes de registrar a transferência da câmara
+  // é rotina, e o saldo negativo é o que sinaliza que a transferência ainda
+  // falta. Truncar em 0 apagaria essa informação.
   await Promise.all(itens.map(i =>
     supabase.from("estoque_produtos")
-      .update({ estoque_atual: Math.max(0, i.estoque_atual - i.quantidade) })
+      .update({ estoque_atual: i.estoque_atual - i.quantidade })
       .eq("id", i.produto_id)
   ));
 
   const total = itens.reduce((s, i) => s + i.quantidade * Number(i.preco || 0), 0);
   const linhas = [`✅ *Venda registrada!* ${fmtMoeda(total)}`, ""];
   for (const i of itens) {
-    linhas.push(`• ${i.nome}: ${fmtQtd(i.quantidade, i.unidade)} → restam ${fmtQtd(Math.max(0, i.estoque_atual - i.quantidade), i.unidade)}`);
+    const restante = i.estoque_atual - i.quantidade;
+    const aviso = restante < 0 ? " ⚠️ _falta transferir da câmara_" : "";
+    linhas.push(`• ${i.nome}: ${fmtQtd(i.quantidade, i.unidade)} → restam ${fmtQtd(restante, i.unidade)}${aviso}`);
   }
   if (cliente) linhas.push(`\n👤 ${cliente}`);
   return linhas.join("\n");
