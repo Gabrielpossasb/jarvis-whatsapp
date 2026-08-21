@@ -131,7 +131,7 @@ export default function ModalContagem({ open, produtos, localInicial, onClose, o
     <Modal open={open} onClose={onClose} align="bottom">
       <div className="bg-cinza-900 border border-cinza-700 rounded-2xl w-full max-w-lg mx-auto flex flex-col max-h-[88vh] sm:max-h-[75vh]">
         {/* Header */}
-        <div className="flex items-center justify-between px-5 py-4 border-b border-cinza-800 shrink-0">
+        <div className="flex items-center justify-between px-4 sm:px-5 py-4 border-b border-cinza-800 shrink-0">
           <div>
             <div className="text-sm font-semibold text-cinza-50">Contagem de Estoque</div>
             <div className="flex gap-1.5 mt-1.5">
@@ -164,7 +164,7 @@ export default function ModalContagem({ open, produtos, localInicial, onClose, o
         </div>
 
         {/* Corpo */}
-        <div className="flex-1 min-h-0 overflow-y-auto px-5 py-3">
+        <div className="flex-1 min-h-0 overflow-y-auto px-4 sm:px-5 py-3">
           {aba === "formulario" ? (
             <>
               {alteradosForm.length > 0 && (
@@ -290,7 +290,7 @@ export default function ModalContagem({ open, produtos, localInicial, onClose, o
         </div>
 
         {/* Footer */}
-        <div className="px-5 py-4 border-t border-cinza-800 shrink-0 flex gap-2">
+        <div className="px-4 sm:px-5 py-4 border-t border-cinza-800 shrink-0 flex gap-2">
           <button onClick={onClose}
             className="flex-1 py-2 rounded-lg text-xs font-semibold border border-cinza-700 text-cinza-200 hover:border-cinza-600 transition-colors">
             Cancelar

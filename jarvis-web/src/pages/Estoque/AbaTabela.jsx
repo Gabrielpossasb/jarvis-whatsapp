@@ -4,6 +4,64 @@ import { CATEGORIAS, fmtMoeda, fmtPct, calcLucro, estoqueGeral } from "./format"
 
 const COLUNAS = "minmax(150px,1.6fr) 92px 92px 100px 96px 76px";
 
+const corMargem = m =>
+  m == null ? "text-cinza-300" : m >= 30 ? "text-emerald-400" : m >= 15 ? "text-amber-400" : "text-red-400";
+
+/**
+ * Versão da linha para telas estreitas. A tabela de 6 colunas precisa de
+ * 620px e no celular virava scroll horizontal permanente — aqui os mesmos
+ * dados viram um card: nome e margem em cima (o par que se lê primeiro) e
+ * compra/venda/estoque numa grade de três embaixo.
+ */
+function CardProduto({ p, onEditar }) {
+  const { lucro, margem, venda, compra } = calcLucro(p);
+  const un = p.unidade;
+
+  return (
+    <button onClick={() => onEditar(p)}
+      className="w-full text-left bg-cinza-900 border border-cinza-800 rounded-xl px-3 py-2.5 hover:bg-cinza-850 transition-colors">
+      <div className="flex items-center gap-2 mb-2">
+        <IconeProduto p={p} size={26} />
+        <span className="text-xs text-cinza-50 flex-1 min-w-0 break-words leading-tight">{p.nome}</span>
+        <span className={`font-mono text-sm font-semibold shrink-0 ${corMargem(margem)}`}>
+          {margem == null ? "—" : fmtPct(margem)}
+        </span>
+      </div>
+
+      <div className="grid grid-cols-3 gap-2 text-[11px]">
+        <div>
+          <div className="text-[9px] text-cinza-350">COMPRA</div>
+          <div className={`font-mono ${compra == null ? "text-cinza-300" : "text-amber-400"}`}>
+            {compra == null ? "—" : fmtMoeda(compra)}
+          </div>
+        </div>
+        <div>
+          <div className="text-[9px] text-cinza-350">VENDA</div>
+          <div className={`font-mono ${venda == null ? "text-cinza-300" : "text-cinza-100"}`}>
+            {venda == null ? "—" : fmtMoeda(venda)}
+          </div>
+        </div>
+        <div>
+          <div className="text-[9px] text-cinza-350">ESTOQUE</div>
+          <div className="font-mono text-cinza-200">
+            {estoqueGeral(p).toLocaleString("pt-BR", { maximumFractionDigits: 1 })} {un}
+          </div>
+        </div>
+      </div>
+
+      <div className="mt-1.5 pt-1.5 border-t border-cinza-850 flex items-center justify-between text-[10px]">
+        <span className="text-cinza-350">
+          {Number(p.estoque_atual || 0)}🧊 · {Number(p.estoque_atual_camara || 0)}❄️
+        </span>
+        <span className={`font-mono font-semibold
+          ${lucro == null ? "text-cinza-300" : lucro >= 0 ? "text-emerald-400" : "text-red-400"}`}>
+          {lucro == null ? "sem lucro calculado" : `${fmtMoeda(lucro)}/${un}`}
+        </span>
+      </div>
+    </button>
+  );
+}
+
 function CabecalhoTabela() {
   return (
     <div className="grid px-4 py-2.5 border-b border-cinza-800 text-[10px] text-cinza-350 tracking-wider sticky top-0 bg-cinza-900 z-10"
@@ -55,8 +113,7 @@ function LinhaProduto({ p, onEditar, ultima }) {
         {lucro != null && <span className="block text-[9px] font-normal text-cinza-350">/{un}</span>}
       </span>
 
-      <span className={`text-right font-mono text-[11px] font-semibold
-        ${margem == null ? "text-cinza-300" : margem >= 30 ? "text-emerald-400" : margem >= 15 ? "text-amber-400" : "text-red-400"}`}>
+      <span className={`text-right font-mono text-[11px] font-semibold ${corMargem(margem)}`}>
         {margem == null ? "—" : fmtPct(margem)}
       </span>
     </button>
@@ -121,15 +178,19 @@ export default function AbaTabela({ produtos, onEditar }) {
 
       <div className="flex-1 overflow-y-auto px-4 md:px-6 pb-4">
         {/* Resumo do capital em estoque */}
-        <div className="grid grid-cols-3 gap-2 mb-3">
+        <div className="grid grid-cols-3 gap-1.5 sm:gap-2 mb-3">
           {[
             { label: "Capital parado", valor: capitalParado, cor: "text-amber-400", dica: "estoque × preço de compra" },
             { label: "Se vender tudo", valor: receitaPotencial, cor: "text-cinza-100", dica: "estoque × preço de venda" },
             { label: "Lucro potencial", valor: lucroPotencial, cor: lucroPotencial >= 0 ? "text-emerald-400" : "text-red-400", dica: "diferença entre os dois" },
           ].map(c => (
-            <div key={c.label} className="bg-cinza-900 border border-cinza-800 rounded-xl px-3 py-2.5" title={c.dica}>
-              <div className="text-[9px] text-cinza-350 mb-1">{c.label}</div>
-              <div className={`font-mono text-xs md:text-sm font-medium ${c.cor}`}>{fmtMoeda(c.valor)}</div>
+            <div key={c.label} className="bg-cinza-900 border border-cinza-800 rounded-xl px-2 sm:px-3 py-2 sm:py-2.5 min-w-0" title={c.dica}>
+              <div className="text-[9px] text-cinza-350 mb-1 leading-tight">{c.label}</div>
+              {/* tabular-nums + text-[11px] no mobile: "R$ 1.234,56" em três
+                  colunas de ~110px estourava a caixa com a fonte padrão. */}
+              <div className={`font-mono tabular-nums text-[11px] sm:text-sm font-medium truncate ${c.cor}`}>
+                {fmtMoeda(c.valor)}
+              </div>
             </div>
           ))}
         </div>
@@ -142,7 +203,22 @@ export default function AbaTabela({ produtos, onEditar }) {
           </div>
         )}
 
-        <div className="bg-cinza-900 border border-cinza-800 rounded-xl overflow-hidden">
+        {/* Celular: cards empilhados. A tabela precisa de 620px e viraria
+            scroll horizontal permanente numa tela de ~390px. */}
+        <div className="sm:hidden flex flex-col gap-3">
+          {grupos.map(({ cat, itens }) => (
+            <div key={cat || "todos"} className="flex flex-col gap-1.5">
+              {cat && (
+                <div className="text-[10px] text-cinza-350 tracking-widest uppercase px-1">{cat}</div>
+              )}
+              {itens.map(p => (
+                <CardProduto key={p.id} p={p} onEditar={onEditar} />
+              ))}
+            </div>
+          ))}
+        </div>
+
+        <div className="hidden sm:block bg-cinza-900 border border-cinza-800 rounded-xl overflow-hidden">
           <div className="overflow-x-auto">
             <div style={{ minWidth: "620px" }}>
               <CabecalhoTabela />

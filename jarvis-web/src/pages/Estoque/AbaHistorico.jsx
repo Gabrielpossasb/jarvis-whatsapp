@@ -1,6 +1,6 @@
 import { useState } from "react";
 import IconeProduto from "./IconeProduto";
-import { fmtQtd, fmtData, TIPO_LABEL, TIPO_SINAL, TIPO_BADGE } from "./format";
+import { fmtQtd, fmtData, TIPO_LABEL, TIPO_LABEL_CURTO, TIPO_SINAL, TIPO_BADGE } from "./format";
 
 const TIPOS = ["entrada", "venda", "consumo", "transferencia", "contagem"];
 const LOCAIS = [
@@ -131,26 +131,32 @@ export default function AbaHistorico({ movs }) {
               const m = g;
               return (
                 <div key={m.id}
-                  className={`flex items-center gap-3 px-4 py-3 hover:bg-cinza-850 transition-colors ${borda}`}>
-                  <span className={`text-[10px] px-2 py-0.5 rounded-full font-medium shrink-0 ${TIPO_BADGE[m.tipo]}`}>
-                    {TIPO_LABEL[m.tipo]}
+                  className={`flex items-center gap-2 sm:gap-3 px-3 sm:px-4 py-3 hover:bg-cinza-850 transition-colors ${borda}`}>
+                  <span className={`text-[10px] px-1.5 sm:px-2 py-0.5 rounded-full font-medium shrink-0 ${TIPO_BADGE[m.tipo]}`}>
+                    <span className="sm:hidden">{TIPO_LABEL_CURTO[m.tipo]}</span>
+                    <span className="hidden sm:inline">{TIPO_LABEL[m.tipo]}</span>
                   </span>
                   <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-1.5 text-xs text-cinza-50 truncate">
+                    <div className="flex items-center gap-1.5 text-xs text-cinza-50 min-w-0">
                       <IconeProduto p={m.produto} size={22} />
-                      {m.produto?.nome || "—"}
+                      <span className="truncate">{m.produto?.nome || "—"}</span>
                       {m.pessoa && (
-                        <span className="text-cinza-200 ml-1.5">· {m.pessoa}</span>
+                        <span className="text-cinza-200 truncate">· {m.pessoa}</span>
                       )}
                     </div>
-                    {m.observacao && (
-                      <div className="text-[10px] text-cinza-350 truncate mt-0.5">{m.observacao}</div>
-                    )}
+                    {/* A data só aparece na coluna da direita a partir de
+                        `sm`; no celular ela vem aqui, senão não haveria
+                        como saber quando a movimentação aconteceu. */}
+                    <div className="text-[10px] text-cinza-350 truncate mt-0.5">
+                      <span className="sm:hidden">{fmtData(m.criado_em)}</span>
+                      {m.observacao && <span className="sm:hidden"> · </span>}
+                      {m.observacao}
+                    </div>
                   </div>
                   <span className="text-xs text-cinza-350 shrink-0" title={m.local}>
                     {m.tipo === "transferencia" ? "🔄" : LOCAL_ICONE[m.local] || ""}
                   </span>
-                  <div className={`text-xs font-semibold shrink-0
+                  <div className={`text-xs font-semibold shrink-0 tabular-nums
                     ${m.tipo === "entrada" ? "text-emerald-400"
                       : m.tipo === "transferencia" ? "text-roxo-400"
                       : m.tipo === "contagem" ? "text-sky-400"

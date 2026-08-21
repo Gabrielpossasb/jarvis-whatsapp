@@ -113,6 +113,9 @@ export function produtosParaLocal(produtos, local) {
 }
 
 export const TIPO_LABEL = { entrada: "Entrada", venda: "Venda", consumo: "Consumo", transferencia: "Transferência", contagem: "Contagem" };
+// Usado só nos badges do histórico em telas estreitas — "Transferência"
+// sozinha comia 85px dos ~390px da linha e espremia o nome do produto.
+export const TIPO_LABEL_CURTO = { ...TIPO_LABEL, transferencia: "Transf." };
 export const TIPO_SINAL = { entrada: "+", venda: "−", consumo: "−", transferencia: "+", contagem: "=" };
 export const TIPO_BADGE = {
   entrada: "bg-emerald-500/15 text-emerald-400",

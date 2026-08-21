@@ -9,6 +9,14 @@ const LABEL_TIPO = {
   transferencia: "🔄 Transferência (da câmara)",
 };
 
+// Dois botões lado a lado num modal de celular dão ~150px cada;
+// "🔄 Transferência (da câmara)" quebrava em três linhas.
+const LABEL_TIPO_CURTO = {
+  venda: "🔴 Venda",
+  entrada: "🟢 Entrada",
+  transferencia: "🔄 Transferir",
+};
+
 // Freezer não recebe entrada direta — ele só cresce por transferência da
 // câmara fria (ver ModalMovimentacao); pedidos de fornecedor chegam em
 // grande quantidade direto na câmara fria, daí "entrada" só existir lá.
@@ -114,7 +122,7 @@ export default function ModalGerenciar({ open, produtos, localInicial, onClose, 
     <Modal open={open} onClose={onClose} align="bottom">
       <div className="bg-cinza-900 border border-cinza-700 rounded-2xl w-full max-w-md mx-auto flex flex-col max-h-[88vh] sm:max-h-[75vh]">
         {/* Header */}
-        <div className="flex items-center justify-between px-5 py-4 border-b border-cinza-800 shrink-0">
+        <div className="flex items-center justify-between px-4 sm:px-5 py-4 border-b border-cinza-800 shrink-0">
           <span className="text-sm font-semibold text-cinza-50">🔄 Gerenciar Estoque</span>
           <button onClick={onClose}
             className="text-cinza-200 hover:text-cinza-50 transition-colors text-xl leading-none">
@@ -123,7 +131,7 @@ export default function ModalGerenciar({ open, produtos, localInicial, onClose, 
         </div>
 
         {/* Toggle entre freezer e câmara fria — muda quais tipos existem abaixo */}
-        <div className="px-5 pt-3 shrink-0 flex gap-2">
+        <div className="px-4 sm:px-5 pt-3 shrink-0 flex gap-2">
           {[["freezer", "🧊 Freezer"], ["camara_fria", "❄️ Câmara fria"]].map(([l, label]) => (
             <button key={l} onClick={() => trocarLocalModal(l)}
               className={`flex-1 py-1.5 rounded-lg text-[11px] font-medium border transition-all
@@ -136,7 +144,7 @@ export default function ModalGerenciar({ open, produtos, localInicial, onClose, 
         </div>
 
         {/* Toggle entre os tipos disponíveis */}
-        <div className="px-5 py-3 border-b border-cinza-800 shrink-0 flex gap-2">
+        <div className="px-4 sm:px-5 py-3 border-b border-cinza-800 shrink-0 flex gap-2">
           {tipos.map(t => (
             <button key={t} onClick={() => setTipo(t)}
               className={`flex-1 py-2 rounded-lg text-xs font-semibold border transition-all
@@ -145,14 +153,15 @@ export default function ModalGerenciar({ open, produtos, localInicial, onClose, 
                     : t === "transferencia" ? "border-roxo-700 bg-roxo-700/15 text-roxo-400"
                     : "border-emerald-500 bg-emerald-500/15 text-emerald-400"
                   : "border-cinza-700 text-cinza-200 hover:border-cinza-600"}`}>
-              {LABEL_TIPO[t]}
+              <span className="sm:hidden">{LABEL_TIPO_CURTO[t]}</span>
+              <span className="hidden sm:inline">{LABEL_TIPO[t]}</span>
             </button>
           ))}
         </div>
 
         {/* Nome do cliente — só faz sentido em venda */}
         {tipo === "venda" && (
-          <div className="px-5 py-3 border-b border-cinza-800 shrink-0">
+          <div className="px-4 sm:px-5 py-3 border-b border-cinza-800 shrink-0">
             <input
               type="text"
               value={cliente}
@@ -164,7 +173,7 @@ export default function ModalGerenciar({ open, produtos, localInicial, onClose, 
         )}
 
         {/* Corpo: lista de sabores adicionados, ou o picker */}
-        <div className="flex-1 min-h-0 overflow-y-auto px-5 py-3">
+        <div className="flex-1 min-h-0 overflow-y-auto px-4 sm:px-5 py-3">
           {!pickerAberto ? (
             <>
               {itensAtivos.length === 0 ? (
@@ -278,7 +287,7 @@ export default function ModalGerenciar({ open, produtos, localInicial, onClose, 
         </div>
 
         {/* Footer: resumo + ações */}
-        <div className="px-5 py-4 border-t border-cinza-800 shrink-0 flex flex-col gap-3">
+        <div className="px-4 sm:px-5 py-4 border-t border-cinza-800 shrink-0 flex flex-col gap-3">
           {itensAtivos.length > 0 && !pickerAberto && (
             <div className="flex items-center justify-between">
               <div className="text-xs text-cinza-200">

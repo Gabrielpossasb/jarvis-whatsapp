@@ -125,54 +125,67 @@ export default function Estoque() {
       // Os botões de operação são todos sobre o estoque de um local; nas
       // abas Financeiro e Tabela (que são visões consolidadas, sem local)
       // eles não teriam a que se referir.
+      // No celular fica só o emoji: os quatro rótulos ("🔄 Gerenciar",
+      // "📋 Contagem"…) disputavam a primeira linha com o título e
+      // sobrava uma tira de ~120px com scroll horizontal. Só emoji cabe
+      // ao lado do título sem rolagem; o rótulo volta a partir de `sm`.
       right: aba === "estoque" || aba === "historico" ? (
-        <div className="flex gap-2 overflow-x-auto no-scrollbar">
+        <div className="flex gap-1.5 sm:gap-2">
           <button
             onClick={() => setModoGerenciar(true)}
-            className="text-xs px-3 py-1 rounded-full bg-red-500/10 border border-red-500/30 text-red-400 hover:bg-red-500/20 transition-colors whitespace-nowrap shrink-0">
-            🔄 Gerenciar
+            title="Gerenciar" aria-label="Gerenciar estoque"
+            className="text-xs px-2.5 sm:px-3 py-1.5 sm:py-1 rounded-full bg-red-500/10 border border-red-500/30 text-red-400 hover:bg-red-500/20 transition-colors whitespace-nowrap shrink-0">
+            🔄<span className="hidden sm:inline"> Gerenciar</span>
           </button>
           <button
             onClick={() => setModoContagem(true)}
-            className="text-xs px-3 py-1 rounded-full bg-cinza-850 border border-cinza-700 text-cinza-200 hover:border-roxo-700 hover:text-roxo-400 transition-colors whitespace-nowrap shrink-0">
-            📋 Contagem
+            title="Contagem" aria-label="Contagem de estoque"
+            className="text-xs px-2.5 sm:px-3 py-1.5 sm:py-1 rounded-full bg-cinza-850 border border-cinza-700 text-cinza-200 hover:border-roxo-700 hover:text-roxo-400 transition-colors whitespace-nowrap shrink-0">
+            📋<span className="hidden sm:inline"> Contagem</span>
           </button>
           <button
             onClick={() => setModoFaltantes(true)}
-            className="text-xs px-3 py-1 rounded-full bg-cinza-850 border border-cinza-700 text-cinza-200 hover:border-roxo-700 hover:text-roxo-400 transition-colors whitespace-nowrap shrink-0">
-            {local === "freezer" ? "🧊 Faltantes" : "❄️ Faltantes"}
+            title="Faltantes" aria-label="Lista de faltantes"
+            className="text-xs px-2.5 sm:px-3 py-1.5 sm:py-1 rounded-full bg-cinza-850 border border-cinza-700 text-cinza-200 hover:border-roxo-700 hover:text-roxo-400 transition-colors whitespace-nowrap shrink-0">
+            {local === "freezer" ? "🧊" : "❄️"}<span className="hidden sm:inline"> Faltantes</span>
           </button>
           <button
             onClick={() => setModoNovoProduto(true)}
-            className="text-xs px-3 py-1 rounded-full bg-roxo-700/10 border border-roxo-700/30 text-roxo-400 hover:bg-roxo-700/20 transition-colors whitespace-nowrap shrink-0">
-            + Produto
+            title="Novo produto" aria-label="Novo produto"
+            className="text-xs px-2.5 sm:px-3 py-1.5 sm:py-1 rounded-full bg-roxo-700/10 border border-roxo-700/30 text-roxo-400 hover:bg-roxo-700/20 transition-colors whitespace-nowrap shrink-0">
+            +<span className="hidden sm:inline"> Produto</span>
           </button>
         </div>
       ) : null,
+      // No celular as pílulas ocupam a largura toda em partes iguais
+      // (`flex-1`) em vez de rolarem na horizontal: quatro abas com emoji
+      // + rótulo somavam mais que a tela, e a última ficava escondida sem
+      // nenhuma pista de que existia. O emoji sai abaixo de `sm` porque é
+      // o que faz "Financeiro" não caber.
       secondRow: (
         <div className="flex flex-col gap-2">
           {aba === "estoque" && (
-            <div className="flex gap-2 overflow-x-auto no-scrollbar">
-              {[["freezer", "🧊 Freezer"], ["camara_fria", "❄️ Câmara fria"]].map(([l, label]) => (
+            <div className="flex gap-2">
+              {[["freezer", "🧊", "Freezer"], ["camara_fria", "❄️", "Câmara fria"]].map(([l, icone, label]) => (
                 <button key={l} onClick={() => setLocal(l)}
-                  className={`px-3 py-1 rounded-lg text-xs font-medium border transition-all shrink-0
+                  className={`flex-1 sm:flex-none px-3 py-1.5 sm:py-1 rounded-lg text-xs font-medium border transition-all
                     ${local === l
                       ? "border-roxo-700 bg-roxo-700/13 text-roxo-400"
                       : "border-cinza-700 text-cinza-200 hover:border-cinza-600"}`}>
-                  {label}
+                  {icone} {label}
                 </button>
               ))}
             </div>
           )}
-          <div className="flex gap-2 overflow-x-auto no-scrollbar">
-            {[["estoque", "📦 Estoque"], ["historico", "📋 Histórico"],
-              ["financeiro", "💰 Financeiro"], ["tabela", "📊 Tabela"]].map(([a, l]) => (
+          <div className="flex gap-1.5 sm:gap-2">
+            {[["estoque", "📦", "Estoque"], ["historico", "📋", "Histórico"],
+              ["financeiro", "💰", "Financeiro"], ["tabela", "📊", "Tabela"]].map(([a, icone, label]) => (
               <button key={a} onClick={() => setAba(a)}
-                className={`px-3 py-1 rounded-lg text-xs font-medium border transition-all shrink-0
+                className={`flex-1 sm:flex-none px-2 sm:px-3 py-1.5 sm:py-1 rounded-lg text-xs font-medium border transition-all whitespace-nowrap
                   ${aba === a
                     ? "border-roxo-700 bg-roxo-700/13 text-roxo-400"
                     : "border-cinza-700 text-cinza-200 hover:border-cinza-600"}`}>
-                {l}
+                <span className="hidden sm:inline">{icone} </span>{label}
               </button>
             ))}
           </div>
@@ -232,7 +245,11 @@ export default function Estoque() {
 
     const campoAtual = local === "freezer" ? "estoque_atual" : "estoque_atual_camara";
     const delta = tipo === "entrada" ? quantidade : -quantidade;
-    const novoEstoque = Math.max(0, Number(produto.estoque_atual) + delta);
+    // Sem piso em zero de propósito: é comum lançar a venda antes de
+    // registrar a transferência da câmara, e o saldo negativo é o que
+    // mostra que a transferência ainda falta. Truncar em 0 apagaria essa
+    // informação e o estoque nunca fecharia depois.
+    const novoEstoque = Number(produto.estoque_atual) + delta;
 
     const [{ error: e1 }, { error: e2 }] = await Promise.all([
       supabase.from("estoque_movimentacoes").insert({
@@ -392,15 +409,17 @@ export default function Estoque() {
       return false;
     }
 
+    // Sem piso em zero — mesmo motivo do registrarMovimentacao: venda
+    // lançada antes da transferência deve deixar o saldo negativo.
     await Promise.all(itensAtivos.map(p => {
-      const novoEstoque = Math.max(0, Number(p.estoque_atual) + sinal * itens[p.id]);
+      const novoEstoque = Number(p.estoque_atual) + sinal * itens[p.id];
       return supabase.from("estoque_produtos").update({ [campoAtual]: novoEstoque }).eq("id", p.id);
     }));
 
     setProdutos(prev => prev.map(p => {
       const qty = itens[p.id];
       if (!qty) return p;
-      return { ...p, [campoAtual]: Math.max(0, Number(p[campoAtual]) + sinal * qty) };
+      return { ...p, [campoAtual]: Number(p[campoAtual]) + sinal * qty };
     }));
 
     setMovs(prev => [

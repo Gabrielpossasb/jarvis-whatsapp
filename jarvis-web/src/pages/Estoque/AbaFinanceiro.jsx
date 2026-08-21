@@ -46,10 +46,10 @@ function apurar(lancamentos, produtosPorId) {
 
 function Card({ label, valor, cor, sub }) {
   return (
-    <div className="bg-cinza-900 border border-cinza-800 rounded-xl px-3 py-2.5">
-      <div className="text-[9px] text-cinza-350 mb-1">{label}</div>
-      <div className={`font-mono text-xs md:text-sm font-medium ${cor}`}>{valor}</div>
-      {sub && <div className="text-[9px] text-cinza-350 mt-0.5">{sub}</div>}
+    <div className="bg-cinza-900 border border-cinza-800 rounded-xl px-2.5 sm:px-3 py-2 sm:py-2.5 min-w-0">
+      <div className="text-[9px] text-cinza-350 mb-1 leading-tight">{label}</div>
+      <div className={`font-mono tabular-nums text-xs md:text-sm font-medium truncate ${cor}`}>{valor}</div>
+      {sub && <div className="text-[9px] text-cinza-350 mt-0.5 truncate">{sub}</div>}
     </div>
   );
 }
@@ -162,26 +162,31 @@ export default function AbaFinanceiro({ lancamentos, produtos, onNovaDespesa, on
           </div>
         )}
 
-        {/* Filtro de tipo + nova despesa */}
-        <div className="flex gap-2 items-center mb-2 overflow-x-auto no-scrollbar">
-          <button onClick={() => setTiposAtivos(new Set())}
-            className={`px-3 py-1 rounded-full text-xs border transition-all whitespace-nowrap shrink-0
-              ${tiposAtivos.size === 0
-                ? "border-roxo-700 bg-roxo-700/13 text-roxo-400"
-                : "border-cinza-700 text-cinza-200 hover:border-cinza-600"}`}>
-            Todos
-          </button>
-          {TIPOS.map(t => (
-            <button key={t} onClick={() => toggleTipo(t)}
+        {/* Filtro de tipo + nova despesa. O botão fica FORA do container
+            que rola: com `ml-auto` dentro dele, no celular ele saía da
+            área visível e só aparecia arrastando pro lado — invisível pra
+            quem não soubesse que estava lá. */}
+        <div className="flex gap-2 items-center mb-2">
+          <div className="flex gap-2 items-center overflow-x-auto no-scrollbar flex-1 min-w-0">
+            <button onClick={() => setTiposAtivos(new Set())}
               className={`px-3 py-1 rounded-full text-xs border transition-all whitespace-nowrap shrink-0
-                ${tiposAtivos.has(t)
+                ${tiposAtivos.size === 0
                   ? "border-roxo-700 bg-roxo-700/13 text-roxo-400"
                   : "border-cinza-700 text-cinza-200 hover:border-cinza-600"}`}>
-              {TIPO_LANC_LABEL[t]}
+              Todos
             </button>
-          ))}
+            {TIPOS.map(t => (
+              <button key={t} onClick={() => toggleTipo(t)}
+                className={`px-3 py-1 rounded-full text-xs border transition-all whitespace-nowrap shrink-0
+                  ${tiposAtivos.has(t)
+                    ? "border-roxo-700 bg-roxo-700/13 text-roxo-400"
+                    : "border-cinza-700 text-cinza-200 hover:border-cinza-600"}`}>
+                {TIPO_LANC_LABEL[t]}
+              </button>
+            ))}
+          </div>
           <button onClick={onNovaDespesa}
-            className="ml-auto px-3 py-1 rounded-full text-xs font-semibold bg-roxo-700/10 border border-roxo-700/30 text-roxo-400 hover:bg-roxo-700/20 transition-colors whitespace-nowrap shrink-0">
+            className="px-3 py-1.5 sm:py-1 rounded-full text-xs font-semibold bg-roxo-700/10 border border-roxo-700/30 text-roxo-400 hover:bg-roxo-700/20 transition-colors whitespace-nowrap shrink-0">
             + Despesa
           </button>
         </div>
@@ -193,20 +198,22 @@ export default function AbaFinanceiro({ lancamentos, produtos, onNovaDespesa, on
           <div className="bg-cinza-900 border border-cinza-800 rounded-xl overflow-hidden">
             {visiveis.map((l, i) => (
               <button key={l.id} onClick={() => onEditar(l)}
-                className={`w-full flex items-center gap-3 px-4 py-2.5 text-left hover:bg-cinza-850 transition-colors
+                className={`w-full flex items-center gap-2 sm:gap-3 px-3 sm:px-4 py-2.5 text-left hover:bg-cinza-850 transition-colors
                   ${i < visiveis.length - 1 ? "border-b border-cinza-850" : ""}`}>
-                <span className={`text-[10px] px-2 py-0.5 rounded-full font-medium shrink-0 ${TIPO_LANC_BADGE[l.tipo]}`}>
+                <span className={`text-[10px] px-1.5 sm:px-2 py-0.5 rounded-full font-medium shrink-0 ${TIPO_LANC_BADGE[l.tipo]}`}>
                   {TIPO_LANC_LABEL[l.tipo]}
                 </span>
                 <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-1.5 text-xs text-cinza-50 truncate">
+                  <div className="flex items-center gap-1.5 text-xs text-cinza-50 min-w-0">
                     {l.produto_id && produtosPorId[l.produto_id] && (
                       <IconeProduto p={produtosPorId[l.produto_id]} size={20} />
                     )}
                     <span className="truncate">{l.descricao || l.categoria || "—"}</span>
-                    {l.pessoa && <span className="text-cinza-200 shrink-0">· {l.pessoa}</span>}
+                    {/* sem shrink-0: um nome de cliente longo empurrava o
+                        valor pra fora da linha no celular */}
+                    {l.pessoa && <span className="text-cinza-200 truncate">· {l.pessoa}</span>}
                   </div>
-                  <div className="text-[10px] text-cinza-350 mt-0.5">
+                  <div className="text-[10px] text-cinza-350 mt-0.5 truncate">
                     {fmtDataCurta(l.data)}
                     {l.quantidade != null && (
                       <span> · {Number(l.quantidade).toLocaleString("pt-BR", { maximumFractionDigits: 1 })} {produtosPorId[l.produto_id]?.unidade || ""}</span>
@@ -215,7 +222,7 @@ export default function AbaFinanceiro({ lancamentos, produtos, onNovaDespesa, on
                     {l.editado && <span className="text-roxo-400"> · editado</span>}
                   </div>
                 </div>
-                <span className={`font-mono text-xs font-semibold shrink-0
+                <span className={`font-mono tabular-nums text-xs font-semibold shrink-0
                   ${l.tipo === "venda" ? "text-emerald-400" : "text-red-400"}`}>
                   {l.tipo === "venda" ? "+" : "−"}{fmtMoeda(l.valor)}
                 </span>
